@@ -1,0 +1,124 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  build-and-test:
+    name: Build & Test Frontend
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [ 20.x ]  # TODO: Adjust Node version as needed
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run Linter (if configured)
+        run: |
+          cd frontend
+          npm run lint --if-present
+        continue-on-error: true  # TODO: Remove 'continue-on-error' once linting is properly configured
+
+      - name: Run Tests (if configured)
+        run: |
+          cd frontend
+          npm test -- --run --coverage
+        continue-on-error: true  # TODO: Remove 'continue-on-error' once tests are properly configured
+
+      - name: Build for Production
+        run: |
+          cd frontend
+          npm run build
+        env:
+          # TODO: Configure environment variables if needed for build
+          VITE_API_BASE_URL: http://localhost:8080
+
+      - name: Check Build Output
+        run: |
+          ls -la frontend/dist/
+          [ -f frontend/dist/index.html ] && echo "✓ index.html exists" || exit 1
+
+      - name: Upload Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist/
+          retention-days: 7
+
+      - name: Upload Test Coverage (if available)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 30
+        continue-on-error: true
+
+  build-docker:
+    name: Build Frontend Docker Image
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    # TODO: Update docker registry, image name, and credentials
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: myatlas-frontend:latest
+          build-args: |
+            VITE_API_BASE_URL=http://backend:8080
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # TODO: Uncomment and configure below for actual Docker registry push (requires registry credentials in GitHub Secrets)
+      # - name: Login to Docker Registry
+      #   uses: docker/login-action@v3
+      #   with:
+      #     registry: ghcr.io  # Change if using different registry
+      #     username: ${{ github.actor }}
+      #     password: ${{ secrets.GITHUB_TOKEN }}
+      #
+      # - name: Push Docker image
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: ./frontend
+      #     file: ./frontend/Dockerfile
+      #     push: true
+      #     tags: ghcr.io/${{ github.repository }}/frontend:latest
+      #     build-args: |
+      #       VITE_API_BASE_URL=http://backend:8080
+      #     cache-from: type=gha
+      #     cache-to: type=gha,mode=max

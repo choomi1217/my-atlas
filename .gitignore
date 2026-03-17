@@ -1,0 +1,35 @@
+# Environment secrets
+.env
+application-secret.yml
+
+# Java / Gradle
+.gradle/
+build/
+*.class
+*.jar
+*.war
+*.ear
+out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# macOS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
