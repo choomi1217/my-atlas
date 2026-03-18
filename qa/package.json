@@ -1,0 +1,18 @@
+{
+  "name": "my-atlas-qa",
+  "version": "1.0.0",
+  "description": "E2E tests for my-atlas (API + UI)",
+  "scripts": {
+    "e2e:api": "playwright test api/",
+    "e2e:ui": "playwright test ui/",
+    "e2e:all": "playwright test",
+    "e2e:headed": "playwright test --headed ui/",
+    "e2e:ui-mode": "playwright test --ui",
+    "e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@playwright/mcp": "^0.0.26",
+    "axios": "^1.7.0"
+  }
+}

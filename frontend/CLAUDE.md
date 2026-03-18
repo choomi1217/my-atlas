@@ -670,7 +670,7 @@ function App() {
 
 ### Environment Variables
 - File: `.env.local` (create locally, not in repo)
-- Template: `.env.example` (checked in)
+- Template: `.env` (checked in)
 - Access: `import.meta.env.VITE_*`
 
 ---

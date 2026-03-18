@@ -1,0 +1,304 @@
+<testsuites id="" name="" tests="21" failures="8" skipped="0" errors="0" time="655.9416690000002">
+<testsuite name="ui/company-panel.spec.ts" timestamp="2026-03-18T04:57:55.784Z" hostname="chromium" tests="6" failures="0" skipped="0" time="5.273" errors="0">
+<testcase name="Features Page - Company Panel › should display three panels on page load" classname="ui/company-panel.spec.ts" time="1.009">
+</testcase>
+<testcase name="Features Page - Company Panel › should add a company when name is entered and Enter is pressed" classname="ui/company-panel.spec.ts" time="0.888">
+</testcase>
+<testcase name="Features Page - Company Panel › should activate company and show Active badge" classname="ui/company-panel.spec.ts" time="0.892">
+</testcase>
+<testcase name="Features Page - Company Panel › should show placeholder when no company is selected" classname="ui/company-panel.spec.ts" time="0.789">
+</testcase>
+<testcase name="Features Page - Company Panel › should delete company when confirmed" classname="ui/company-panel.spec.ts" time="0.846">
+</testcase>
+<testcase name="Features Page - Company Panel › should not delete company when confirmation is dismissed" classname="ui/company-panel.spec.ts" time="0.849">
+</testcase>
+</testsuite>
+<testsuite name="ui/feature-panel.spec.ts" timestamp="2026-03-18T04:57:55.784Z" hostname="chromium" tests="8" failures="7" skipped="0" time="632.602" errors="0">
+<testcase name="Features Page - Feature Panel › should enable Feature panel after product is selected" classname="ui/feature-panel.spec.ts" time="1.073">
+</testcase>
+<testcase name="Features Page - Feature Panel › should add a feature and display it in the list" classname="ui/feature-panel.spec.ts" time="62.331">
+<failure message="feature-panel.spec.ts:52:7 should add a feature and display it in the list" type="FAILURE">
+<![CDATA[  [chromium] › ui/feature-panel.spec.ts:52:7 › Features Page - Feature Panel › should add a feature and display it in the list 
+
+    TimeoutError: page.waitForResponse: Timeout 60000ms exceeded while waiting for event "response"
+
+       at pages/features-page.ts:213
+
+      211 |     // Set up response listener BEFORE clicking button
+      212 |     // Embedding can take >10s, so use a 60 second timeout
+    > 213 |     const responsePromise = this.page.waitForResponse(
+          |                                       ^
+      214 |       resp => resp.url().includes('/api/features') && resp.request().method() === 'POST',
+      215 |       { timeout: 60000 }
+      216 |     );
+        at FeaturesPage.addFeature (/Users/yeongmi/dev/qa/my-atlas/qa/pages/features-page.ts:213:39)
+        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/feature-panel.spec.ts:57:5
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--a6223--and-display-it-in-the-list-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--a6223--and-display-it-in-the-list-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ui-feature-panel-Features--a6223--and-display-it-in-the-list-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/ui-feature-panel-Features--a6223--and-display-it-in-the-list-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--a6223--and-display-it-in-the-list-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--a6223--and-display-it-in-the-list-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Features Page - Feature Panel › should show &quot;Creating (embedding...)&quot; state while feature is being created" classname="ui/feature-panel.spec.ts" time="62.389">
+<failure message="feature-panel.spec.ts:67:7 should show &quot;Creating (embedding...)&quot; state while feature is being created" type="FAILURE">
+<![CDATA[  [chromium] › ui/feature-panel.spec.ts:67:7 › Features Page - Feature Panel › should show "Creating (embedding...)" state while feature is being created 
+
+    TimeoutError: page.waitForSelector: Timeout 60000ms exceeded.
+    Call log:
+      - waiting for locator('button:has-text("Add Feature")') to be visible
+
+
+       at pages/features-page.ts:294
+
+      292 |     // Wait for "Add Feature" button to reappear (not "Creating (embedding...)")
+      293 |     // Use selector instead of waitForFunction since we can't use locators in waitForFunction
+    > 294 |     await this.page.waitForSelector('button:has-text("Add Feature")', { timeout: 60000 });
+          |                     ^
+      295 |   }
+      296 |
+      297 |   /**
+        at FeaturesPage.waitForFeatureCreation (/Users/yeongmi/dev/qa/my-atlas/qa/pages/features-page.ts:294:21)
+        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/feature-panel.spec.ts:91:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--e2f50-le-feature-is-being-created-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--e2f50-le-feature-is-being-created-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ui-feature-panel-Features--e2f50-le-feature-is-being-created-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/ui-feature-panel-Features--e2f50-le-feature-is-being-created-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--e2f50-le-feature-is-being-created-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--e2f50-le-feature-is-being-created-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Features Page - Feature Panel › should edit feature inline and save changes" classname="ui/feature-panel.spec.ts" time="122.623">
+<failure message="feature-panel.spec.ts:94:7 should edit feature inline and save changes" type="FAILURE">
+<![CDATA[  [chromium] › ui/feature-panel.spec.ts:94:7 › Features Page - Feature Panel › should edit feature inline and save changes 
+
+    Test timeout of 120000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--720e7-ure-inline-and-save-changes-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--720e7-ure-inline-and-save-changes-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ui-feature-panel-Features--720e7-ure-inline-and-save-changes-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/ui-feature-panel-Features--720e7-ure-inline-and-save-changes-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--720e7-ure-inline-and-save-changes-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--720e7-ure-inline-and-save-changes-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Features Page - Feature Panel › should cancel feature edit without saving changes" classname="ui/feature-panel.spec.ts" time="122.599">
+<failure message="feature-panel.spec.ts:119:7 should cancel feature edit without saving changes" type="FAILURE">
+<![CDATA[  [chromium] › ui/feature-panel.spec.ts:119:7 › Features Page - Feature Panel › should cancel feature edit without saving changes 
+
+    Test timeout of 120000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--03ca1-edit-without-saving-changes-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--03ca1-edit-without-saving-changes-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ui-feature-panel-Features--03ca1-edit-without-saving-changes-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/ui-feature-panel-Features--03ca1-edit-without-saving-changes-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--03ca1-edit-without-saving-changes-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--03ca1-edit-without-saving-changes-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Features Page - Feature Panel › should delete feature when confirmed" classname="ui/feature-panel.spec.ts" time="122.492">
+<failure message="feature-panel.spec.ts:139:7 should delete feature when confirmed" type="FAILURE">
+<![CDATA[  [chromium] › ui/feature-panel.spec.ts:139:7 › Features Page - Feature Panel › should delete feature when confirmed 
+
+    Test timeout of 120000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--f7d81-lete-feature-when-confirmed-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--f7d81-lete-feature-when-confirmed-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ui-feature-panel-Features--f7d81-lete-feature-when-confirmed-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/ui-feature-panel-Features--f7d81-lete-feature-when-confirmed-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--f7d81-lete-feature-when-confirmed-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--f7d81-lete-feature-when-confirmed-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Features Page - Feature Panel › should display multiple features correctly after page reload" classname="ui/feature-panel.spec.ts" time="122.616">
+<failure message="feature-panel.spec.ts:161:7 should display multiple features correctly after page reload" type="FAILURE">
+<![CDATA[  [chromium] › ui/feature-panel.spec.ts:161:7 › Features Page - Feature Panel › should display multiple features correctly after page reload 
+
+    Test timeout of 120000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--67c7c-correctly-after-page-reload-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--67c7c-correctly-after-page-reload-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ui-feature-panel-Features--67c7c-correctly-after-page-reload-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/ui-feature-panel-Features--67c7c-correctly-after-page-reload-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--67c7c-correctly-after-page-reload-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--67c7c-correctly-after-page-reload-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Features Page - Feature Panel › should show placeholder when no product is selected" classname="ui/feature-panel.spec.ts" time="16.479">
+<failure message="feature-panel.spec.ts:186:7 should show placeholder when no product is selected" type="FAILURE">
+<![CDATA[  [chromium] › ui/feature-panel.spec.ts:186:7 › Features Page - Feature Panel › should show placeholder when no product is selected 
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for locator('div.w-64').first().locator('div.overflow-y-auto').locator('div.font-medium').filter({ hasText: 'E2E Feature Panel Company 2' }).first()
+
+
+       at pages/features-page.ts:92
+
+      90 |       .filter({ hasText: name })
+      91 |       .first();
+    > 92 |     await nameDiv.click({ timeout: 15000 });
+         |                   ^
+      93 |     await this.page.waitForLoadState('networkidle');
+      94 |   }
+      95 |
+        at FeaturesPage.selectCompany (/Users/yeongmi/dev/qa/my-atlas/qa/pages/features-page.ts:92:19)
+        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/feature-panel.spec.ts:189:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--db223-when-no-product-is-selected-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/ui-feature-panel-Features--db223-when-no-product-is-selected-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ui-feature-panel-Features--db223-when-no-product-is-selected-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/ui-feature-panel-Features--db223-when-no-product-is-selected-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--db223-when-no-product-is-selected-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/ui-feature-panel-Features--db223-when-no-product-is-selected-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="ui/product-panel.spec.ts" timestamp="2026-03-18T04:57:55.784Z" hostname="chromium" tests="7" failures="1" skipped="0" time="7.588" errors="0">
+<testcase name="Features Page - Product Panel › should enable Product panel after company is selected" classname="ui/product-panel.spec.ts" time="0.948">
+</testcase>
+<testcase name="Features Page - Product Panel › should add a WEB product" classname="ui/product-panel.spec.ts" time="0.958">
+</testcase>
+<testcase name="Features Page - Product Panel › should add a MOBILE product" classname="ui/product-panel.spec.ts" time="1.097">
+</testcase>
+<testcase name="Features Page - Product Panel › should display both products after adding two products" classname="ui/product-panel.spec.ts" time="1.012">
+</testcase>
+<testcase name="Features Page - Product Panel › should highlight selected product with blue border" classname="ui/product-panel.spec.ts" time="1.072">
+</testcase>
+<testcase name="Features Page - Product Panel › should delete product when confirmed" classname="ui/product-panel.spec.ts" time="0.924">
+<failure message="product-panel.spec.ts:98:7 should delete product when confirmed" type="FAILURE">
+<![CDATA[  [chromium] › ui/product-panel.spec.ts:98:7 › Features Page - Product Panel › should delete product when confirmed 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      102 |     // Verify product exists
+      103 |     let productExists = await featuresPage.productList.getByText(productName).isVisible();
+    > 104 |     expect(productExists).toBe(true);
+          |                           ^
+      105 |
+      106 |     await featuresPage.deleteProduct(productName);
+      107 |
+        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/product-panel.spec.ts:104:27
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/ui-product-panel-Features--dc9af-lete-product-when-confirmed-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/ui-product-panel-Features--dc9af-lete-product-when-confirmed-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/ui-product-panel-Features--dc9af-lete-product-when-confirmed-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/ui-product-panel-Features--dc9af-lete-product-when-confirmed-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/ui-product-panel-Features--dc9af-lete-product-when-confirmed-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/ui-product-panel-Features--dc9af-lete-product-when-confirmed-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Features Page - Product Panel › should show placeholder when no product is selected" classname="ui/product-panel.spec.ts" time="1.577">
+</testcase>
+</testsuite>
+</testsuites>

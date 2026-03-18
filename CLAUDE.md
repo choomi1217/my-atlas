@@ -28,7 +28,7 @@ my-atlas/
 │   └── vite.config.ts
 ├── docker-compose.yml        # Postgres, backend, frontend orchestration
 ├── .github/workflows/        # CI/CD pipelines
-├── .env.example              # Environment template
+├── .env                      # Environment variables
 └── CLAUDE.md                 # This file
 ```
 
@@ -145,6 +145,46 @@ frontend/CLAUDE.md contains:
 
 ---
 
+## 🔄 Sub-agent Workflow for Feature Implementation
+
+**For all feature requests**, Claude must execute the following 3-agent pipeline in order:
+
+Each agent is defined in `.claude/agents/` with specific tool permissions:
+
+### Agent 1 — Code Implementation
+**File:** `.claude/agents/feature-implementor.md`
+**Task:** Write feature code
+**Tools:** Read, Write, Edit, Glob, Grep
+**Scope:** Implement feature based on requirements, reference existing code patterns
+**Success Criteria:** Code compiles, follows project conventions
+
+### Agent 2 — Test Code Writing
+**File:** `.claude/agents/test-writer.md`
+**Task:** Write comprehensive tests for Agent 1's code
+**Tools:** Read, Write, Edit, Glob, Grep
+**Scope:** Unit tests + E2E test scenarios based on feature spec
+**Success Criteria:** Test files exist with meaningful coverage
+
+### Agent 3 — Build & Test Verification
+**File:** `.claude/agents/build-verifier.md`
+**Task:** Compile, run tests, verify all pass
+**Tools:** Bash, Read, Glob, Grep (Write/Edit disabled)
+**Commands:**
+```bash
+cd backend && ./gradlew clean build
+./gradlew test
+```
+**Success Criteria:** Build succeeds, all tests pass (0 failures)
+**On Failure:** Analyze error logs, notify Agent 1 or Agent 2 to fix, re-run Agent 3
+
+**Absolute Rules:**
+- ❌ **NEVER declare "complete"** without Agent 3 passing
+- ❌ **NEVER skip** any agent in the pipeline
+- ✅ **ALWAYS fix** build/test errors before final approval
+- ✅ **ALWAYS capture** error context for debugging
+
+---
+
 ## ⚠️ Critical Rules
 
 ### ❌ NEVER Do This
@@ -159,14 +199,14 @@ frontend/CLAUDE.md contains:
 - **Pull latest develop** before creating a feature branch
 - **Check CI/CD status** in GitHub Actions
 - **Write clear commit messages** following the format
-- **Update .env.example** if new environment variables are added
+- **Update .env** if new environment variables are added
 
 ---
 
 ## 📁 Environment Configuration
 
 ### Local Development (`.env` or `.env.local`)
-Copy from `.env.example` and fill in:
+Copy from `.env` and fill in:
 ```bash
 # Database
 POSTGRES_USER=qa_user
@@ -186,7 +226,7 @@ VITE_API_BASE_URL=http://localhost:8080
 ```
 
 - **Never commit `.env`** — it's in `.gitignore`
-- Use `.env.example` as a template for new variables
+- Use `.env` as a template for new variables
 - GitHub Actions securely access sensitive values via **GitHub Secrets** (see setup guide below)
 
 ---

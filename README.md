@@ -30,10 +30,7 @@ my-atlas/
 
 ### 1. Set up environment variables
 
-```bash
-cp .env.example .env
-# Edit .env and fill in your actual values
-```
+Create a `.env` file and fill in your actual values (refer to `.env` for required variables).
 
 ### 2. Start infrastructure (DB)
 

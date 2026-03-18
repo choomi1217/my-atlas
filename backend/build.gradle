@@ -31,14 +31,19 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-    // Spring AI — Anthropic (Claude)
+    // Spring AI — Anthropic (Claude) + OpenAI (Embeddings)
     implementation 'org.springframework.ai:spring-ai-anthropic-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
 
     // PostgreSQL driver
     runtimeOnly 'org.postgresql:postgresql'
 
     // pgvector support via JPA + JDBC
     implementation 'com.pgvector:pgvector:0.1.4'
+
+    // Flyway for database migrations
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 
     // Lombok (optional but reduces boilerplate)
     compileOnly 'org.projectlombok:lombok'

@@ -1,0 +1,52 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - heading "my-atlas" [level=1] [ref=e6]
+      - paragraph [ref=e7]: QA Knowledge Hub
+    - navigation [ref=e8]:
+      - link "My Senior" [ref=e9] [cursor=pointer]:
+        - /url: /senior
+      - link "Knowledge Base" [ref=e10] [cursor=pointer]:
+        - /url: /kb
+      - link "Word Conventions" [ref=e11] [cursor=pointer]:
+        - /url: /conventions
+      - link "Company Features" [ref=e12] [cursor=pointer]:
+        - /url: /features
+      - link "Ticket Reviewer" [ref=e13] [cursor=pointer]:
+        - /url: /ticket
+  - main [ref=e14]:
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - heading "Companies" [level=3] [ref=e18]
+          - generic [ref=e19]:
+            - textbox "New company..." [ref=e20]
+            - button "+" [ref=e21] [cursor=pointer]
+        - generic [ref=e23] [cursor=pointer]:
+          - generic [ref=e24]: E2E Product Panel Company
+          - generic [ref=e25]:
+            - button "Activate" [ref=e26]
+            - button "Delete" [ref=e27]
+      - generic [ref=e28]:
+        - generic [ref=e29]:
+          - heading "Products" [level=3] [ref=e30]
+          - generic [ref=e31]:
+            - textbox "Product name..." [ref=e32]
+            - combobox [ref=e33]:
+              - option "WEB" [selected]
+              - option "DESKTOP"
+              - option "MOBILE"
+              - option "ETC"
+            - textbox "Description (optional)..." [ref=e34]
+            - button "Add Product" [active] [ref=e35] [cursor=pointer]
+        - generic [ref=e37] [cursor=pointer]:
+          - generic [ref=e38]: E2E Delete Product
+          - generic [ref=e40]: WEB
+          - button "Delete" [ref=e41]
+      - generic [ref=e43]:
+        - heading "Features" [level=3] [ref=e44]
+        - paragraph [ref=e45]: Select a product first
+```

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://mcp.anthropic.com/.mcp.json",
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp", "--browser", "chromium"],
+      "cwd": "/Users/yeongmi/dev/qa/my-atlas/qa"
+    }
+  }
+}
