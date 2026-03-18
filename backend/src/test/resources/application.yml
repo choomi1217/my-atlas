@@ -13,6 +13,12 @@ spring:
   flyway:
     enabled: false
 
+  ai:
+    anthropic:
+      api-key: test-key-do-not-use
+    openai:
+      api-key: test-key-do-not-use
+
 feature:
   embedding:
     enabled: true
