@@ -167,21 +167,42 @@ Each agent is defined in `.claude/agents/` with specific tool permissions:
 
 ### Agent 3 — Build & Test Verification
 **File:** `.claude/agents/build-verifier.md`
-**Task:** Compile, run tests, verify all pass
+**Task:** Compile, run all tests, verify full stack E2E passes
 **Tools:** Bash, Read, Glob, Grep (Write/Edit disabled)
-**Commands:**
+**Commands (must all pass in order):**
 ```bash
-cd backend && ./gradlew clean build
+# Step 1: Backend build
+cd /Users/yeongmi/dev/qa/my-atlas/backend && ./gradlew clean build
+
+# Step 2: Unit tests
 ./gradlew test
+
+# Step 3: Start full stack (from repo root)
+cd /Users/yeongmi/dev/qa/my-atlas && docker compose up -d && sleep 10
+
+# Step 4: E2E tests
+cd /Users/yeongmi/dev/qa/my-atlas/qa && npx playwright test
+
+# Teardown (always, unconditional)
+cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 ```
-**Success Criteria:** Build succeeds, all tests pass (0 failures)
-**On Failure:** Analyze error logs, notify Agent 1 or Agent 2 to fix, re-run Agent 3
+**Success Criteria:** ALL of the following must pass:
+- `./gradlew clean build` exits 0
+- `./gradlew test` exits 0 with 0 failures
+- `docker compose up -d && sleep 10` succeeds, all containers running
+- `npx playwright test` exits 0 with 0 E2E failures
+
+**On Failure:** Analyze error logs, identify whether Agent 1 (code fix) or Agent 2 (test fix) is responsible, return detailed error report, re-run Agent 3 from Step 1 after fix is applied.
+
+**Implementation is NOT complete until all four steps pass.**
 
 **Absolute Rules:**
-- ❌ **NEVER declare "complete"** without Agent 3 passing
+- ❌ **NEVER declare "complete"** without Agent 3 passing ALL four steps (build + unit tests + docker stack + E2E)
 - ❌ **NEVER skip** any agent in the pipeline
+- ❌ **NEVER skip E2E** — "optional" does not apply to Agent 3's E2E step
 - ✅ **ALWAYS fix** build/test errors before final approval
 - ✅ **ALWAYS capture** error context for debugging
+- ✅ **ALWAYS run `docker compose down`** after Agent 3 finishes, regardless of outcome
 
 ---
 
