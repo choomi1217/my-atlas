@@ -85,8 +85,7 @@ frontend/src/
 │   ├── SeniorPage.tsx          # AI chat page (route: /)
 │   ├── KnowledgeBasePage.tsx   # KB page (route: /kb)
 │   ├── ConventionsPage.tsx     # Conventions (route: /conventions)
-│   ├── FeaturesPage.tsx        # Features (route: /features)
-│   └── TicketPage.tsx          # Ticket review (route: /ticket)
+│   └── FeaturesPage.tsx        # Features (route: /features)
 ├── hooks/                      # Custom React hooks
 │   ├── useSenior.ts            # Custom hook for Senior API calls
 │   └── ...

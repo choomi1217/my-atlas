@@ -1,7 +1,7 @@
 # my-atlas
 
 Personal QA web application for accumulating QA know-how, terminology conventions,
-company feature information, and AI-assisted ticket reviewing.
+and company feature information.
 
 ## Tech Stack
 
@@ -65,4 +65,3 @@ docker-compose up --build
 - **Knowledge Base** (`/kb`) — Accumulated QA know-how
 - **Word Conventions** (`/conventions`) — Terminology standards
 - **Company Features** (`/features`) — Product feature registry
-- **Ticket Reviewer** (`/ticket`) — AI-assisted ticket review

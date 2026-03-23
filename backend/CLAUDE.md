@@ -86,7 +86,7 @@ com/myqaweb/
     └── CustomException.java        # Custom runtime exceptions
 ```
 
-**Current domains:** `convention`, `feature`, `knowledgebase`, `senior`, `ticket`
+**Current domains:** `convention`, `feature`, `knowledgebase`, `senior`
 
 ---
 
@@ -164,10 +164,10 @@ com/myqaweb/
     ```java
     @Data
     @Builder
-    public class TicketDto {
+    public class ConventionDto {
         private Long id;
-        private String title;
-        private String status;
+        private String term;
+        private String definition;
     }
     ```
 

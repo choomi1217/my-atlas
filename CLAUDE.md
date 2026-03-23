@@ -2,14 +2,13 @@
 
 ## 📋 Project Overview
 
-**my-atlas** is a full-stack QA (Quality Assurance) knowledge management application built with Spring Boot and React. It provides AI-powered assistance for QA professionals to manage testing conventions, feature documentation, knowledge bases, and automated ticket review using Claude AI.
+**my-atlas** is a full-stack QA (Quality Assurance) knowledge management application built with Spring Boot and React. It provides AI-powered assistance for QA professionals to manage testing conventions, feature documentation, and knowledge bases using Claude AI.
 
 ### Key Features
 - **AI Senior QA Chat** (`/`) — Conversational AI advisor powered by Claude
 - **Knowledge Base** (`/kb`) — QA best practices and testing guidelines
 - **Word Conventions** (`/conventions`) — Terminology standardization
 - **Feature Registry** (`/features`) — Feature tracking and documentation
-- **Ticket AI Reviewer** (`/ticket`) — Automated PR/ticket analysis
 
 ---
 
@@ -21,7 +20,7 @@ my-atlas/
 │   ├── src/main/java/com/myqaweb/
 │   ├── src/test/java/
 │   ├── build.gradle
-│   └── gradle/
+│   └── gradle
 ├── frontend/                 # React SPA (TypeScript, Vite, Tailwind)
 │   ├── src/
 │   ├── package.json
@@ -33,13 +32,13 @@ my-atlas/
 ```
 
 **Backend responsibilities:**
-- RESTful API for CRUD operations (conventions, features, knowledge base, seniors, tickets)
+- RESTful API for CRUD operations (conventions, features, knowledge base, seniors)
 - Integration with Claude API via Spring AI for AI-powered features
 - Database management (PostgreSQL + pgvector for embeddings)
 - Authentication & authorization (if applicable)
 
 **Frontend responsibilities:**
-- React UI for all five feature domains
+- React UI for all four feature domains
 - API client communication with backend
 - State management and user interactions
 - Responsive design with Tailwind CSS
@@ -91,7 +90,7 @@ Optional footer (e.g., Closes #123)
 
 **Examples:**
 ```
-[feat] Add email notification for ticket reviews
+[feat] Add email notification for test case updates
 
 [fix] Resolve null pointer in knowledge base service
 - Fixed NullPointerException when fetching KB with no tags

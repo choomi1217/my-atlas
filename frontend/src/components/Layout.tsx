@@ -5,8 +5,7 @@ const navItems = [
   { to: '/senior',      label: 'My Senior'        },
   { to: '/kb',          label: 'Knowledge Base'   },
   { to: '/conventions', label: 'Word Conventions' },
-  { to: '/features',    label: 'Company Features' },
-  { to: '/ticket',      label: 'Ticket Reviewer'  },
+  { to: '/features',    label: 'Product Test Suite' },
 ]
 
 interface LayoutProps {
