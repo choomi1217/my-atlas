@@ -1,120 +1,138 @@
-<testsuites id="" name="" tests="52" failures="0" skipped="0" errors="0" time="18.695636999999998">
-<testsuite name="api/company.spec.ts" timestamp="2026-03-19T11:27:36.666Z" hostname="chromium" tests="10" failures="0" skipped="0" time="0.4" errors="0">
-<testcase name="Company API E2E › GET /api/companies - empty state returns empty array" classname="api/company.spec.ts" time="0.217">
+<testsuites id="" name="" tests="60" failures="0" skipped="0" errors="0" time="20.387784000000003">
+<testsuite name="api/company.spec.ts" timestamp="2026-03-23T07:29:46.445Z" hostname="chromium" tests="10" failures="0" skipped="0" time="0.242" errors="0">
+<testcase name="Company API E2E › GET /api/companies - empty state returns empty array" classname="api/company.spec.ts" time="0.063">
 </testcase>
-<testcase name="Company API E2E › POST /api/companies - create new company" classname="api/company.spec.ts" time="0.084">
+<testcase name="Company API E2E › POST /api/companies - create new company" classname="api/company.spec.ts" time="0.022">
 </testcase>
-<testcase name="Company API E2E › POST /api/companies - create second company" classname="api/company.spec.ts" time="0.006">
+<testcase name="Company API E2E › POST /api/companies - create second company" classname="api/company.spec.ts" time="0.01">
 </testcase>
-<testcase name="Company API E2E › GET /api/companies - returns both companies" classname="api/company.spec.ts" time="0.009">
+<testcase name="Company API E2E › GET /api/companies - returns both companies" classname="api/company.spec.ts" time="0.012">
 </testcase>
-<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - activates company" classname="api/company.spec.ts" time="0.036">
+<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - activates company" classname="api/company.spec.ts" time="0.04">
 </testcase>
-<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - only one company can be active (partial unique index)" classname="api/company.spec.ts" time="0.013">
+<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - only one company can be active (partial unique index)" classname="api/company.spec.ts" time="0.027">
 </testcase>
-<testcase name="Company API E2E › POST /api/companies - blank name returns 400" classname="api/company.spec.ts" time="0.009">
+<testcase name="Company API E2E › POST /api/companies - blank name returns 400" classname="api/company.spec.ts" time="0.016">
 </testcase>
-<testcase name="Company API E2E › DELETE /api/companies/{id} - removes company" classname="api/company.spec.ts" time="0.011">
+<testcase name="Company API E2E › DELETE /api/companies/{id} - removes company" classname="api/company.spec.ts" time="0.024">
 </testcase>
-<testcase name="Company API E2E › GET /api/companies - deleted company no longer in list" classname="api/company.spec.ts" time="0.006">
+<testcase name="Company API E2E › GET /api/companies - deleted company no longer in list" classname="api/company.spec.ts" time="0.017">
 </testcase>
-<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - deleted company returns 404" classname="api/company.spec.ts" time="0.009">
+<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - deleted company returns 404" classname="api/company.spec.ts" time="0.011">
 </testcase>
 </testsuite>
-<testsuite name="api/feature.spec.ts" timestamp="2026-03-19T11:27:36.666Z" hostname="chromium" tests="9" failures="0" skipped="0" time="0.18" errors="0">
-<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - empty list" classname="api/feature.spec.ts" time="0.012">
+<testsuite name="api/feature.spec.ts" timestamp="2026-03-23T07:29:46.445Z" hostname="chromium" tests="9" failures="0" skipped="0" time="0.173" errors="0">
+<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - empty list" classname="api/feature.spec.ts" time="0.017">
 </testcase>
-<testcase name="TestCase API E2E › POST /api/test-cases - create test case with path" classname="api/feature.spec.ts" time="0.027">
+<testcase name="TestCase API E2E › POST /api/test-cases - create test case with path" classname="api/feature.spec.ts" time="0.036">
 </testcase>
-<testcase name="TestCase API E2E › POST /api/test-cases - create second test case" classname="api/feature.spec.ts" time="0.022">
+<testcase name="TestCase API E2E › POST /api/test-cases - create second test case" classname="api/feature.spec.ts" time="0.009">
 </testcase>
-<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - returns both" classname="api/feature.spec.ts" time="0.019">
+<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - returns both" classname="api/feature.spec.ts" time="0.012">
 </testcase>
-<testcase name="TestCase API E2E › PUT /api/test-cases/{id} - updates test case" classname="api/feature.spec.ts" time="0.014">
+<testcase name="TestCase API E2E › PUT /api/test-cases/{id} - updates test case" classname="api/feature.spec.ts" time="0.01">
 </testcase>
-<testcase name="TestCase API E2E › POST /api/test-cases - missing title returns 400" classname="api/feature.spec.ts" time="0.014">
+<testcase name="TestCase API E2E › POST /api/test-cases - missing title returns 400" classname="api/feature.spec.ts" time="0.016">
 </testcase>
 <testcase name="TestCase API E2E › DELETE /api/test-cases/{id} - removes test case" classname="api/feature.spec.ts" time="0.045">
 </testcase>
-<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - one remains" classname="api/feature.spec.ts" time="0.008">
+<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - one remains" classname="api/feature.spec.ts" time="0.01">
 </testcase>
-<testcase name="TestCase API E2E › DELETE /api/products/{id} - cascades delete to test cases" classname="api/feature.spec.ts" time="0.019">
+<testcase name="TestCase API E2E › DELETE /api/products/{id} - cascades delete to test cases" classname="api/feature.spec.ts" time="0.018">
 </testcase>
 </testsuite>
-<testsuite name="api/product.spec.ts" timestamp="2026-03-19T11:27:36.666Z" hostname="chromium" tests="10" failures="0" skipped="0" time="0.071" errors="0">
+<testsuite name="api/product.spec.ts" timestamp="2026-03-23T07:29:46.445Z" hostname="chromium" tests="10" failures="0" skipped="0" time="0.074" errors="0">
 <testcase name="Product API E2E › GET /api/products?companyId={id} - empty product list" classname="api/product.spec.ts" time="0.007">
 </testcase>
 <testcase name="Product API E2E › POST /api/products - create WEB product" classname="api/product.spec.ts" time="0.007">
 </testcase>
-<testcase name="Product API E2E › POST /api/products - create MOBILE product" classname="api/product.spec.ts" time="0.01">
+<testcase name="Product API E2E › POST /api/products - create MOBILE product" classname="api/product.spec.ts" time="0.007">
 </testcase>
 <testcase name="Product API E2E › GET /api/products?companyId={id} - returns both products" classname="api/product.spec.ts" time="0.006">
 </testcase>
 <testcase name="Product API E2E › PUT /api/products/{id} - updates product" classname="api/product.spec.ts" time="0.007">
 </testcase>
-<testcase name="Product API E2E › GET /api/products?companyId={id} - reflects updated product" classname="api/product.spec.ts" time="0.007">
+<testcase name="Product API E2E › GET /api/products?companyId={id} - reflects updated product" classname="api/product.spec.ts" time="0.009">
 </testcase>
-<testcase name="Product API E2E › POST /api/products - missing name returns 400" classname="api/product.spec.ts" time="0.004">
+<testcase name="Product API E2E › POST /api/products - missing name returns 400" classname="api/product.spec.ts" time="0.005">
 </testcase>
-<testcase name="Product API E2E › DELETE /api/products/{id} - removes product" classname="api/product.spec.ts" time="0.007">
+<testcase name="Product API E2E › DELETE /api/products/{id} - removes product" classname="api/product.spec.ts" time="0.008">
 </testcase>
-<testcase name="Product API E2E › GET /api/products?companyId={id} - only one product remains" classname="api/product.spec.ts" time="0.006">
+<testcase name="Product API E2E › GET /api/products?companyId={id} - only one product remains" classname="api/product.spec.ts" time="0.007">
 </testcase>
-<testcase name="Product API E2E › DELETE /api/companies/{id} - cascades delete to products" classname="api/product.spec.ts" time="0.01">
+<testcase name="Product API E2E › DELETE /api/companies/{id} - cascades delete to products" classname="api/product.spec.ts" time="0.011">
 </testcase>
 </testsuite>
-<testsuite name="api/segment.spec.ts" timestamp="2026-03-19T11:27:36.666Z" hostname="chromium" tests="6" failures="0" skipped="0" time="0.048" errors="0">
-<testcase name="Segment API E2E › GET /api/segments?productId={id} - empty segment list" classname="api/segment.spec.ts" time="0.007">
+<testsuite name="api/segment.spec.ts" timestamp="2026-03-23T07:29:46.445Z" hostname="chromium" tests="6" failures="0" skipped="0" time="0.057" errors="0">
+<testcase name="Segment API E2E › GET /api/segments?productId={id} - empty segment list" classname="api/segment.spec.ts" time="0.009">
 </testcase>
-<testcase name="Segment API E2E › POST /api/segments - create root segment" classname="api/segment.spec.ts" time="0.01">
+<testcase name="Segment API E2E › POST /api/segments - create root segment" classname="api/segment.spec.ts" time="0.009">
 </testcase>
-<testcase name="Segment API E2E › POST /api/segments - create child segment" classname="api/segment.spec.ts" time="0.008">
+<testcase name="Segment API E2E › POST /api/segments - create child segment" classname="api/segment.spec.ts" time="0.007">
 </testcase>
-<testcase name="Segment API E2E › GET /api/segments?productId={id} - returns both segments" classname="api/segment.spec.ts" time="0.006">
+<testcase name="Segment API E2E › GET /api/segments?productId={id} - returns both segments" classname="api/segment.spec.ts" time="0.005">
 </testcase>
 <testcase name="Segment API E2E › PUT /api/segments/{id} - update segment name" classname="api/segment.spec.ts" time="0.007">
 </testcase>
-<testcase name="Segment API E2E › DELETE /api/segments/{id} - delete root cascades children" classname="api/segment.spec.ts" time="0.01">
+<testcase name="Segment API E2E › DELETE /api/segments/{id} - delete root cascades children" classname="api/segment.spec.ts" time="0.02">
 </testcase>
 </testsuite>
-<testsuite name="ui/company-panel.spec.ts" timestamp="2026-03-19T11:27:36.666Z" hostname="chromium" tests="5" failures="0" skipped="0" time="5.361" errors="0">
-<testcase name="Company List Page › should display Companies heading on page load" classname="ui/company-panel.spec.ts" time="1.774">
+<testsuite name="ui/company-panel.spec.ts" timestamp="2026-03-23T07:29:46.445Z" hostname="chromium" tests="5" failures="0" skipped="0" time="4.733" errors="0">
+<testcase name="Company List Page › should display Companies heading on page load" classname="ui/company-panel.spec.ts" time="1.075">
 </testcase>
-<testcase name="Company List Page › should add a company when name is entered" classname="ui/company-panel.spec.ts" time="0.883">
+<testcase name="Company List Page › should add a company when name is entered" classname="ui/company-panel.spec.ts" time="0.905">
 </testcase>
-<testcase name="Company List Page › should activate company and show Active badge" classname="ui/company-panel.spec.ts" time="0.87">
+<testcase name="Company List Page › should activate company and show Active badge" classname="ui/company-panel.spec.ts" time="0.895">
 </testcase>
-<testcase name="Company List Page › should delete company when confirmed" classname="ui/company-panel.spec.ts" time="0.855">
+<testcase name="Company List Page › should delete company when confirmed" classname="ui/company-panel.spec.ts" time="0.862">
 </testcase>
-<testcase name="Company List Page › should navigate to products on company click" classname="ui/company-panel.spec.ts" time="0.979">
-</testcase>
-</testsuite>
-<testsuite name="ui/feature-panel.spec.ts" timestamp="2026-03-19T11:27:36.666Z" hostname="chromium" tests="6" failures="0" skipped="0" time="5.245" errors="0">
-<testcase name="Test Case Page › should display empty test case list" classname="ui/feature-panel.spec.ts" time="0.853">
-</testcase>
-<testcase name="Test Case Page › should add a test case and display it" classname="ui/feature-panel.spec.ts" time="0.919">
-</testcase>
-<testcase name="Test Case Page › should display test cases created via API" classname="ui/feature-panel.spec.ts" time="0.828">
-</testcase>
-<testcase name="Test Case Page › should delete a test case" classname="ui/feature-panel.spec.ts" time="0.897">
-</testcase>
-<testcase name="Test Case Page › should toggle between input and tree view" classname="ui/feature-panel.spec.ts" time="0.91">
-</testcase>
-<testcase name="Test Case Page › should show path on test case card" classname="ui/feature-panel.spec.ts" time="0.838">
+<testcase name="Company List Page › should navigate to products on company click" classname="ui/company-panel.spec.ts" time="0.996">
 </testcase>
 </testsuite>
-<testsuite name="ui/product-panel.spec.ts" timestamp="2026-03-19T11:27:36.666Z" hostname="chromium" tests="6" failures="0" skipped="0" time="5.264" errors="0">
-<testcase name="Product List Page › should display product form after navigating to company" classname="ui/product-panel.spec.ts" time="0.854">
+<testsuite name="ui/feature-panel.spec.ts" timestamp="2026-03-23T07:29:46.445Z" hostname="chromium" tests="6" failures="0" skipped="0" time="5.447" errors="0">
+<testcase name="Test Case Page › should display empty test case list" classname="ui/feature-panel.spec.ts" time="1.004">
 </testcase>
-<testcase name="Product List Page › should add a WEB product" classname="ui/product-panel.spec.ts" time="0.875">
+<testcase name="Test Case Page › should add a test case and display it" classname="ui/feature-panel.spec.ts" time="0.918">
 </testcase>
-<testcase name="Product List Page › should display products created via API" classname="ui/product-panel.spec.ts" time="0.856">
+<testcase name="Test Case Page › should display test cases created via API" classname="ui/feature-panel.spec.ts" time="0.873">
 </testcase>
-<testcase name="Product List Page › should delete product when confirmed" classname="ui/product-panel.spec.ts" time="0.883">
+<testcase name="Test Case Page › should delete a test case" classname="ui/feature-panel.spec.ts" time="0.905">
 </testcase>
-<testcase name="Product List Page › should navigate to test cases on product click" classname="ui/product-panel.spec.ts" time="0.962">
+<testcase name="Test Case Page › should toggle between input and tree view" classname="ui/feature-panel.spec.ts" time="0.876">
 </testcase>
-<testcase name="Product List Page › should show empty state when no products exist" classname="ui/product-panel.spec.ts" time="0.834">
+<testcase name="Test Case Page › should show path on test case card" classname="ui/feature-panel.spec.ts" time="0.871">
+</testcase>
+</testsuite>
+<testsuite name="ui/product-panel.spec.ts" timestamp="2026-03-23T07:29:46.445Z" hostname="chromium" tests="6" failures="0" skipped="0" time="5.104" errors="0">
+<testcase name="Product List Page › should display product form after navigating to company" classname="ui/product-panel.spec.ts" time="0.799">
+</testcase>
+<testcase name="Product List Page › should add a WEB product" classname="ui/product-panel.spec.ts" time="0.852">
+</testcase>
+<testcase name="Product List Page › should display products created via API" classname="ui/product-panel.spec.ts" time="0.835">
+</testcase>
+<testcase name="Product List Page › should delete product when confirmed" classname="ui/product-panel.spec.ts" time="0.89">
+</testcase>
+<testcase name="Product List Page › should navigate to test cases on product click" classname="ui/product-panel.spec.ts" time="0.929">
+</testcase>
+<testcase name="Product List Page › should show empty state when no products exist" classname="ui/product-panel.spec.ts" time="0.799">
+</testcase>
+</testsuite>
+<testsuite name="ui/senior.spec.ts" timestamp="2026-03-23T07:29:46.445Z" hostname="chromium" tests="8" failures="0" skipped="0" time="2.602" errors="0">
+<testcase name="Senior Page › should display My Senior heading on page load" classname="ui/senior.spec.ts" time="0.227">
+</testcase>
+<testcase name="Senior Page › should show Chat tab as active by default" classname="ui/senior.spec.ts" time="0.231">
+</testcase>
+<testcase name="Senior Page › should switch to FAQ tab when clicked" classname="ui/senior.spec.ts" time="0.322">
+</testcase>
+<testcase name="Senior Page › should switch to KB Management tab when clicked" classname="ui/senior.spec.ts" time="0.264">
+</testcase>
+<testcase name="Senior Page › should switch between all three tabs" classname="ui/senior.spec.ts" time="0.348">
+</testcase>
+<testcase name="Senior Page › should create a new FAQ and display it in the list" classname="ui/senior.spec.ts" time="0.405">
+</testcase>
+<testcase name="Senior Page › should delete a FAQ from the list" classname="ui/senior.spec.ts" time="0.434">
+</testcase>
+<testcase name="Senior Page › should switch between KB Articles and Company Features sub-views" classname="ui/senior.spec.ts" time="0.371">
 </testcase>
 </testsuite>
 </testsuites>

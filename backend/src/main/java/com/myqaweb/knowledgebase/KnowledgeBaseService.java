@@ -1,14 +1,20 @@
 package com.myqaweb.knowledgebase;
 
-import org.springframework.stereotype.Service;
-
 import java.util.List;
+import java.util.Optional;
 
-@Service
-public class KnowledgeBaseService {
+/**
+ * Service interface for Knowledge Base CRUD operations.
+ */
+public interface KnowledgeBaseService {
 
-    public List<String> findAll() {
-        // TODO: return real data from repository
-        return List.of("Knowledge Base placeholder");
-    }
+    List<KnowledgeBaseDto.KbResponse> findAll();
+
+    Optional<KnowledgeBaseDto.KbResponse> findById(Long id);
+
+    KnowledgeBaseDto.KbResponse create(KnowledgeBaseDto.KbRequest request);
+
+    KnowledgeBaseDto.KbResponse update(Long id, KnowledgeBaseDto.KbRequest request);
+
+    void delete(Long id);
 }

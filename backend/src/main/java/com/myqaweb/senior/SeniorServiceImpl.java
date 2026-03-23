@@ -1,0 +1,266 @@
+package com.myqaweb.senior;
+
+import com.myqaweb.common.EmbeddingService;
+import com.myqaweb.convention.ConventionEntity;
+import com.myqaweb.convention.ConventionRepository;
+import com.myqaweb.feature.CompanyEntity;
+import com.myqaweb.feature.CompanyRepository;
+import com.myqaweb.feature.ProductEntity;
+import com.myqaweb.feature.ProductRepository;
+import com.myqaweb.feature.SegmentEntity;
+import com.myqaweb.feature.SegmentRepository;
+import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
+import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+/**
+ * Implementation of SeniorService.
+ * Handles RAG pipeline for AI chat and FAQ CRUD with embedding generation.
+ */
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class SeniorServiceImpl implements SeniorService {
+
+    private static final Logger log = LoggerFactory.getLogger(SeniorServiceImpl.class);
+    private static final int FAQ_TOP_K = 3;
+    private static final int KB_TOP_K = 3;
+
+    private final ChatClient chatClient;
+    private final EmbeddingService embeddingService;
+    private final FaqRepository faqRepository;
+    private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final CompanyRepository companyRepository;
+    private final ProductRepository productRepository;
+    private final SegmentRepository segmentRepository;
+    private final ConventionRepository conventionRepository;
+
+    @Override
+    public SseEmitter chat(String userMessage) {
+        SseEmitter emitter = new SseEmitter(120_000L);
+
+        // Build RAG context
+        String systemPrompt = buildRagContext(userMessage);
+
+        // Stream Claude response
+        Flux<String> stream = chatClient.prompt()
+                .system(systemPrompt)
+                .user(userMessage)
+                .stream()
+                .content();
+
+        stream.subscribe(
+                chunk -> {
+                    try {
+                        emitter.send(SseEmitter.event().data(chunk));
+                    } catch (IOException e) {
+                        log.warn("Failed to send SSE chunk", e);
+                        emitter.completeWithError(e);
+                    }
+                },
+                error -> {
+                    log.error("Chat streaming error", error);
+                    emitter.completeWithError(error);
+                },
+                emitter::complete
+        );
+
+        emitter.onTimeout(emitter::complete);
+        emitter.onError(e -> log.warn("SSE emitter error", e));
+
+        return emitter;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FaqDto.FaqResponse> findAllFaqs() {
+        return faqRepository.findAll().stream()
+                .map(this::toFaqResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<FaqDto.FaqResponse> findFaqById(Long id) {
+        return faqRepository.findById(id)
+                .map(this::toFaqResponse);
+    }
+
+    @Override
+    public FaqDto.FaqResponse createFaq(FaqDto.FaqRequest request) {
+        FaqEntity entity = new FaqEntity();
+        entity.setTitle(request.title());
+        entity.setContent(request.content());
+        entity.setTags(request.tags());
+
+        FaqEntity saved = faqRepository.save(entity);
+        scheduleEmbeddingGeneration(saved.getId(), saved.getTitle(), saved.getContent());
+
+        return toFaqResponse(saved);
+    }
+
+    @Override
+    public FaqDto.FaqResponse updateFaq(Long id, FaqDto.FaqRequest request) {
+        FaqEntity entity = faqRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("FAQ not found: " + id));
+
+        entity.setTitle(request.title());
+        entity.setContent(request.content());
+        entity.setTags(request.tags());
+
+        FaqEntity saved = faqRepository.save(entity);
+        scheduleEmbeddingGeneration(saved.getId(), saved.getTitle(), saved.getContent());
+
+        return toFaqResponse(saved);
+    }
+
+    @Override
+    public void deleteFaq(Long id) {
+        if (!faqRepository.existsById(id)) {
+            throw new IllegalArgumentException("FAQ not found: " + id);
+        }
+        faqRepository.deleteById(id);
+    }
+
+    // --- RAG Pipeline ---
+
+    private String buildRagContext(String userMessage) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("You are a Senior QA Engineer AI assistant. ");
+        sb.append("Answer the user's QA-related questions using the following context.\n\n");
+
+        // 1. Company Features (active company → products → segments)
+        appendCompanyFeatures(sb);
+
+        // 2. Knowledge Base (vector similarity search)
+        appendKnowledgeBase(sb, userMessage);
+
+        // 3. FAQ / Personal Notes (vector similarity search)
+        appendFaqContext(sb, userMessage);
+
+        // 4. Terminology Conventions (all)
+        appendConventions(sb);
+
+        sb.append("Use the above context for accurate, company-specific QA guidance. ");
+        sb.append("If the context doesn't contain relevant information, use your general QA expertise. ");
+        sb.append("Always use the terminology conventions when applicable. ");
+        sb.append("Respond in the same language as the user's question.");
+
+        return sb.toString();
+    }
+
+    private void appendCompanyFeatures(StringBuilder sb) {
+        Optional<CompanyEntity> activeCompany = companyRepository.findByIsActiveTrue();
+        if (activeCompany.isPresent()) {
+            CompanyEntity company = activeCompany.get();
+            sb.append("=== Company Features ===\n");
+            sb.append("Company: ").append(company.getName()).append("\n");
+
+            List<ProductEntity> products = productRepository.findAllByCompanyId(company.getId());
+            for (ProductEntity product : products) {
+                sb.append("Product: ").append(product.getName())
+                        .append(" (").append(product.getPlatform()).append(")");
+                if (product.getDescription() != null) {
+                    sb.append(" - ").append(product.getDescription());
+                }
+                sb.append("\n");
+
+                List<SegmentEntity> segments = segmentRepository.findAllByProductId(product.getId());
+                for (SegmentEntity segment : segments) {
+                    sb.append("  Segment: ").append(segment.getName()).append("\n");
+                }
+            }
+            sb.append("\n");
+        }
+    }
+
+    private void appendKnowledgeBase(StringBuilder sb, String userMessage) {
+        try {
+            float[] queryEmbedding = embeddingService.embed(userMessage);
+            String vectorStr = embeddingService.toVectorString(queryEmbedding);
+            List<KnowledgeBaseEntity> kbResults = knowledgeBaseRepository.findSimilar(vectorStr, KB_TOP_K);
+
+            if (!kbResults.isEmpty()) {
+                sb.append("=== QA Knowledge Base ===\n");
+                for (KnowledgeBaseEntity kb : kbResults) {
+                    sb.append("- ").append(kb.getTitle()).append(": ").append(kb.getContent()).append("\n");
+                }
+                sb.append("\n");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to retrieve KB context via embedding search", e);
+        }
+    }
+
+    private void appendFaqContext(StringBuilder sb, String userMessage) {
+        try {
+            float[] queryEmbedding = embeddingService.embed(userMessage);
+            String vectorStr = embeddingService.toVectorString(queryEmbedding);
+            List<FaqEntity> faqResults = faqRepository.findSimilar(vectorStr, FAQ_TOP_K);
+
+            if (!faqResults.isEmpty()) {
+                sb.append("=== FAQ / Personal Notes ===\n");
+                for (FaqEntity faq : faqResults) {
+                    sb.append("- ").append(faq.getTitle()).append(": ").append(faq.getContent()).append("\n");
+                }
+                sb.append("\n");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to retrieve FAQ context via embedding search", e);
+        }
+    }
+
+    private void appendConventions(StringBuilder sb) {
+        List<ConventionEntity> conventions = conventionRepository.findAll();
+        if (!conventions.isEmpty()) {
+            sb.append("=== Terminology Conventions ===\n");
+            for (ConventionEntity conv : conventions) {
+                sb.append("- ").append(conv.getTerm()).append(": ").append(conv.getDefinition()).append("\n");
+            }
+            sb.append("\n");
+        }
+    }
+
+    // --- Embedding Generation (async, non-blocking) ---
+
+    private void scheduleEmbeddingGeneration(Long entityId, String title, String content) {
+        Thread.startVirtualThread(() -> {
+            try {
+                String text = title + " " + content;
+                float[] embedding = embeddingService.embed(text);
+                faqRepository.findById(entityId).ifPresent(entity -> {
+                    entity.setEmbedding(embedding);
+                    faqRepository.save(entity);
+                });
+            } catch (Exception e) {
+                log.warn("Failed to generate embedding for FAQ id={}", entityId, e);
+            }
+        });
+    }
+
+    // --- Mappers ---
+
+    private FaqDto.FaqResponse toFaqResponse(FaqEntity entity) {
+        return new FaqDto.FaqResponse(
+                entity.getId(),
+                entity.getTitle(),
+                entity.getContent(),
+                entity.getTags(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
+        );
+    }
+}

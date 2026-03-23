@@ -1,8 +1,8 @@
 package com.myqaweb.convention;
 
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class ConventionRepository {
-    // TODO: extend JpaRepository when entity is defined
+public interface ConventionRepository extends JpaRepository<ConventionEntity, Long> {
 }

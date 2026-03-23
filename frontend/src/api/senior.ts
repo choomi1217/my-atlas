@@ -1,0 +1,138 @@
+import apiClient from './client';
+import { ApiResponse } from '@/types/features';
+import { FaqItem, FaqRequest, KbItem, KbRequest } from '@/types/senior';
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+/**
+ * Senior Chat API — uses fetch for SSE streaming (axios doesn't support streaming).
+ */
+export const chatApi = {
+  streamChat: (
+    message: string,
+    onChunk: (text: string) => void,
+    onDone: () => void,
+    onError: (err: Error) => void
+  ): AbortController => {
+    const controller = new AbortController();
+
+    fetch(`${API_BASE_URL}/api/senior/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Chat request failed: ${response.status}`);
+        }
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
+        }
+
+        const decoder = new TextDecoder();
+
+        function read() {
+          reader!.read().then(({ done, value }) => {
+            if (done) {
+              onDone();
+              return;
+            }
+            const text = decoder.decode(value, { stream: true });
+            // Parse SSE format: data:chunk\n\n
+            const lines = text.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data:')) {
+                onChunk(line.slice(5));
+              }
+            }
+            read();
+          });
+        }
+
+        read();
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          onError(err);
+        }
+      });
+
+    return controller;
+  },
+};
+
+/**
+ * FAQ API endpoints.
+ */
+export const faqApi = {
+  getAll: async (): Promise<FaqItem[]> => {
+    const response =
+      await apiClient.get<ApiResponse<FaqItem[]>>('/api/senior/faq');
+    return response.data.data;
+  },
+
+  getById: async (id: number): Promise<FaqItem> => {
+    const response =
+      await apiClient.get<ApiResponse<FaqItem>>(`/api/senior/faq/${id}`);
+    return response.data.data;
+  },
+
+  create: async (request: FaqRequest): Promise<FaqItem> => {
+    const response = await apiClient.post<ApiResponse<FaqItem>>(
+      '/api/senior/faq',
+      request
+    );
+    return response.data.data;
+  },
+
+  update: async (id: number, request: FaqRequest): Promise<FaqItem> => {
+    const response = await apiClient.put<ApiResponse<FaqItem>>(
+      `/api/senior/faq/${id}`,
+      request
+    );
+    return response.data.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/senior/faq/${id}`);
+  },
+};
+
+/**
+ * Knowledge Base API endpoints.
+ */
+export const kbApi = {
+  getAll: async (): Promise<KbItem[]> => {
+    const response = await apiClient.get<ApiResponse<KbItem[]>>('/api/kb');
+    return response.data.data;
+  },
+
+  getById: async (id: number): Promise<KbItem> => {
+    const response =
+      await apiClient.get<ApiResponse<KbItem>>(`/api/kb/${id}`);
+    return response.data.data;
+  },
+
+  create: async (request: KbRequest): Promise<KbItem> => {
+    const response = await apiClient.post<ApiResponse<KbItem>>(
+      '/api/kb',
+      request
+    );
+    return response.data.data;
+  },
+
+  update: async (id: number, request: KbRequest): Promise<KbItem> => {
+    const response = await apiClient.put<ApiResponse<KbItem>>(
+      `/api/kb/${id}`,
+      request
+    );
+    return response.data.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/kb/${id}`);
+  },
+};
