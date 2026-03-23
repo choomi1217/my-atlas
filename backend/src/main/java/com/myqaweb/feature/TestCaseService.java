@@ -5,12 +5,12 @@ import java.util.Optional;
 
 public interface TestCaseService {
     /**
-     * Get all test cases for a feature.
+     * Get all test cases for a product.
      *
-     * @param featureId the feature ID
+     * @param productId the product ID
      * @return list of test cases
      */
-    List<TestCaseDto.TestCaseResponse> getByFeatureId(Long featureId);
+    List<TestCaseDto.TestCaseResponse> getByProductId(Long productId);
 
     /**
      * Get a test case by ID.
@@ -45,10 +45,10 @@ public interface TestCaseService {
     void delete(Long id);
 
     /**
-     * Generate test case drafts using AI based on feature information.
+     * Generate test case drafts using AI based on segment path and context.
      *
-     * @param featureId the feature ID
+     * @param request the generate draft request containing productId and path
      * @return list of generated draft test cases
      */
-    List<TestCaseDto.TestCaseResponse> generateDraft(Long featureId);
+    List<TestCaseDto.TestCaseResponse> generateDraft(TestCaseDto.GenerateDraftRequest request);
 }

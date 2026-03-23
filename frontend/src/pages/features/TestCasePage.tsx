@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import {
   Company,
   Product,
-  Feature,
+  Segment,
   TestCase,
   TestCasePriority,
   TestCaseType,
@@ -12,40 +12,48 @@ import {
 import {
   companyApi,
   productApi,
-  featureApi,
+  segmentApi,
   testCaseApi,
 } from '@/api/features';
 import { Breadcrumb } from '@/components/features/Breadcrumb';
+import { PathViewToggle } from '@/components/features/PathViewToggle';
+import { CascadingPathInput } from '@/components/features/CascadingPathInput';
+import { SegmentTreeView } from '@/components/features/SegmentTreeView';
 
 export default function TestCasePage() {
-  const { companyId, productId, featureId } = useParams<{
+  const { companyId, productId } = useParams<{
     companyId: string;
     productId: string;
-    featureId: string;
   }>();
 
   const [company, setCompany] = useState<Company | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
-  const [feature, setFeature] = useState<Feature | null>(null);
+  const [segments, setSegments] = useState<Segment[]>([]);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [selectedPath, setSelectedPath] = useState<number[]>([]);
+  const [viewMode, setViewMode] = useState<'input' | 'tree'>('input');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingData, setEditingData] = useState<Partial<TestCase> | null>(null);
+  const [editingData, setEditingData] = useState<Partial<TestCase> | null>(
+    null
+  );
   const [showAddForm, setShowAddForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const [newTestCaseData, setNewTestCaseData] = useState({
+  const [newTcData, setNewTcData] = useState({
     title: '',
+    description: '',
+    promptText: '',
     priority: TestCasePriority.MEDIUM,
     testType: TestCaseType.FUNCTIONAL,
     status: TestCaseStatus.DRAFT,
     preconditions: '',
     steps: [{ order: 1, action: '', expected: '' }],
     expectedResult: '',
+    path: [] as number[],
   });
 
-  // Load all data
   useEffect(() => {
     const load = async () => {
       try {
@@ -58,13 +66,13 @@ export default function TestCasePage() {
         const foundProduct = products.find((p) => p.id === Number(productId));
         setProduct(foundProduct || null);
 
-        const features = await featureApi.getByProductId(Number(productId));
-        const foundFeature = features.find((f) => f.id === Number(featureId));
-        setFeature(foundFeature || null);
-
-        if (featureId) {
-          const testCases = await testCaseApi.getByFeatureId(Number(featureId));
-          setTestCases(testCases);
+        if (productId) {
+          const [segs, tcs] = await Promise.all([
+            segmentApi.getByProductId(Number(productId)),
+            testCaseApi.getByProductId(Number(productId)),
+          ]);
+          setSegments(segs);
+          setTestCases(tcs);
         }
       } catch (error) {
         console.error('Failed to load data:', error);
@@ -73,30 +81,57 @@ export default function TestCasePage() {
       }
     };
     load();
-  }, [companyId, productId, featureId]);
+  }, [companyId, productId]);
+
+  const filteredTestCases =
+    selectedPath.length === 0
+      ? testCases
+      : testCases.filter(
+          (tc) =>
+            tc.path &&
+            selectedPath.length <= tc.path.length &&
+            selectedPath.every((id, i) => tc.path[i] === id)
+        );
+
+  const resolvePathNames = (path: number[]): string => {
+    if (!path || path.length === 0) return '';
+    return path
+      .map((id) => segments.find((s) => s.id === id)?.name || '?')
+      .join(' > ');
+  };
+
+  const handleSegmentCreated = (segment: Segment) => {
+    setSegments((prev) => [...prev, segment]);
+  };
 
   const handleAddTestCase = async () => {
-    if (!feature || !newTestCaseData.title.trim()) return;
+    if (!product || !newTcData.title.trim()) return;
     try {
-      const testCase = await testCaseApi.create(
-        feature.id,
-        newTestCaseData.title,
-        newTestCaseData.priority,
-        newTestCaseData.testType,
-        newTestCaseData.status,
-        newTestCaseData.preconditions || undefined,
-        newTestCaseData.steps.some((s) => s.action) ? newTestCaseData.steps : undefined,
-        newTestCaseData.expectedResult || undefined
+      const tc = await testCaseApi.create(
+        product.id,
+        newTcData.title,
+        newTcData.path.length > 0 ? newTcData.path : selectedPath,
+        newTcData.description || undefined,
+        newTcData.promptText || undefined,
+        newTcData.priority,
+        newTcData.testType,
+        newTcData.status,
+        newTcData.preconditions || undefined,
+        newTcData.steps.some((s) => s.action) ? newTcData.steps : undefined,
+        newTcData.expectedResult || undefined
       );
-      setTestCases([...testCases, testCase]);
-      setNewTestCaseData({
+      setTestCases([...testCases, tc]);
+      setNewTcData({
         title: '',
+        description: '',
+        promptText: '',
         priority: TestCasePriority.MEDIUM,
         testType: TestCaseType.FUNCTIONAL,
         status: TestCaseStatus.DRAFT,
         preconditions: '',
         steps: [{ order: 1, action: '', expected: '' }],
         expectedResult: '',
+        path: [],
       });
       setShowAddForm(false);
     } catch (error) {
@@ -105,11 +140,11 @@ export default function TestCasePage() {
   };
 
   const handleGenerateDraft = async () => {
-    if (!feature) return;
+    if (!product) return;
     try {
       setIsGenerating(true);
-      const draftTestCases = await testCaseApi.generateDraft(feature.id);
-      setTestCases([...testCases, ...draftTestCases]);
+      const drafts = await testCaseApi.generateDraft(product.id, selectedPath);
+      setTestCases([...testCases, ...drafts]);
     } catch (error) {
       console.error('Failed to generate draft:', error);
     } finally {
@@ -118,12 +153,15 @@ export default function TestCasePage() {
   };
 
   const handleUpdateTestCase = async () => {
-    if (!editingId || !editingData || !feature) return;
+    if (!editingId || !editingData || !product) return;
     try {
       const updated = await testCaseApi.update(
         editingId,
-        feature.id,
+        product.id,
         editingData.title || '',
+        editingData.path || [],
+        editingData.description,
+        editingData.promptText,
         editingData.priority || TestCasePriority.MEDIUM,
         editingData.testType || TestCaseType.FUNCTIONAL,
         editingData.status || TestCaseStatus.DRAFT,
@@ -153,8 +191,8 @@ export default function TestCasePage() {
     return <div className="p-6">Loading...</div>;
   }
 
-  if (!company || !product || !feature) {
-    return <div className="p-6">Feature not found.</div>;
+  if (!company || !product) {
+    return <div className="p-6">Product not found.</div>;
   }
 
   return (
@@ -162,15 +200,52 @@ export default function TestCasePage() {
       <Breadcrumb
         company={{ id: company.id, name: company.name }}
         product={{ id: product.id, name: product.name }}
-        feature={{ id: feature.id, name: feature.name }}
       />
 
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">{feature.name}</h1>
-            <p className="text-gray-600 mb-4">Test Cases</p>
+            <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
+            <p className="text-gray-600">Test Cases</p>
+          </div>
+
+          {/* Path Section */}
+          <div className="bg-white p-4 rounded-lg shadow mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-sm text-gray-700">Path</h3>
+              <PathViewToggle viewMode={viewMode} onViewChange={setViewMode} />
+            </div>
+
+            {viewMode === 'input' ? (
+              <CascadingPathInput
+                segments={segments}
+                selectedPath={selectedPath}
+                onPathChange={setSelectedPath}
+                productId={product.id}
+                onSegmentCreated={handleSegmentCreated}
+              />
+            ) : (
+              <SegmentTreeView
+                segments={segments}
+                testCases={testCases}
+                onSelectPath={setSelectedPath}
+              />
+            )}
+
+            {selectedPath.length > 0 && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-gray-500">
+                  Selected: {resolvePathNames(selectedPath)}
+                </span>
+                <button
+                  onClick={() => setSelectedPath([])}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -195,25 +270,58 @@ export default function TestCasePage() {
             <div className="bg-white p-4 rounded-lg shadow mb-6">
               <h3 className="font-bold mb-3">New Test Case</h3>
               <div className="space-y-2">
+                {/* Path for new TC */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Path
+                  </label>
+                  <CascadingPathInput
+                    segments={segments}
+                    selectedPath={newTcData.path}
+                    onPathChange={(path) =>
+                      setNewTcData({ ...newTcData, path })
+                    }
+                    productId={product.id}
+                    onSegmentCreated={handleSegmentCreated}
+                  />
+                </div>
+
                 <input
                   type="text"
-                  value={newTestCaseData.title}
+                  value={newTcData.title}
                   onChange={(e) =>
-                    setNewTestCaseData({
-                      ...newTestCaseData,
-                      title: e.target.value,
-                    })
+                    setNewTcData({ ...newTcData, title: e.target.value })
                   }
                   placeholder="Test case title..."
                   className="w-full px-3 py-2 border rounded"
                 />
 
+                <textarea
+                  value={newTcData.description}
+                  onChange={(e) =>
+                    setNewTcData({ ...newTcData, description: e.target.value })
+                  }
+                  placeholder="Description..."
+                  className="w-full px-3 py-2 border rounded"
+                  rows={2}
+                />
+
+                <textarea
+                  value={newTcData.promptText}
+                  onChange={(e) =>
+                    setNewTcData({ ...newTcData, promptText: e.target.value })
+                  }
+                  placeholder="Prompt text for AI..."
+                  className="w-full px-3 py-2 border rounded"
+                  rows={2}
+                />
+
                 <div className="grid grid-cols-3 gap-2">
                   <select
-                    value={newTestCaseData.priority}
+                    value={newTcData.priority}
                     onChange={(e) =>
-                      setNewTestCaseData({
-                        ...newTestCaseData,
+                      setNewTcData({
+                        ...newTcData,
                         priority: e.target.value as TestCasePriority,
                       })
                     }
@@ -227,10 +335,10 @@ export default function TestCasePage() {
                   </select>
 
                   <select
-                    value={newTestCaseData.testType}
+                    value={newTcData.testType}
                     onChange={(e) =>
-                      setNewTestCaseData({
-                        ...newTestCaseData,
+                      setNewTcData({
+                        ...newTcData,
                         testType: e.target.value as TestCaseType,
                       })
                     }
@@ -244,10 +352,10 @@ export default function TestCasePage() {
                   </select>
 
                   <select
-                    value={newTestCaseData.status}
+                    value={newTcData.status}
                     onChange={(e) =>
-                      setNewTestCaseData({
-                        ...newTestCaseData,
+                      setNewTcData({
+                        ...newTcData,
                         status: e.target.value as TestCaseStatus,
                       })
                     }
@@ -262,10 +370,10 @@ export default function TestCasePage() {
                 </div>
 
                 <textarea
-                  value={newTestCaseData.preconditions}
+                  value={newTcData.preconditions}
                   onChange={(e) =>
-                    setNewTestCaseData({
-                      ...newTestCaseData,
+                    setNewTcData({
+                      ...newTcData,
                       preconditions: e.target.value,
                     })
                   }
@@ -276,19 +384,19 @@ export default function TestCasePage() {
 
                 <div className="bg-gray-50 p-2 rounded">
                   <label className="block text-sm font-bold mb-2">Steps</label>
-                  {newTestCaseData.steps.map((step, idx) => (
+                  {newTcData.steps.map((step, idx) => (
                     <div key={idx} className="mb-2 p-2 bg-white rounded border">
                       <div className="grid grid-cols-2 gap-2">
                         <input
                           type="text"
                           value={step.action}
                           onChange={(e) => {
-                            const updated = [...newTestCaseData.steps];
-                            updated[idx].action = e.target.value;
-                            setNewTestCaseData({
-                              ...newTestCaseData,
-                              steps: updated,
-                            });
+                            const updated = [...newTcData.steps];
+                            updated[idx] = {
+                              ...updated[idx],
+                              action: e.target.value,
+                            };
+                            setNewTcData({ ...newTcData, steps: updated });
                           }}
                           placeholder="Action..."
                           className="px-2 py-1 border rounded text-sm"
@@ -297,12 +405,12 @@ export default function TestCasePage() {
                           type="text"
                           value={step.expected}
                           onChange={(e) => {
-                            const updated = [...newTestCaseData.steps];
-                            updated[idx].expected = e.target.value;
-                            setNewTestCaseData({
-                              ...newTestCaseData,
-                              steps: updated,
-                            });
+                            const updated = [...newTcData.steps];
+                            updated[idx] = {
+                              ...updated[idx],
+                              expected: e.target.value,
+                            };
+                            setNewTcData({ ...newTcData, steps: updated });
                           }}
                           placeholder="Expected result..."
                           className="px-2 py-1 border rounded text-sm"
@@ -312,17 +420,16 @@ export default function TestCasePage() {
                   ))}
                   <button
                     onClick={() => {
-                      const updated = [
-                        ...newTestCaseData.steps,
-                        {
-                          order: newTestCaseData.steps.length + 1,
-                          action: '',
-                          expected: '',
-                        },
-                      ];
-                      setNewTestCaseData({
-                        ...newTestCaseData,
-                        steps: updated,
+                      setNewTcData({
+                        ...newTcData,
+                        steps: [
+                          ...newTcData.steps,
+                          {
+                            order: newTcData.steps.length + 1,
+                            action: '',
+                            expected: '',
+                          },
+                        ],
                       });
                     }}
                     className="text-sm px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
@@ -332,10 +439,10 @@ export default function TestCasePage() {
                 </div>
 
                 <textarea
-                  value={newTestCaseData.expectedResult}
+                  value={newTcData.expectedResult}
                   onChange={(e) =>
-                    setNewTestCaseData({
-                      ...newTestCaseData,
+                    setNewTcData({
+                      ...newTcData,
                       expectedResult: e.target.value,
                     })
                   }
@@ -356,13 +463,10 @@ export default function TestCasePage() {
 
           {/* Test Cases List */}
           <div className="space-y-3">
-            {testCases.map((tc) => (
-              <div
-                key={tc.id}
-                className="bg-white border rounded-lg shadow"
-              >
+            {filteredTestCases.map((tc) => (
+              <div key={tc.id} className="bg-white border rounded-lg shadow">
                 {editingId === tc.id ? (
-                  // Edit Mode
+                  /* Edit Mode */
                   <div className="p-4 border-t-2 border-blue-500">
                     <h4 className="font-bold mb-3">Edit Test Case</h4>
                     <div className="space-y-2 mb-3">
@@ -370,7 +474,10 @@ export default function TestCasePage() {
                         type="text"
                         value={editingData?.title || ''}
                         onChange={(e) =>
-                          setEditingData({ ...editingData, title: e.target.value })
+                          setEditingData({
+                            ...editingData,
+                            title: e.target.value,
+                          })
                         }
                         className="w-full px-3 py-2 border rounded text-sm"
                       />
@@ -444,7 +551,7 @@ export default function TestCasePage() {
                     </div>
                   </div>
                 ) : (
-                  // View Mode
+                  /* View Mode */
                   <>
                     <div
                       onClick={() =>
@@ -454,6 +561,11 @@ export default function TestCasePage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
+                          {tc.path && tc.path.length > 0 && (
+                            <div className="text-xs text-gray-400 mb-1">
+                              {resolvePathNames(tc.path)}
+                            </div>
+                          )}
                           <h4 className="font-bold">{tc.title}</h4>
                           <div className="flex gap-2 mt-2">
                             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
@@ -494,10 +606,21 @@ export default function TestCasePage() {
                     {/* Expanded Details */}
                     {expandedId === tc.id && (
                       <div className="p-4 bg-gray-50 border-t text-sm">
+                        {tc.description && (
+                          <div className="mb-3">
+                            <label className="font-bold">Description:</label>
+                            <p className="mt-1 text-gray-700">
+                              {tc.description}
+                            </p>
+                          </div>
+                        )}
+
                         {tc.preconditions && (
                           <div className="mb-3">
                             <label className="font-bold">Preconditions:</label>
-                            <p className="mt-1 text-gray-700">{tc.preconditions}</p>
+                            <p className="mt-1 text-gray-700">
+                              {tc.preconditions}
+                            </p>
                           </div>
                         )}
 
@@ -507,7 +630,9 @@ export default function TestCasePage() {
                             <ol className="mt-1 ml-4 list-decimal space-y-1">
                               {tc.steps.map((step, idx) => (
                                 <li key={idx}>
-                                  <span className="font-semibold">{step.action}</span>
+                                  <span className="font-semibold">
+                                    {step.action}
+                                  </span>
                                   <br />
                                   <span className="text-gray-600">
                                     Expected: {step.expected}
@@ -520,13 +645,18 @@ export default function TestCasePage() {
 
                         {tc.expectedResult && (
                           <div>
-                            <label className="font-bold">Expected Result:</label>
-                            <p className="mt-1 text-gray-700">{tc.expectedResult}</p>
+                            <label className="font-bold">
+                              Expected Result:
+                            </label>
+                            <p className="mt-1 text-gray-700">
+                              {tc.expectedResult}
+                            </p>
                           </div>
                         )}
 
                         <div className="mt-3 text-xs text-gray-500">
-                          Created: {new Date(tc.createdAt).toLocaleDateString()}
+                          Created:{' '}
+                          {new Date(tc.createdAt).toLocaleDateString()}
                         </div>
                       </div>
                     )}
@@ -536,10 +666,12 @@ export default function TestCasePage() {
             ))}
           </div>
 
-          {testCases.length === 0 && !showAddForm && (
+          {filteredTestCases.length === 0 && !showAddForm && (
             <div className="text-center py-12">
               <p className="text-gray-500 text-lg">
-                No test cases yet. Create one or generate AI draft to get started.
+                {selectedPath.length > 0
+                  ? 'No test cases for this path. Create one or clear the filter.'
+                  : 'No test cases yet. Create one or generate AI draft to get started.'}
               </p>
             </div>
           )}

@@ -21,10 +21,18 @@ export interface ProductData {
   description?: string;
 }
 
-export interface FeatureData {
+export interface SegmentData {
   id: number;
   name: string;
-  path: string;
+  productId: number;
+  parentId: number | null;
+}
+
+export interface TestCaseData {
+  id: number;
+  title: string;
+  productId: number;
+  path: number[];
   description?: string;
 }
 
@@ -125,49 +133,48 @@ export async function deleteProduct(productId: number): Promise<void> {
 }
 
 /**
- * Create a test feature
+ * Create a test segment
  */
-export async function createTestFeature(
+export async function createTestSegment(
   productId: number,
-  name = 'E2E Test Feature',
-  path = 'Main › Test',
-): Promise<FeatureData> {
+  name = 'E2E Test Segment',
+  parentId?: number,
+): Promise<SegmentData> {
   try {
-    const response = await client.post('/api/features', {
+    const response = await client.post('/api/segments', {
       productId,
       name,
-      path,
-      description: 'Test feature for E2E testing',
-      promptText: 'How to test this feature?',
+      parentId: parentId ?? null,
     });
-    return response.data.data as FeatureData;
+    return response.data.data as SegmentData;
   } catch (error) {
-    console.error('Failed to create test feature:', error);
+    console.error('Failed to create test segment:', error);
     throw error;
   }
 }
 
 /**
- * Get features by product ID
+ * Create a test test case
  */
-export async function getFeaturesByProductId(productId: number): Promise<FeatureData[]> {
+export async function createTestTestCase(
+  productId: number,
+  title = 'E2E Test Case',
+  path: number[] = [],
+): Promise<TestCaseData> {
   try {
-    const response = await client.get(`/api/features?productId=${productId}`);
-    return response.data.data as FeatureData[];
+    const response = await client.post('/api/test-cases', {
+      productId,
+      title,
+      path,
+      description: 'Test case for E2E testing',
+      priority: 'MEDIUM',
+      testType: 'FUNCTIONAL',
+      status: 'DRAFT',
+    });
+    return response.data.data as TestCaseData;
   } catch (error) {
-    console.error(`Failed to fetch features for product ${productId}:`, error);
-    return [];
-  }
-}
-
-/**
- * Delete a feature
- */
-export async function deleteFeature(featureId: number): Promise<void> {
-  try {
-    await client.delete(`/api/features/${featureId}`);
-  } catch (error) {
-    console.error(`Failed to delete feature ${featureId}:`, error);
+    console.error('Failed to create test case:', error);
+    throw error;
   }
 }
 

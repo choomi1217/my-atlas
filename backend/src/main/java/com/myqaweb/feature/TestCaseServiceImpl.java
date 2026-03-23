@@ -8,10 +8,11 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,14 +20,15 @@ import java.util.Optional;
 @Slf4j
 public class TestCaseServiceImpl implements TestCaseService {
     private final TestCaseRepository testCaseRepository;
-    private final FeatureRepository featureRepository;
+    private final ProductRepository productRepository;
+    private final SegmentRepository segmentRepository;
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
-    public List<TestCaseDto.TestCaseResponse> getByFeatureId(Long featureId) {
-        return testCaseRepository.findAllByFeatureId(featureId)
+    public List<TestCaseDto.TestCaseResponse> getByProductId(Long productId) {
+        return testCaseRepository.findAllByProductId(productId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -40,12 +42,15 @@ public class TestCaseServiceImpl implements TestCaseService {
 
     @Override
     public TestCaseDto.TestCaseResponse create(TestCaseDto.TestCaseRequest request) {
-        FeatureEntity feature = featureRepository.findById(request.featureId())
-                .orElseThrow(() -> new IllegalArgumentException("Feature not found: " + request.featureId()));
+        ProductEntity product = productRepository.findById(request.productId())
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + request.productId()));
 
         TestCaseEntity entity = new TestCaseEntity();
-        entity.setFeature(feature);
+        entity.setProduct(product);
+        entity.setPath(request.path() != null ? request.path() : new Long[0]);
         entity.setTitle(request.title());
+        entity.setDescription(request.description());
+        entity.setPromptText(request.promptText());
         entity.setPreconditions(request.preconditions());
         entity.setSteps(request.steps() != null ? request.steps() : new ArrayList<>());
         entity.setExpectedResult(request.expectedResult());
@@ -62,7 +67,10 @@ public class TestCaseServiceImpl implements TestCaseService {
         TestCaseEntity entity = testCaseRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Test case not found: " + id));
 
+        entity.setPath(request.path() != null ? request.path() : new Long[0]);
         entity.setTitle(request.title());
+        entity.setDescription(request.description());
+        entity.setPromptText(request.promptText());
         entity.setPreconditions(request.preconditions());
         entity.setSteps(request.steps() != null ? request.steps() : new ArrayList<>());
         entity.setExpectedResult(request.expectedResult());
@@ -76,35 +84,38 @@ public class TestCaseServiceImpl implements TestCaseService {
 
     @Override
     public void delete(Long id) {
-        testCaseRepository.deleteById(id);
+        if (!testCaseRepository.existsById(id)) {
+            throw new IllegalArgumentException("Test case not found: " + id);
+        }
+        testCaseRepository.deleteByIdDirectly(id);
     }
 
     @Override
-    public List<TestCaseDto.TestCaseResponse> generateDraft(Long featureId) {
-        FeatureEntity feature = featureRepository.findById(featureId)
-                .orElseThrow(() -> new IllegalArgumentException("Feature not found: " + featureId));
+    public List<TestCaseDto.TestCaseResponse> generateDraft(TestCaseDto.GenerateDraftRequest request) {
+        ProductEntity product = productRepository.findById(request.productId())
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + request.productId()));
+
+        String pathNames = resolvePathNames(request.path());
 
         String context = String.format(
-                "Feature: %s\nDescription: %s\nTest Scope: %s",
-                feature.getName(),
-                feature.getDescription() != null ? feature.getDescription() : "",
-                feature.getPromptText() != null ? feature.getPromptText() : ""
+                "Product: %s\nPath: %s",
+                product.getName(),
+                pathNames
         );
 
-        String prompt = context + "\n\n위 Feature에 대한 Test Case를 JSON 배열 형식으로 생성해주세요. " +
+        String prompt = context + "\n\n위 경로에 대한 Test Case를 JSON 배열 형식으로 생성해주세요. " +
                 "[{\"order\": 1, \"action\": \"...\", \"expected\": \"...\"}, ...]";
 
         try {
             String response = chatClient.prompt().user(prompt).call().content();
-            log.info("AI Draft response received for feature: {}", featureId);
+            log.info("AI Draft response received for product: {}, path: {}", request.productId(), pathNames);
 
-            // Parse JSON response
             List<TestStep> steps = parseSteps(response);
 
-            // Create test case entity
             TestCaseEntity entity = new TestCaseEntity();
-            entity.setFeature(feature);
-            entity.setTitle("AI Draft: " + feature.getName());
+            entity.setProduct(product);
+            entity.setPath(request.path() != null ? request.path() : new Long[0]);
+            entity.setTitle("AI Draft: " + pathNames);
             entity.setSteps(steps);
             entity.setStatus(TestStatus.DRAFT);
             entity.setPriority(Priority.MEDIUM);
@@ -113,14 +124,27 @@ public class TestCaseServiceImpl implements TestCaseService {
             TestCaseEntity saved = testCaseRepository.save(entity);
             return List.of(toResponse(saved));
         } catch (Exception e) {
-            log.error("Failed to generate test case draft for feature: {}", featureId, e);
+            log.error("Failed to generate test case draft for product: {}, path: {}", request.productId(), pathNames, e);
             return List.of();
         }
     }
 
+    /**
+     * Resolves segment IDs to their names, joined by " > ".
+     */
+    private String resolvePathNames(Long[] path) {
+        if (path == null || path.length == 0) {
+            return "";
+        }
+        return Arrays.stream(path)
+                .map(segmentRepository::findById)
+                .filter(Optional::isPresent)
+                .map(opt -> opt.get().getName())
+                .collect(Collectors.joining(" > "));
+    }
+
     private List<TestStep> parseSteps(String response) {
         try {
-            // Extract JSON array from response (handle markdown code blocks)
             String jsonStr = response.trim();
             if (jsonStr.startsWith("```")) {
                 jsonStr = jsonStr.substring(jsonStr.indexOf("["), jsonStr.lastIndexOf("]") + 1);
@@ -141,8 +165,11 @@ public class TestCaseServiceImpl implements TestCaseService {
     private TestCaseDto.TestCaseResponse toResponse(TestCaseEntity entity) {
         return new TestCaseDto.TestCaseResponse(
                 entity.getId(),
-                entity.getFeature().getId(),
+                entity.getProduct().getId(),
+                entity.getPath(),
                 entity.getTitle(),
+                entity.getDescription(),
+                entity.getPromptText(),
                 entity.getPreconditions(),
                 entity.getSteps(),
                 entity.getExpectedResult(),

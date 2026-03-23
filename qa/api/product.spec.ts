@@ -79,7 +79,9 @@ test.describe('Product API E2E', () => {
   test('PUT /api/products/{id} - updates product', async () => {
     const response = await request.put(`/api/products/${productId}`, {
       data: {
+        companyId,
         name: 'Atlas Web App v2',
+        platform: 'WEB',
         description: 'Updated web application',
       },
     });

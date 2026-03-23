@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { FeaturesPage } from '../pages/features-page';
 import { cleanupAllTestData } from '../helpers/api-helpers';
 
-test.describe('Features Page - Company Panel', () => {
+test.describe('Company List Page', () => {
   let featuresPage: FeaturesPage;
 
   test.beforeEach(async ({ page }) => {
@@ -11,81 +11,90 @@ test.describe('Features Page - Company Panel', () => {
   });
 
   test.afterEach(async () => {
-    // Clean up all test data
     await cleanupAllTestData();
   });
 
-  test('should display three panels on page load', async ({ page }) => {
-    // Check company panel
-    await expect(page.locator('.w-64')).toBeVisible();
-    await expect(page.locator('text=Companies').first()).toBeVisible();
-
-    // Check product panel
-    await expect(page.locator('.w-80')).toBeVisible();
-    await expect(page.locator('text=Products')).toBeVisible();
-
-    // Check feature panel
-    await expect(page.locator('.flex-1.bg-gray-50')).toBeVisible();
-    await expect(page.locator('h3').filter({ hasText: 'Features' })).toBeVisible();
+  test('should display Companies heading on page load', async ({ page }) => {
+    await expect(page.locator('h1').filter({ hasText: 'Companies' })).toBeVisible();
   });
 
-  test('should add a company when name is entered and Enter is pressed', async () => {
+  test('should add a company when name is entered', async ({ page }) => {
     const companyName = 'E2E Test Company';
-    await featuresPage.addCompany(companyName);
+    await page.locator('input[placeholder="Company name..."]').fill(companyName);
 
-    const companyExists = await featuresPage.companyList.getByText(companyName).isVisible();
+    const responsePromise = page.waitForResponse(resp =>
+      resp.url().includes('/api/companies') && resp.request().method() === 'POST'
+    );
+    await page.getByRole('button', { name: /Add Company/i }).click();
+    await responsePromise;
+
+    const companyExists = await page.getByText(companyName).isVisible();
     expect(companyExists).toBe(true);
   });
 
-  test('should activate company and show Active badge', async () => {
+  test('should activate company and show Active badge', async ({ page }) => {
     const companyName = 'E2E Activate Test';
-    await featuresPage.addCompany(companyName);
+    await page.locator('input[placeholder="Company name..."]').fill(companyName);
 
-    await featuresPage.activateCompany(companyName);
+    const createPromise = page.waitForResponse(resp =>
+      resp.url().includes('/api/companies') && resp.request().method() === 'POST'
+    );
+    await page.getByRole('button', { name: /Add Company/i }).click();
+    await createPromise;
 
-    const activeBadge = await featuresPage.companyPanel
-      .locator(`text=${companyName}`)
-      .locator('xpath=..')
-      .getByText('Active')
-      .isVisible();
+    const activatePromise = page.waitForResponse(resp =>
+      resp.url().includes('/activate') && resp.request().method() === 'PATCH'
+    );
+    await page.getByRole('button', { name: /Activate/i }).first().click();
+    await activatePromise;
+
+    const activeBadge = await page.getByText('Active').isVisible();
     expect(activeBadge).toBe(true);
   });
 
-  test('should show placeholder when no company is selected', async () => {
-    const isEmpty = await featuresPage.isProductPanelEmpty();
-    expect(isEmpty).toBe(true);
-  });
-
-  test('should delete company when confirmed', async () => {
+  test('should delete company when confirmed', async ({ page }) => {
     const companyName = 'E2E Delete Test';
-    await featuresPage.addCompany(companyName);
+    await page.locator('input[placeholder="Company name..."]').fill(companyName);
+
+    const createPromise = page.waitForResponse(resp =>
+      resp.url().includes('/api/companies') && resp.request().method() === 'POST'
+    );
+    await page.getByRole('button', { name: /Add Company/i }).click();
+    await createPromise;
 
     // Verify company exists
-    let companyExists = await featuresPage.companyList.getByText(companyName).isVisible();
+    let companyExists = await page.getByText(companyName).isVisible();
     expect(companyExists).toBe(true);
 
-    await featuresPage.deleteCompany(companyName);
+    // Delete company
+    page.once('dialog', dialog => dialog.accept());
+    const deletePromise = page.waitForResponse(resp =>
+      resp.url().includes('/api/companies/') && resp.request().method() === 'DELETE'
+    );
+    await page.getByRole('button', { name: /Delete/i }).first().click();
+    await deletePromise;
 
     // Verify company is removed
-    companyExists = await featuresPage.companyList.getByText(companyName).isVisible();
+    companyExists = await page.getByText(companyName).isVisible();
     expect(companyExists).toBe(false);
   });
 
-  test('should not delete company when confirmation is dismissed', async ({ page }) => {
-    const companyName = 'E2E No Delete Test';
-    await featuresPage.addCompany(companyName);
+  test('should navigate to products on company click', async ({ page }) => {
+    const companyName = 'E2E Navigate Test';
+    await page.locator('input[placeholder="Company name..."]').fill(companyName);
 
-    // Setup: dismiss the dialog
-    page.once('dialog', dialog => dialog.dismiss());
+    const createPromise = page.waitForResponse(resp =>
+      resp.url().includes('/api/companies') && resp.request().method() === 'POST'
+    );
+    await page.getByRole('button', { name: /Add Company/i }).click();
+    await createPromise;
 
-    const deleteButton = featuresPage.companyPanel
-      .locator(`text=${companyName}`)
-      .locator('xpath=..')
-      .getByRole('button', { name: /Delete/i });
-    await deleteButton.click();
+    // Click on company card
+    await page.getByText(companyName).click();
+    await page.waitForLoadState('networkidle');
 
-    // Verify company still exists
-    const companyExists = await featuresPage.companyList.getByText(companyName).isVisible();
-    expect(companyExists).toBe(true);
+    // Should be on product list page
+    await expect(page.locator('h1').filter({ hasText: companyName })).toBeVisible();
+    await expect(page.locator('p.text-gray-600').filter({ hasText: 'Products' })).toBeVisible();
   });
 });

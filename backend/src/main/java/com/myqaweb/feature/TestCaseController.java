@@ -1,6 +1,7 @@
 package com.myqaweb.feature;
 
 import com.myqaweb.common.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,13 +16,15 @@ public class TestCaseController {
     private final TestCaseService testCaseService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<TestCaseDto.TestCaseResponse>>> getByFeatureId(@RequestParam Long featureId) {
-        List<TestCaseDto.TestCaseResponse> result = testCaseService.getByFeatureId(featureId);
+    public ResponseEntity<ApiResponse<List<TestCaseDto.TestCaseResponse>>> getByProductId(
+            @RequestParam Long productId) {
+        List<TestCaseDto.TestCaseResponse> result = testCaseService.getByProductId(productId);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<TestCaseDto.TestCaseResponse>> create(@RequestBody TestCaseDto.TestCaseRequest request) {
+    public ResponseEntity<ApiResponse<TestCaseDto.TestCaseResponse>> create(
+            @Valid @RequestBody TestCaseDto.TestCaseRequest request) {
         TestCaseDto.TestCaseResponse result = testCaseService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(result));
     }
@@ -41,8 +44,9 @@ public class TestCaseController {
     }
 
     @PostMapping("/generate-draft")
-    public ResponseEntity<ApiResponse<List<TestCaseDto.TestCaseResponse>>> generateDraft(@RequestParam Long featureId) {
-        List<TestCaseDto.TestCaseResponse> result = testCaseService.generateDraft(featureId);
+    public ResponseEntity<ApiResponse<List<TestCaseDto.TestCaseResponse>>> generateDraft(
+            @RequestBody TestCaseDto.GenerateDraftRequest request) {
+        List<TestCaseDto.TestCaseResponse> result = testCaseService.generateDraft(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(result));
     }
 }

@@ -21,11 +21,21 @@ public class TestCaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "feature_id", nullable = false)
-    private FeatureEntity feature;
+    @JoinColumn(name = "product_id", nullable = false)
+    private ProductEntity product;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(columnDefinition = "bigint[]")
+    private Long[] path;
 
     @Column(nullable = false, length = 200)
     private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "prompt_text", columnDefinition = "TEXT")
+    private String promptText;
 
     @Column(columnDefinition = "TEXT")
     private String preconditions;

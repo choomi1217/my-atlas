@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
@@ -23,37 +22,35 @@ class TestCaseServiceImplTest {
     private TestCaseRepository testCaseRepository;
 
     @Mock
-    private FeatureRepository featureRepository;
+    private ProductRepository productRepository;
+
+    @Mock
+    private SegmentRepository segmentRepository;
 
     @Mock
     private ChatClient chatClient;
 
-    @InjectMocks
     private TestCaseServiceImpl testCaseService;
 
     private CompanyEntity company;
     private ProductEntity product;
-    private FeatureEntity feature;
     private TestCaseEntity testCase;
 
     @BeforeEach
     void setUp() {
         testCaseService = new TestCaseServiceImpl(
                 testCaseRepository,
-                featureRepository,
+                productRepository,
+                segmentRepository,
                 chatClient,
                 new ObjectMapper()
         );
 
         company = new CompanyEntity(1L, "Test Company", true, LocalDateTime.now());
         product = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", LocalDateTime.now());
-        feature = new FeatureEntity(
-                1L, product, "Main › Login", "Social Login",
-                "Social login feature", "Allow users to login with social accounts",
-                new float[1536], LocalDateTime.now(), LocalDateTime.now()
-        );
         testCase = new TestCaseEntity(
-                1L, feature, "Test social login",
+                1L, product, new Long[]{1L, 2L}, "Test social login",
+                "Social login feature", "Allow users to login with social accounts",
                 "User is on login page",
                 List.of(new TestStep(1, "Click social login", "OAuth popup opens")),
                 "Redirected to main page",
@@ -63,43 +60,49 @@ class TestCaseServiceImplTest {
     }
 
     @Test
-    void testGetByFeatureId() {
-        when(testCaseRepository.findAllByFeatureId(1L)).thenReturn(List.of(testCase));
+    void testGetByProductId() {
+        when(testCaseRepository.findAllByProductId(1L)).thenReturn(List.of(testCase));
 
-        List<TestCaseDto.TestCaseResponse> result = testCaseService.getByFeatureId(1L);
+        List<TestCaseDto.TestCaseResponse> result = testCaseService.getByProductId(1L);
 
         assertEquals(1, result.size());
         assertEquals("Test social login", result.get(0).title());
-        verify(testCaseRepository).findAllByFeatureId(1L);
+        verify(testCaseRepository).findAllByProductId(1L);
     }
 
     @Test
     void testCreate() {
         TestCaseDto.TestCaseRequest request = new TestCaseDto.TestCaseRequest(
-                1L, "Test login", "Precondition", List.of(), "Expected result",
+                1L, new Long[]{1L, 2L}, "Test login",
+                "Social login desc", "Prompt text",
+                "Precondition", List.of(), "Expected result",
                 Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT
         );
 
-        when(featureRepository.findById(1L)).thenReturn(Optional.of(feature));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(testCaseRepository.save(any())).thenReturn(testCase);
 
         TestCaseDto.TestCaseResponse result = testCaseService.create(request);
 
         assertNotNull(result);
         assertEquals("Test social login", result.title());
-        verify(featureRepository).findById(1L);
+        verify(productRepository).findById(1L);
         verify(testCaseRepository).save(any());
     }
 
     @Test
     void testUpdate() {
         TestCaseDto.TestCaseRequest request = new TestCaseDto.TestCaseRequest(
-                1L, "Updated test", "Updated precondition", List.of(), "Updated expected",
+                1L, new Long[]{1L}, "Updated test",
+                "Updated desc", "Updated prompt",
+                "Updated precondition", List.of(), "Updated expected",
                 Priority.LOW, TestType.REGRESSION, TestStatus.ACTIVE
         );
 
         TestCaseEntity updatedEntity = new TestCaseEntity(
-                1L, feature, "Updated test", "Updated precondition",
+                1L, product, new Long[]{1L}, "Updated test",
+                "Updated desc", "Updated prompt",
+                "Updated precondition",
                 List.of(), "Updated expected",
                 Priority.LOW, TestType.REGRESSION, TestStatus.ACTIVE,
                 testCase.getCreatedAt(), LocalDateTime.now()
@@ -118,26 +121,36 @@ class TestCaseServiceImplTest {
 
     @Test
     void testDelete() {
+        when(testCaseRepository.existsById(1L)).thenReturn(true);
         testCaseService.delete(1L);
-        verify(testCaseRepository).deleteById(1L);
+        verify(testCaseRepository).deleteByIdDirectly(1L);
     }
 
     @Test
-    void testCreateFeatureNotFound() {
+    void testDeleteNotFound() {
+        when(testCaseRepository.existsById(99L)).thenReturn(false);
+        assertThrows(IllegalArgumentException.class, () -> testCaseService.delete(99L));
+    }
+
+    @Test
+    void testCreateProductNotFound() {
         TestCaseDto.TestCaseRequest request = new TestCaseDto.TestCaseRequest(
-                99L, "Test", null, List.of(), null,
+                99L, new Long[]{}, "Test", null, null,
+                null, List.of(), null,
                 Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT
         );
 
-        when(featureRepository.findById(99L)).thenReturn(Optional.empty());
+        when(productRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () -> testCaseService.create(request));
     }
 
     @Test
-    void testGenerateDraftFeatureNotFound() {
-        when(featureRepository.findById(99L)).thenReturn(Optional.empty());
+    void testGenerateDraftProductNotFound() {
+        TestCaseDto.GenerateDraftRequest request = new TestCaseDto.GenerateDraftRequest(99L, new Long[]{});
 
-        assertThrows(IllegalArgumentException.class, () -> testCaseService.generateDraft(99L));
+        when(productRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> testCaseService.generateDraft(request));
     }
 }

@@ -8,8 +8,11 @@ import java.util.List;
 
 public class TestCaseDto {
     public record TestCaseRequest(
-        @NotNull Long featureId,
+        @NotNull Long productId,
+        Long[] path,
         @NotBlank String title,
+        String description,
+        String promptText,
         String preconditions,
         List<TestStep> steps,
         String expectedResult,
@@ -20,8 +23,11 @@ public class TestCaseDto {
 
     public record TestCaseResponse(
         Long id,
-        Long featureId,
+        Long productId,
+        Long[] path,
         String title,
+        String description,
+        String promptText,
         String preconditions,
         List<TestStep> steps,
         String expectedResult,
@@ -30,5 +36,10 @@ public class TestCaseDto {
         TestStatus status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
+    ) {}
+
+    public record GenerateDraftRequest(
+        @NotNull Long productId,
+        Long[] path
     ) {}
 }

@@ -31,17 +31,13 @@ export interface Product {
 }
 
 /**
- * Feature interface.
+ * Segment interface for hierarchical path nodes.
  */
-export interface Feature {
+export interface Segment {
   id: number;
-  productId: number;
-  path: string;
   name: string;
-  description?: string;
-  promptText?: string;
-  createdAt: string;
-  updatedAt: string;
+  productId: number;
+  parentId: number | null;
 }
 
 /**
@@ -86,8 +82,11 @@ export enum TestCaseStatus {
  */
 export interface TestCase {
   id: number;
-  featureId: number;
+  productId: number;
+  path: number[];
   title: string;
+  description?: string;
+  promptText?: string;
   preconditions?: string;
   steps: TestStep[];
   expectedResult?: string;
