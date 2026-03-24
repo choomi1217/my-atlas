@@ -6,24 +6,48 @@ AI 시니어 QA 챗봇 기능. 사용자 질문에 대해 RAG(Retrieval-Augmente
 
 ---
 
-## 화면 구성 (3탭 드릴다운)
+## 화면 구성 (Header 토글 내비게이션)
 
-| 탭 | 설명 |
-|----|------|
-| **Chat** | Claude AI 챗봇 인터페이스 (SSE 실시간 스트리밍) |
-| **FAQ** | 개인 QA 경험/위키 카드뷰 (CRUD) |
-| **KB Management** | QA 서적 프롬프트 등록 + Company Features 읽기 뷰 |
+**기본 진입 화면: FAQ** (v1에서 Chat → FAQ로 변경)
+
+| 뷰 | 진입 | 설명 |
+|----|------|------|
+| **FAQ** (기본) | My Senior 클릭 시 기본 노출 | 검색 바 + Collapse/Expand 카드 + "Chat에서 더 물어보기" 버튼 |
+| **Chat** | Header [Chat →] 버튼 | Claude AI 챗봇 (SSE 스트리밍), FAQ 컨텍스트 주입 지원 |
+| **KB Management** | Header [KB] 버튼 | QA 서적 프롬프트 등록 + Company Features 읽기 뷰 |
+
+### 내비게이션 흐름
+- FAQ 화면 → Header [Chat →] 버튼 → Chat 화면
+- Chat 화면 → Header [← FAQ] 버튼 → FAQ 화면
+- 어느 화면이든 → Header [KB] 버튼 → KB Management 화면
+- KB Management → Header [← Back] 버튼 → FAQ 화면
+
+### FAQ → Chat 컨텍스트 전달
+```
+FAQ 카드 클릭 → Expand → [Chat에서 더 물어보기 →] 클릭
+    ↓
+faqContext 세팅 (title + content)
+    ↓
+Chat 화면 전환 + 입력창 자동 포커스
+    ↓
+사용자 질문 전송 시 faqContext를 request body에 포함
+    ↓
+Backend: faqContext를 System Prompt에 최우선 병합 → Claude API 호출
+    ↓
+전송 후 faqContext 자동 초기화
+```
 
 ---
 
 ## RAG 파이프라인
 
 ```
-사용자 질문
+사용자 질문 + (optional) faqContext
     ↓
 1. 임베딩 변환 (OpenAI text-embedding-3-small → 1536차원)
     ↓
-2. 컨텍스트 수집:
+2. 컨텍스트 수집 (우선순위 순):
+   0. [FAQ 참고 항목] — 사용자가 선택한 FAQ (faqContext, nullable → 있으면 최우선 주입)
    a. Company Features — 활성 회사의 제품/세그먼트 트리 (전체 조회)
    b. Knowledge Base — pgvector 코사인 유사도 Top 3
    c. FAQ — pgvector 코사인 유사도 Top 3
@@ -42,7 +66,7 @@ AI 시니어 QA 챗봇 기능. 사용자 질문에 대해 RAG(Retrieval-Augmente
 
 | Method | Endpoint | 설명 |
 |--------|----------|------|
-| POST | `/api/senior/chat` | SSE 스트리밍 AI 채팅 |
+| POST | `/api/senior/chat` | SSE 스트리밍 AI 채팅 (body: `{ message, faqContext? }`) |
 | GET | `/api/senior/faq` | FAQ 전체 조회 |
 | GET | `/api/senior/faq/{id}` | FAQ 단건 조회 |
 | POST | `/api/senior/faq` | FAQ 생성 (+ 비동기 임베딩) |
@@ -121,7 +145,7 @@ senior/
 ├── FaqEntity.java             # JPA 엔티티
 ├── FaqRepository.java         # JpaRepository + pgvector 유사 검색
 ├── FaqDto.java                # FaqRequest / FaqResponse 레코드
-└── ChatDto.java               # ChatRequest 레코드
+└── ChatDto.java               # ChatRequest + FaqContext 레코드
 
 knowledgebase/
 ├── KnowledgeBaseController.java
@@ -147,27 +171,29 @@ common/
 
 ```
 pages/
-└── SeniorPage.tsx             # 3탭 컨테이너
+└── SeniorPage.tsx             # FAQ 기본 진입 + Header 토글 내비게이션 (chat hook 상위 lift)
 
 components/senior/
-├── SeniorTabBar.tsx           # Chat | FAQ | KB Management 탭
-├── ChatView.tsx               # SSE 스트리밍 채팅 UI
-├── FaqListView.tsx            # FAQ 카드 그리드 + CRUD
+├── ChatView.tsx               # SSE 스트리밍 채팅 UI (props 기반, faqContext 배너 표시)
+├── FaqView.tsx                # FAQ 기본 화면 (검색 바 + 카드 목록 + CRUD)
+├── FaqCard.tsx                # FAQ 카드 (Collapse/Expand + "Chat에서 더 물어보기" 버튼)
 ├── FaqFormModal.tsx           # FAQ 생성/수정 모달
+├── FaqListView.tsx            # (기존, 미사용 — FaqView로 대체됨)
+├── SeniorTabBar.tsx           # (기존, 미사용 — Header 토글 버튼으로 대체됨)
 ├── KbManagementView.tsx       # KB 목록 + Company Features 서브뷰
 ├── KbFormModal.tsx            # KB 생성/수정 모달
 └── CompanyFeaturesView.tsx    # 회사/제품 읽기 전용 뷰
 
 hooks/
-├── useSeniorChat.ts           # 채팅 상태 + SSE 소비
+├── useSeniorChat.ts           # 채팅 상태 + SSE 소비 + faqContext 상태 관리
 ├── useFaq.ts                  # FAQ CRUD 상태
 └── useKnowledgeBase.ts        # KB CRUD 상태
 
 api/
-└── senior.ts                  # chatApi (fetch SSE), faqApi, kbApi (axios)
+└── senior.ts                  # chatApi (fetch SSE + faqContext), faqApi, kbApi (axios)
 
 types/
-└── senior.ts                  # ChatMessage, FaqItem, KbItem, ConventionItem
+└── senior.ts                  # ChatMessage, FaqContext, FaqItem, KbItem, ConventionItem
 ```
 
 ---
@@ -188,15 +214,15 @@ types/
 ## 테스트
 
 ### Backend 단위 테스트
-- `SeniorServiceImplTest.java` — FAQ CRUD 8개 테스트
-- `SeniorControllerTest.java` — REST 엔드포인트 12개 테스트
+- `SeniorServiceImplTest.java` — FAQ CRUD 9개 + chat faqContext 4개 (총 13개)
+- `SeniorControllerTest.java` — REST 엔드포인트 11개 테스트
 - `KnowledgeBaseServiceImplTest.java` — KB CRUD 8개 테스트
 - `EmbeddingServiceTest.java` — 임베딩 + 벡터 변환 6개 테스트
 
 ### E2E 테스트 (Playwright)
-- `qa/ui/senior.spec.ts` — 페이지 로드, 탭 전환, FAQ CRUD, KB 서브뷰 (8개 시나리오)
+- `qa/ui/senior.spec.ts` — FAQ 기본 진입, 뷰 전환, FAQ CRUD, KB 서브뷰 (8개 시나리오)
 
 ### 검증 결과
 - `./gradlew clean build` — PASSED
-- `./gradlew test` — 65 passed, 0 failed
+- `./gradlew test` — all passed, 0 failed
 - `npx playwright test` — 60 passed, 0 failed

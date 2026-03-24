@@ -12,12 +12,12 @@ import java.util.Optional;
 public interface SeniorService {
 
     /**
-     * Processes a chat message through the RAG pipeline and streams the AI response.
+     * Processes a chat request through the RAG pipeline and streams the AI response.
      *
-     * @param userMessage the user's question
+     * @param request the chat request containing message and optional FAQ context
      * @return SseEmitter that streams the AI response
      */
-    SseEmitter chat(String userMessage);
+    SseEmitter chat(ChatDto.ChatRequest request);
 
     /**
      * Retrieves all FAQ entries.

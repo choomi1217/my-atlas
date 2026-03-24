@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '@/types/features';
-import { FaqItem, FaqRequest, KbItem, KbRequest } from '@/types/senior';
+import { FaqContext, FaqItem, FaqRequest, KbItem, KbRequest } from '@/types/senior';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
@@ -13,14 +13,15 @@ export const chatApi = {
     message: string,
     onChunk: (text: string) => void,
     onDone: () => void,
-    onError: (err: Error) => void
+    onError: (err: Error) => void,
+    faqContext?: FaqContext | null
   ): AbortController => {
     const controller = new AbortController();
 
     fetch(`${API_BASE_URL}/api/senior/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, faqContext: faqContext || null }),
       signal: controller.signal,
     })
       .then((response) => {

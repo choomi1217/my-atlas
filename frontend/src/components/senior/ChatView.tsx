@@ -1,18 +1,44 @@
 import { useState, useRef, useEffect } from 'react';
-import { useSeniorChat } from '@/hooks/useSeniorChat';
+import { ChatMessage, FaqItem } from '@/types/senior';
 
-export default function ChatView() {
-  const { messages, isStreaming, error, sendMessage, clearChat } = useSeniorChat();
+interface ChatViewProps {
+  messages: ChatMessage[];
+  isStreaming: boolean;
+  error: string | null;
+  faqContext: FaqItem | null;
+  onSendMessage: (text: string) => void;
+  onClearChat: () => void;
+  inputRef?: React.RefObject<HTMLTextAreaElement | null>;
+}
+
+export default function ChatView({
+  messages,
+  isStreaming,
+  error,
+  faqContext,
+  onSendMessage,
+  onClearChat,
+  inputRef,
+}: ChatViewProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fallbackInputRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = inputRef || fallbackInputRef;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-focus when faqContext is set
+  useEffect(() => {
+    if (faqContext) {
+      textareaRef.current?.focus();
+    }
+  }, [faqContext, textareaRef]);
+
   const handleSend = () => {
     if (!input.trim() || isStreaming) return;
-    sendMessage(input);
+    onSendMessage(input);
     setInput('');
   };
 
@@ -25,11 +51,22 @@ export default function ChatView() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-180px)]">
+      {/* FAQ context banner */}
+      {faqContext && (
+        <div className="px-3 py-2 mb-2 text-sm bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-200">
+          <span className="font-medium">FAQ 참고:</span> {faqContext.title}
+        </div>
+      )}
+
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full text-gray-400">
-            <p>Ask your Senior QA any question...</p>
+            <p>
+              {faqContext
+                ? `"${faqContext.title}" 관련 추가 질문을 입력하세요.`
+                : 'Ask your Senior QA any question...'}
+            </p>
           </div>
         )}
         {messages.map((msg) => (
@@ -62,10 +99,11 @@ export default function ChatView() {
       <div className="border-t border-gray-200 pt-3 flex gap-2">
         <div className="flex-1 relative">
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type your question..."
+            placeholder={faqContext ? `"${faqContext.title}" 관련 질문을 입력하세요...` : 'Type your question...'}
             rows={1}
             disabled={isStreaming}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none
@@ -84,7 +122,7 @@ export default function ChatView() {
         </button>
         {messages.length > 0 && (
           <button
-            onClick={clearChat}
+            onClick={onClearChat}
             className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-300
                        rounded-lg hover:bg-gray-50 transition-colors"
           >

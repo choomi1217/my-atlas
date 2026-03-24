@@ -4,5 +4,29 @@
       "Bash(./gradlew:*)",
       "Bash(cd backend && ./gradlew:*)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -X POST \"$SLACK_CLAUDE_WEBHOOK_URL\" -H 'Content-Type: application/json' -d '{\"text\": \"✅ Claude Code 작업이 완료되었습니다. 확인해주세요.\"}' > /dev/null 2>&1 || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -X POST \"$SLACK_CLAUDE_WEBHOOK_URL\" -H 'Content-Type: application/json' -d '{\"text\": \"🔔 Claude Code가 권한 승인을 기다리고 있습니다. 확인해주세요.\"}' > /dev/null 2>&1 || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
