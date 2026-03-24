@@ -1,17 +1,23 @@
 import { useState, useCallback, useRef } from 'react';
-import { ChatMessage } from '@/types/senior';
+import { ChatMessage, FaqContext, FaqItem } from '@/types/senior';
 import { chatApi } from '@/api/senior';
 
 export const useSeniorChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [faqContext, setFaqContext] = useState<FaqItem | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback((text: string) => {
     if (!text.trim() || isStreaming) return;
 
     setError(null);
+
+    // Capture current faqContext before clearing
+    const currentFaqContext: FaqContext | null = faqContext
+      ? { title: faqContext.title, content: faqContext.content }
+      : null;
 
     // Add user message
     const userMsg: ChatMessage = {
@@ -31,6 +37,9 @@ export const useSeniorChat = () => {
 
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setIsStreaming(true);
+
+    // Clear faqContext after capturing it
+    setFaqContext(null);
 
     const assistantId = assistantMsg.id;
 
@@ -52,9 +61,10 @@ export const useSeniorChat = () => {
       (err) => {
         setIsStreaming(false);
         setError(err.message);
-      }
+      },
+      currentFaqContext
     );
-  }, [isStreaming]);
+  }, [isStreaming, faqContext]);
 
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort();
@@ -65,7 +75,17 @@ export const useSeniorChat = () => {
     stopStreaming();
     setMessages([]);
     setError(null);
+    setFaqContext(null);
   }, [stopStreaming]);
 
-  return { messages, isStreaming, error, sendMessage, stopStreaming, clearChat };
+  return {
+    messages,
+    isStreaming,
+    error,
+    faqContext,
+    setFaqContext,
+    sendMessage,
+    stopStreaming,
+    clearChat,
+  };
 };

@@ -49,11 +49,13 @@ public class SeniorServiceImpl implements SeniorService {
     private final ConventionRepository conventionRepository;
 
     @Override
-    public SseEmitter chat(String userMessage) {
+    public SseEmitter chat(ChatDto.ChatRequest request) {
         SseEmitter emitter = new SseEmitter(120_000L);
 
-        // Build RAG context
-        String systemPrompt = buildRagContext(userMessage);
+        String userMessage = request.message();
+
+        // Build RAG context with optional FAQ context
+        String systemPrompt = buildRagContext(userMessage, request.faqContext());
 
         // Stream Claude response
         Flux<String> stream = chatClient.prompt()
@@ -137,10 +139,17 @@ public class SeniorServiceImpl implements SeniorService {
 
     // --- RAG Pipeline ---
 
-    private String buildRagContext(String userMessage) {
+    private String buildRagContext(String userMessage, ChatDto.FaqContext faqContext) {
         StringBuilder sb = new StringBuilder();
         sb.append("You are a Senior QA Engineer AI assistant. ");
         sb.append("Answer the user's QA-related questions using the following context.\n\n");
+
+        // 0. User-selected FAQ context (highest priority)
+        if (faqContext != null) {
+            sb.append("=== FAQ 참고 항목 (사용자가 선택한 항목) ===\n");
+            sb.append("제목: ").append(faqContext.title()).append("\n");
+            sb.append("내용: ").append(faqContext.content()).append("\n\n");
+        }
 
         // 1. Company Features (active company → products → segments)
         appendCompanyFeatures(sb);
