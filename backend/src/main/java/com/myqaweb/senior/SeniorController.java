@@ -25,7 +25,7 @@ public class SeniorController {
      */
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@Valid @RequestBody ChatDto.ChatRequest request) {
-        return seniorService.chat(request.message());
+        return seniorService.chat(request);
     }
 
     // --- FAQ CRUD ---

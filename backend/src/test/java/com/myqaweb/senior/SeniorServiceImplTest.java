@@ -9,10 +9,13 @@ import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,11 +23,13 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for SeniorServiceImpl — FAQ CRUD operations.
+ * Unit tests for SeniorServiceImpl — chat (with/without FAQ context) and FAQ CRUD operations.
  */
 @ExtendWith(MockitoExtension.class)
 class SeniorServiceImplTest {
@@ -65,6 +70,124 @@ class SeniorServiceImplTest {
         now = LocalDateTime.now();
         faq1 = new FaqEntity(1L, "Login FAQ", "How to test login", "auth,login", null, now, now);
         faq2 = new FaqEntity(2L, "API FAQ", "How to test REST APIs", "api,rest", null, now, now);
+    }
+
+    // --- chat ---
+
+    private void setupChatClientMock() {
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        when(clientRequest.system(anyString())).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(clientRequest.stream()).thenReturn(streamSpec);
+        when(streamSpec.content()).thenReturn(Flux.just("Hello", " World"));
+    }
+
+    @Test
+    void chat_withoutFaqContext_returnsSseEmitter() {
+        // Arrange
+        setupChatClientMock();
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null);
+
+        // Act
+        SseEmitter result = seniorService.chat(request);
+
+        // Assert
+        assertNotNull(result);
+        verify(chatClient).prompt();
+    }
+
+    @Test
+    void chat_withFaqContext_returnsSseEmitter() {
+        // Arrange
+        setupChatClientMock();
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.FaqContext faqContext = new ChatDto.FaqContext("Login FAQ", "How to test login flow");
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("Tell me more about login testing", faqContext);
+
+        // Act
+        SseEmitter result = seniorService.chat(request);
+
+        // Assert
+        assertNotNull(result);
+        verify(chatClient).prompt();
+    }
+
+    @Test
+    void chat_withFaqContext_includesFaqContextInSystemPrompt() {
+        // Arrange
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        when(clientRequest.system(systemCaptor.capture())).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(clientRequest.stream()).thenReturn(streamSpec);
+        when(streamSpec.content()).thenReturn(Flux.just("response"));
+
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.FaqContext faqContext = new ChatDto.FaqContext("Login FAQ", "Step-by-step login testing");
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", faqContext);
+
+        // Act
+        seniorService.chat(request);
+
+        // Assert — verify the system prompt contains FAQ context
+        String systemPrompt = systemCaptor.getValue();
+        assertTrue(systemPrompt.contains("Login FAQ"), "System prompt should contain FAQ title");
+        assertTrue(systemPrompt.contains("Step-by-step login testing"), "System prompt should contain FAQ content");
+    }
+
+    @Test
+    void chat_withoutFaqContext_doesNotIncludeFaqSection() {
+        // Arrange
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        when(clientRequest.system(systemCaptor.capture())).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(clientRequest.stream()).thenReturn(streamSpec);
+        when(streamSpec.content()).thenReturn(Flux.just("response"));
+
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
+
+        // Act
+        seniorService.chat(request);
+
+        // Assert — verify the system prompt does NOT contain FAQ context section
+        String systemPrompt = systemCaptor.getValue();
+        assertFalse(systemPrompt.contains("FAQ 참고 항목"), "System prompt should NOT contain FAQ context section when faqContext is null");
     }
 
     // --- findAllFaqs ---

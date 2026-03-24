@@ -21,6 +21,14 @@ export interface FaqItem {
 }
 
 /**
+ * FAQ context passed from FAQ to Chat.
+ */
+export interface FaqContext {
+  title: string;
+  content: string;
+}
+
+/**
  * FAQ create/update request.
  */
 export interface FaqRequest {
