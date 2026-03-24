@@ -180,3 +180,44 @@ jobs:
           # Examples:
           # aws ecs update-service --cluster myatlas-cluster --service myatlas-backend --force-new-deployment
           # aws ecs update-service --cluster myatlas-cluster --service myatlas-frontend --force-new-deployment
+
+  notify-slack:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [api-e2e, ui-e2e, deploy-gate]
+    if: ${{ failure() }}
+    steps:
+      - name: Notify Slack on failure
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "❌ *${{ github.workflow }}* failed on ${{ github.ref_name }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "❌ ${{ github.workflow }} Failed" }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Repository:*\n${{ github.repository }}" },
+                    { "type": "mrkdwn", "text": "*Branch:*\n${{ github.ref_name }}" },
+                    { "type": "mrkdwn", "text": "*Commit:*\n${{ github.event.head_commit.message }}" },
+                    { "type": "mrkdwn", "text": "*Author:*\n${{ github.actor }}" }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": { "type": "plain_text", "text": "View Workflow Run" },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
