@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+
+  ai:
+    anthropic:
+      api-key: test-key-do-not-use
+    openai:
+      api-key: test-key-do-not-use
+
+feature:
+  embedding:
+    enabled: true

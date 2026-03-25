@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Capture startup timestamp once — this becomes the session identifier -->
+    <timestamp key="SESSION_TS" datePattern="yyyyMMdd_HHmmss"/>
+
+    <!-- Log directory: configurable via LOG_DIR env var, defaults to /app/logs -->
+    <property name="LOG_DIR" value="${LOG_DIR:-/app/logs}"/>
+
+    <!-- Shared log pattern -->
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+
+    <!-- Console appender — keeps `docker-compose logs` working -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender — one file per session -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_DIR}/backend_${SESSION_TS}.log</file>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Log levels -->
+    <logger name="com.myqaweb" level="DEBUG"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+</configuration>

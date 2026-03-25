@@ -5,7 +5,7 @@
 **my-atlas** is a full-stack QA (Quality Assurance) knowledge management application built with Spring Boot and React. It provides AI-powered assistance for QA professionals to manage testing conventions, feature documentation, and knowledge bases using Claude AI.
 
 ### Key Features
-- **AI Senior QA Chat** (`/`) — Conversational AI advisor powered by Claude
+- **AI Senior QA Chat** (`/senior`) — Conversational AI advisor powered by Claude
 - **Knowledge Base** (`/kb`) — QA best practices and testing guidelines
 - **Word Conventions** (`/conventions`) — Terminology standardization
 - **Feature Registry** (`/features`) — Feature tracking and documentation
@@ -146,25 +146,32 @@ frontend/CLAUDE.md contains:
 
 ## 🔄 Sub-agent Workflow for Feature Implementation
 
-**For all feature requests**, Claude must execute the following 3-agent pipeline in order:
+**For all feature requests**, Claude must execute the following 4-agent pipeline in order:
 
 Each agent is defined in `.claude/agents/` with specific tool permissions:
 
-### Agent 1 — Code Implementation
-**File:** `.claude/agents/feature-implementor.md`
+### Agent-A — Code Implementation
+**File:** `.claude/agents/code-implementor.md`
 **Task:** Write feature code
 **Tools:** Read, Write, Edit, Glob, Grep
 **Scope:** Implement feature based on requirements, reference existing code patterns
 **Success Criteria:** Code compiles, follows project conventions
 
-### Agent 2 — Test Code Writing
-**File:** `.claude/agents/test-writer.md`
-**Task:** Write comprehensive tests for Agent 1's code
+### Agent-B — Backend Unit & Integration Tests
+**File:** `.claude/agents/unit-test-writer.md`
+**Task:** Write JUnit 5 / Mockito tests for Agent-A's backend code
 **Tools:** Read, Write, Edit, Glob, Grep
-**Scope:** Unit tests + E2E test scenarios based on feature spec
-**Success Criteria:** Test files exist with meaningful coverage
+**Scope:** Unit tests and integration tests in `backend/src/test/java/`
+**Success Criteria:** Test files exist with meaningful coverage of service and controller layers
 
-### Agent 3 — Build & Test Verification
+### Agent-C — E2E Tests (Playwright)
+**File:** `.claude/agents/e2e-test-writer.md`
+**Task:** Write Playwright E2E tests (API + UI) for Agent-A's feature
+**Tools:** Read, Write, Edit, Glob, Grep
+**Scope:** E2E test specs in `qa/api/` and `qa/ui/`, plus page objects and helpers
+**Success Criteria:** E2E test files exist covering the feature's API endpoints and UI flows
+
+### Agent-D — Build & Test Verification
 **File:** `.claude/agents/build-verifier.md`
 **Task:** Compile, run all tests, verify full stack E2E passes
 **Tools:** Bash, Read, Glob, Grep (Write/Edit disabled)
@@ -191,17 +198,56 @@ cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 - `docker compose up -d && sleep 10` succeeds, all containers running
 - `npx playwright test` exits 0 with 0 E2E failures
 
-**On Failure:** Analyze error logs, identify whether Agent 1 (code fix) or Agent 2 (test fix) is responsible, return detailed error report, re-run Agent 3 from Step 1 after fix is applied.
+**On Failure:** Analyze error logs, identify whether Agent-A (code fix), Agent-B (unit test fix), or Agent-C (E2E test fix) is responsible, return detailed error report, re-run Agent-D from Step 1 after fix is applied.
 
 **Implementation is NOT complete until all four steps pass.**
 
 **Absolute Rules:**
-- ❌ **NEVER declare "complete"** without Agent 3 passing ALL four steps (build + unit tests + docker stack + E2E)
+- ❌ **NEVER declare "complete"** without Agent-D passing ALL four steps (build + unit tests + docker stack + E2E)
 - ❌ **NEVER skip** any agent in the pipeline
-- ❌ **NEVER skip E2E** — "optional" does not apply to Agent 3's E2E step
+- ❌ **NEVER skip E2E** — "optional" does not apply to Agent-D's E2E step
+- ❌ **NEVER let Agent-B write E2E tests or Agent-C write unit tests** — each agent has exclusive scope
 - ✅ **ALWAYS fix** build/test errors before final approval
 - ✅ **ALWAYS capture** error context for debugging
-- ✅ **ALWAYS run `docker compose down`** after Agent 3 finishes, regardless of outcome
+- ✅ **ALWAYS run `docker compose down`** after Agent-D finishes, regardless of outcome
+
+---
+
+## 📝 버전 문서화 규칙
+
+### 메인 명세서
+각 기능의 현재 구현 상태를 정리한 **버전 없는 md 파일**이 메인 명세서이다.
+- 경로: `docs/features/{feature-name}/{feature-name}.md`
+- 예시: `knowledge-base.md`, `feature-registry.md`, `my-senior.md`
+- 기능의 전체 구조(스키마, API, 파일구조, 핵심기능, 테스트)를 한눈에 파악 가능
+
+### 버전 문서
+변경 시 반드시 버전 문서를 작성한다.
+
+### 문서 경로 (유형별 분리)
+| 변경 유형 | 경로 | 파일명 패턴 |
+|-----------|------|-------------|
+| 버그 수정 | `docs/features/{feature-name}/` | `{feature-name}_v{버전}.md` |
+| 기능 추가 | `docs/features/{feature-name}/` | `{feature-name}_v{버전}.md` |
+| 기능 개선 | `docs/features/{feature-name}/` | `{feature-name}_v{버전}.md` |
+| 환경 개선 | `docs/ops/` | `{주제}_v{버전}.md` |
+
+### 워크플로우
+1. Plan 수립
+2. 코드 개발
+3. 버전 md 작성
+
+### 버전 번호
+- 기능 추가 / 기능 개선 → 메이저 증가 (v0 → v1)
+- 버그 수정 / 환경 개선 → 패치 증가 (v0 → v0.1)
+
+### 변경 유형 태그
+| 태그 | 설명 |
+|------|------|
+| 버그 수정 | 기존 기능의 오류 수정 |
+| 기능 추가 | 새로운 기능 개발 |
+| 기능 개선 | 기존 기능의 UX/성능 개선 |
+| 환경 개선 | 설정, 인프라, 빌드 환경 변경 |
 
 ---
 
@@ -279,6 +325,29 @@ cd frontend
 npm install
 npm run dev
 ```
+
+---
+
+## ⚠️ 데이터베이스 삭제 금지 (CRITICAL)
+
+### knowledge_base 테이블 — 절대 삭제 금지
+이 테이블에는 실제 PDF 도서를 청킹·임베딩하여 저장한 운영 데이터가 포함되어 있다.
+재생성 시 OpenAI Embedding API 호출 비용과 수 분~수십 분의 처리 시간이 발생한다.
+
+**Claude Code는 다음 명령을 절대로 실행해서는 안 된다:**
+- ❌ `DELETE FROM knowledge_base` (어떤 WHERE 조건이든)
+- ❌ `TRUNCATE knowledge_base`
+- ❌ `DROP TABLE knowledge_base`
+- ❌ `docker compose down -v` (DB 볼륨 삭제로 전체 데이터 소실)
+- ❌ knowledge_base 행을 삭제하는 어떤 코드/쿼리 실행
+
+특정 데이터 삭제가 필요한 경우, 사용자에게 직접 실행하도록 안내만 할 것.
+
+### pdf_upload_job 테이블 — 절대 삭제 금지
+업로드 이력 및 처리 상태를 관리한다.
+- ❌ `DELETE FROM pdf_upload_job` (어떤 WHERE 조건이든)
+- ❌ `TRUNCATE pdf_upload_job`
+- ❌ `DROP TABLE pdf_upload_job`
 
 ---
 

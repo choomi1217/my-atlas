@@ -41,6 +41,9 @@ dependencies {
     // pgvector support via JPA + JDBC
     implementation 'com.pgvector:pgvector:0.1.4'
 
+    // PDF parsing
+    implementation 'org.apache.pdfbox:pdfbox:3.0.1'
+
     // Flyway for database migrations
     implementation 'org.flywaydb:flyway-core'
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
@@ -51,9 +54,14 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testRuntimeOnly 'com.h2database:h2'  // In-memory database for integration tests
+    testRuntimeOnly 'com.h2database:h2'  // In-memory database for unit tests
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.awaitility:awaitility'
+    testRuntimeOnly 'org.postgresql:postgresql'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    jvmArgs '-Xmx1g'
 }
