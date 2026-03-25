@@ -24,6 +24,7 @@ public class KnowledgeBaseDto {
             String content,
             String category,
             String tags,
+            String source,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {}

@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '@/types/features';
-import { FaqContext, FaqItem, FaqRequest, KbItem, KbRequest } from '@/types/senior';
+import { FaqContext, FaqItem, FaqRequest, KbItem, KbRequest, PdfUploadJob } from '@/types/senior';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
@@ -135,5 +135,35 @@ export const kbApi = {
 
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/kb/${id}`);
+  },
+
+  uploadPdf: async (file: File, bookTitle: string): Promise<{ jobId: number }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('bookTitle', bookTitle);
+    const response = await apiClient.post<ApiResponse<{ jobId: number }>>(
+      '/api/kb/upload-pdf',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data.data;
+  },
+
+  getJob: async (jobId: number): Promise<PdfUploadJob> => {
+    const response = await apiClient.get<ApiResponse<PdfUploadJob>>(
+      `/api/kb/jobs/${jobId}`
+    );
+    return response.data.data;
+  },
+
+  getAllJobs: async (): Promise<PdfUploadJob[]> => {
+    const response = await apiClient.get<ApiResponse<PdfUploadJob[]>>(
+      '/api/kb/jobs'
+    );
+    return response.data.data;
+  },
+
+  deleteBook: async (source: string): Promise<void> => {
+    await apiClient.delete(`/api/kb/books/${encodeURIComponent(source)}`);
   },
 };

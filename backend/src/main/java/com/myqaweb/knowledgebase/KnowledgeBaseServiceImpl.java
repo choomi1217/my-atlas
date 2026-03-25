@@ -96,6 +96,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 entity.getContent(),
                 entity.getCategory(),
                 entity.getTags(),
+                entity.getSource(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

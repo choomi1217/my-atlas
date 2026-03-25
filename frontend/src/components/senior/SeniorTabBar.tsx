@@ -1,4 +1,4 @@
-export type SeniorTab = 'chat' | 'faq' | 'kb';
+export type SeniorTab = 'chat' | 'faq';
 
 interface SeniorTabBarProps {
   activeTab: SeniorTab;
@@ -8,7 +8,6 @@ interface SeniorTabBarProps {
 const tabs: { key: SeniorTab; label: string }[] = [
   { key: 'chat', label: 'Chat' },
   { key: 'faq', label: 'FAQ' },
-  { key: 'kb', label: 'KB Management' },
 ];
 
 export default function SeniorTabBar({ activeTab, onTabChange }: SeniorTabBarProps) {

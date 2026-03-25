@@ -2,9 +2,9 @@ package com.myqaweb.senior;
 
 import com.myqaweb.common.EmbeddingService;
 import com.myqaweb.convention.ConventionRepository;
-import com.myqaweb.feature.CompanyRepository;
-import com.myqaweb.feature.ProductRepository;
-import com.myqaweb.feature.SegmentRepository;
+import com.myqaweb.convention.ConventionEntity;
+import com.myqaweb.feature.*;
+import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -338,6 +338,106 @@ class SeniorServiceImplTest {
         assertTrue(ex.getMessage().contains("FAQ not found"));
         verify(faqRepository).existsById(99L);
         verify(faqRepository, never()).deleteById(anyLong());
+    }
+
+    // --- RAG Pipeline: Active Company ---
+
+    @Test
+    void chat_withActiveCompany_includesProductsAndSegmentsInContext() {
+        // Arrange
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        when(clientRequest.system(systemCaptor.capture())).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(clientRequest.stream()).thenReturn(streamSpec);
+        when(streamSpec.content()).thenReturn(Flux.just("response"));
+
+        CompanyEntity company = new CompanyEntity(1L, "TestCorp", true, now);
+        ProductEntity product = new ProductEntity(1L, company, "WebApp", Platform.WEB, "Main web app", now);
+        SegmentEntity segment = new SegmentEntity();
+        segment.setId(1L);
+        segment.setName("Login Module");
+
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.of(company));
+        when(productRepository.findAllByCompanyId(1L)).thenReturn(List.of(product));
+        when(segmentRepository.findAllByProductId(1L)).thenReturn(List.of(segment));
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null);
+
+        // Act
+        seniorService.chat(request);
+
+        // Assert
+        String systemPrompt = systemCaptor.getValue();
+        assertTrue(systemPrompt.contains("TestCorp"), "Should contain company name");
+        assertTrue(systemPrompt.contains("WebApp"), "Should contain product name");
+        assertTrue(systemPrompt.contains("Login Module"), "Should contain segment name");
+    }
+
+    @Test
+    void chat_withKbAndFaqResults_combinesAllSourcesInContext() {
+        // Arrange
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        when(clientRequest.system(systemCaptor.capture())).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(clientRequest.stream()).thenReturn(streamSpec);
+        when(streamSpec.content()).thenReturn(Flux.just("response"));
+
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+
+        KnowledgeBaseEntity kbEntry = new KnowledgeBaseEntity();
+        kbEntry.setTitle("Regression Best Practices");
+        kbEntry.setContent("Always run regression after hotfix.");
+        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of(kbEntry));
+
+        FaqEntity faqEntry = new FaqEntity(10L, "My Login Notes", "Check OAuth flow", null, null, now, now);
+        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of(faqEntry));
+
+        ConventionEntity conv = new ConventionEntity(1L, "TC", "Test Case", "Testing", now);
+        when(conventionRepository.findAll()).thenReturn(List.of(conv));
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
+
+        // Act
+        seniorService.chat(request);
+
+        // Assert
+        String systemPrompt = systemCaptor.getValue();
+        assertTrue(systemPrompt.contains("Regression Best Practices"), "Should contain KB entry");
+        assertTrue(systemPrompt.contains("My Login Notes"), "Should contain FAQ entry");
+        assertTrue(systemPrompt.contains("TC"), "Should contain convention term");
+    }
+
+    @Test
+    void chat_whenEmbeddingServiceFails_stillStreamsResponse() {
+        // Arrange
+        setupChatClientMock();
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenThrow(new RuntimeException("OpenAI API unavailable"));
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null);
+
+        // Act — should not throw, graceful degradation
+        SseEmitter result = seniorService.chat(request);
+
+        // Assert
+        assertNotNull(result, "Chat should still return SSE emitter even if embedding fails");
+        verify(chatClient).prompt();
     }
 
     // --- Response mapping ---

@@ -46,6 +46,7 @@ export interface KbItem {
   content: string;
   category: string | null;
   tags: string | null;
+  source: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +59,20 @@ export interface KbRequest {
   content: string;
   category?: string;
   tags?: string;
+}
+
+/**
+ * PDF upload job status.
+ */
+export interface PdfUploadJob {
+  id: number;
+  bookTitle: string;
+  originalFilename: string;
+  status: 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
+  totalChunks: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
 }
 
 /**

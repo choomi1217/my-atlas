@@ -8,7 +8,7 @@ interface ChatViewProps {
   faqContext: FaqItem | null;
   onSendMessage: (text: string) => void;
   onClearChat: () => void;
-  inputRef?: React.RefObject<HTMLTextAreaElement | null>;
+  inputRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 export default function ChatView({

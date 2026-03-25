@@ -22,4 +22,10 @@ public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBaseEnti
             nativeQuery = true)
     List<KnowledgeBaseEntity> findSimilar(@Param("queryVector") String queryVector,
                                           @Param("topK") int topK);
+
+    List<KnowledgeBaseEntity> findBySourceIsNull();
+
+    List<KnowledgeBaseEntity> findBySourceIsNotNull();
+
+    void deleteBySource(String source);
 }

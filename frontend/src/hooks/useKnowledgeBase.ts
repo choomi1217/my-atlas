@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { KbItem, KbRequest } from '@/types/senior';
 import { kbApi } from '@/api/senior';
+
+export type SourceFilter = 'all' | 'manual' | 'pdf';
 
 export const useKnowledgeBase = () => {
   const [kbItems, setKbItems] = useState<KbItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
 
   const fetchKbItems = useCallback(async () => {
     setIsLoading(true);
@@ -24,6 +27,20 @@ export const useKnowledgeBase = () => {
     fetchKbItems();
   }, [fetchKbItems]);
 
+  const filteredItems = useMemo(() => {
+    switch (sourceFilter) {
+      case 'manual':
+        return kbItems.filter((item) => item.source === null);
+      case 'pdf':
+        return kbItems.filter((item) => item.source !== null);
+      default:
+        return kbItems;
+    }
+  }, [kbItems, sourceFilter]);
+
+  const manualCount = useMemo(() => kbItems.filter((item) => item.source === null).length, [kbItems]);
+  const pdfCount = useMemo(() => kbItems.filter((item) => item.source !== null).length, [kbItems]);
+
   const createKbItem = useCallback(async (request: KbRequest) => {
     const created = await kbApi.create(request);
     setKbItems((prev) => [...prev, created]);
@@ -41,5 +58,24 @@ export const useKnowledgeBase = () => {
     setKbItems((prev) => prev.filter((k) => k.id !== id));
   }, []);
 
-  return { kbItems, isLoading, error, fetchKbItems, createKbItem, updateKbItem, deleteKbItem };
+  const deleteBook = useCallback(async (source: string) => {
+    await kbApi.deleteBook(source);
+    setKbItems((prev) => prev.filter((k) => k.source !== source));
+  }, []);
+
+  return {
+    kbItems,
+    filteredItems,
+    isLoading,
+    error,
+    sourceFilter,
+    setSourceFilter,
+    manualCount,
+    pdfCount,
+    fetchKbItems,
+    createKbItem,
+    updateKbItem,
+    deleteKbItem,
+    deleteBook,
+  };
 };

@@ -153,4 +153,79 @@ class TestCaseServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> testCaseService.generateDraft(request));
     }
+
+    // --- generateDraft success ---
+
+    @Test
+    void testGenerateDraft_success_returnsAIDraftedTestCases() {
+        // Arrange
+        TestCaseDto.GenerateDraftRequest request = new TestCaseDto.GenerateDraftRequest(1L, new Long[]{1L});
+
+        SegmentEntity segment = new SegmentEntity();
+        segment.setId(1L);
+        segment.setName("Login");
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(segmentRepository.findById(1L)).thenReturn(Optional.of(segment));
+
+        // Mock ChatClient for synchronous call
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.CallResponseSpec callSpec = mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(callSpec.content()).thenReturn("""
+                [{"order": 1, "action": "Enter valid credentials", "expected": "Login succeeds"}]
+                """);
+        when(clientRequest.call()).thenReturn(callSpec);
+
+        TestCaseEntity savedEntity = new TestCaseEntity(
+                10L, product, new Long[]{1L}, "AI Draft: Login",
+                null, null, null,
+                List.of(new TestStep(1, "Enter valid credentials", "Login succeeds")),
+                null, Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT,
+                LocalDateTime.now(), LocalDateTime.now()
+        );
+        when(testCaseRepository.save(any())).thenReturn(savedEntity);
+
+        // Act
+        List<TestCaseDto.TestCaseResponse> result = testCaseService.generateDraft(request);
+
+        // Assert
+        assertFalse(result.isEmpty(), "Should return at least one draft");
+        assertEquals("AI Draft: Login", result.get(0).title());
+        assertFalse(result.get(0).steps().isEmpty(), "Should have parsed steps");
+        verify(testCaseRepository).save(any());
+    }
+
+    @Test
+    void testGenerateDraft_aiReturnsInvalidJson_returnsEmptyList() {
+        // Arrange
+        TestCaseDto.GenerateDraftRequest request = new TestCaseDto.GenerateDraftRequest(1L, new Long[]{});
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.CallResponseSpec callSpec = mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(callSpec.content()).thenReturn("This is not valid JSON at all");
+        when(clientRequest.call()).thenReturn(callSpec);
+
+        TestCaseEntity savedEntity = new TestCaseEntity(
+                11L, product, new Long[]{}, "AI Draft: ",
+                null, null, null, List.of(), null,
+                Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT,
+                LocalDateTime.now(), LocalDateTime.now()
+        );
+        when(testCaseRepository.save(any())).thenReturn(savedEntity);
+
+        // Act
+        List<TestCaseDto.TestCaseResponse> result = testCaseService.generateDraft(request);
+
+        // Assert — should still return result but with empty steps (graceful)
+        assertFalse(result.isEmpty());
+        assertTrue(result.get(0).steps().isEmpty(), "Invalid JSON should result in empty steps");
+    }
 }

@@ -41,9 +41,9 @@ class KnowledgeBaseServiceImplTest {
     void setUp() {
         now = LocalDateTime.now();
         kb1 = new KnowledgeBaseEntity(1L, "Regression Testing", "Best practices for regression",
-                "Testing", "regression,best-practices", null, now, now);
+                "Testing", "regression,best-practices", null, null, now, now);
         kb2 = new KnowledgeBaseEntity(2L, "API Testing", "How to test REST APIs",
-                "API", "api,rest", null, now, now);
+                "API", "api,rest", null, null, now, now);
     }
 
     // --- findAll ---
@@ -112,7 +112,7 @@ class KnowledgeBaseServiceImplTest {
         KnowledgeBaseDto.KbRequest request = new KnowledgeBaseDto.KbRequest(
                 "New Article", "New content", "QA", "qa,new");
         KnowledgeBaseEntity savedEntity = new KnowledgeBaseEntity(
-                3L, "New Article", "New content", "QA", "qa,new", null, now, now);
+                3L, "New Article", "New content", "QA", "qa,new", null, null, now, now);
         when(knowledgeBaseRepository.save(any(KnowledgeBaseEntity.class))).thenReturn(savedEntity);
 
         // Act
@@ -133,9 +133,9 @@ class KnowledgeBaseServiceImplTest {
         KnowledgeBaseDto.KbRequest request = new KnowledgeBaseDto.KbRequest(
                 "Updated Title", "Updated Content", "Updated Category", "updated");
         KnowledgeBaseEntity existingEntity = new KnowledgeBaseEntity(
-                1L, "Old", "Old", "Old", "old", null, now, now);
+                1L, "Old", "Old", "Old", "old", null, null, now, now);
         KnowledgeBaseEntity savedEntity = new KnowledgeBaseEntity(
-                1L, "Updated Title", "Updated Content", "Updated Category", "updated", null, now, now);
+                1L, "Updated Title", "Updated Content", "Updated Category", "updated", null, null, now, now);
 
         when(knowledgeBaseRepository.findById(1L)).thenReturn(Optional.of(existingEntity));
         when(knowledgeBaseRepository.save(any(KnowledgeBaseEntity.class))).thenReturn(savedEntity);
