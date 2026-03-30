@@ -2,11 +2,15 @@
 .env
 application-secret.yml
 
+# AWS keys
+*.pem
+
 # Java / Gradle
 .gradle/
 build/
 *.class
 *.jar
+!backend/gradle/wrapper/gradle-wrapper.jar
 *.war
 *.ear
 out/
