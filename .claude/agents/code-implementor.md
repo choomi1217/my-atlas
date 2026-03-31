@@ -1,5 +1,6 @@
 ---
 description: Agent-A - Feature code implementation specialist
+model: sonnet
 tools: ["Read", "Write", "Edit", "Glob", "Grep"]
 effort: high
 ---
