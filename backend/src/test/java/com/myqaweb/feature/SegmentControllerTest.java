@@ -155,4 +155,61 @@ class SegmentControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
     }
+
+    // --- PATCH /api/segments/{id}/parent ---
+
+    @Test
+    void reparent_returnsOk() throws Exception {
+        // Arrange
+        SegmentDto.SegmentResponse reparented = new SegmentDto.SegmentResponse(1L, "Login", 10L, 3L);
+        when(segmentService.reparent(eq(1L), eq(3L))).thenReturn(reparented);
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/segments/1/parent")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"parentId": 3}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.parentId").value(3));
+
+        verify(segmentService).reparent(eq(1L), eq(3L));
+    }
+
+    @Test
+    void reparent_toNull_returnsOk() throws Exception {
+        // Arrange
+        SegmentDto.SegmentResponse reparented = new SegmentDto.SegmentResponse(2L, "Login", 10L, null);
+        when(segmentService.reparent(eq(2L), isNull())).thenReturn(reparented);
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/segments/2/parent")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"parentId": null}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.parentId").isEmpty());
+
+        verify(segmentService).reparent(eq(2L), isNull());
+    }
+
+    @Test
+    void reparent_returns404WhenNotFound() throws Exception {
+        // Arrange
+        when(segmentService.reparent(eq(99L), eq(1L)))
+                .thenThrow(new IllegalArgumentException("Segment not found: 99"));
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/segments/99/parent")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"parentId": 1}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
+    }
 }

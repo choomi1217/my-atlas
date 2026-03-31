@@ -64,24 +64,86 @@ export class FeaturesPage {
   }
 
   /**
-   * Click Add Test Case button
+   * Click the "+" Add New card to open Add Company modal
+   */
+  async openAddCompanyModal() {
+    await this.page.locator('text=Add New').first().click();
+  }
+
+  /**
+   * Add a company via the modal
+   */
+  async addCompany(name: string) {
+    await this.openAddCompanyModal();
+    await this.page.locator('input[placeholder="Company name..."]').fill(name);
+
+    const responsePromise = this.page.waitForResponse(
+      resp => resp.url().includes('/api/companies') && resp.request().method() === 'POST'
+    );
+    await this.page.getByRole('button', { name: /^Create$/i }).click();
+    await responsePromise;
+  }
+
+  /**
+   * Click the "+" Add New card to open Add Product modal
+   */
+  async openAddProductModal() {
+    await this.page.locator('text=Add New').first().click();
+  }
+
+  /**
+   * Add a product via the modal
+   */
+  async addProduct(name: string, platform?: string) {
+    await this.openAddProductModal();
+    await this.page.locator('input[placeholder="Product name..."]').fill(name);
+
+    if (platform) {
+      await this.page.locator('.fixed select').selectOption(platform);
+    }
+
+    const responsePromise = this.page.waitForResponse(
+      resp => resp.url().includes('/api/products') && resp.request().method() === 'POST'
+    );
+    await this.page.getByRole('button', { name: /^Create$/i }).click();
+    await responsePromise;
+  }
+
+  /**
+   * Click a segment node in the TreeView to select it
+   */
+  async selectSegmentInTree(segmentName: string) {
+    await this.page
+      .locator('.bg-white.border.rounded.p-2')
+      .locator(`text=${segmentName}`)
+      .first()
+      .click();
+  }
+
+  /**
+   * Click Add Test Case button to open the modal
    */
   async clickAddTestCase() {
     await this.page.getByRole('button', { name: /Add Test Case/i }).click();
   }
 
   /**
-   * Fill and submit test case form
+   * Fill and submit test case form via modal (requires a path to be selected first)
    */
   async addTestCase(title: string) {
     await this.clickAddTestCase();
-    await this.page.locator('input[placeholder="Test case title..."]').fill(title);
+
+    // Fill title in the modal
+    const modal = this.page.locator('.fixed.inset-0');
+    await modal.locator('input[placeholder="Test case title..."]').fill(title);
 
     const responsePromise = this.page.waitForResponse(
       resp => resp.url().includes('/api/test-cases') && resp.request().method() === 'POST',
       { timeout: 30000 }
     );
-    await this.page.getByRole('button', { name: /Create Test Case/i }).click();
+    const createBtn = modal.getByRole('button', { name: /^Create$/i });
+    await createBtn.scrollIntoViewIfNeeded();
+    await createBtn.click();
     await responsePromise;
   }
 
@@ -100,28 +162,100 @@ export class FeaturesPage {
   }
 
   /**
-   * Delete a test case by title
+   * Delete a test case by title (clicks Delete button, then confirms in ConfirmDialog)
    */
   async deleteTestCase(title: string) {
-    this.page.once('dialog', dialog => dialog.accept());
     const card = this.page.locator('.bg-white.border.rounded-lg')
       .filter({ hasText: title })
       .first();
+    await card.getByRole('button', { name: /Delete/i }).click();
+
+    // Confirm in the ConfirmDialog modal
     const responsePromise = this.page.waitForResponse(
       resp => resp.url().includes('/api/test-cases/') && resp.request().method() === 'DELETE'
     );
-    await card.getByRole('button', { name: /Delete/i }).click();
+    await this.page.locator('.fixed.inset-0').getByRole('button', { name: /^Delete$/i }).click();
     await responsePromise;
   }
 
   /**
-   * Switch view mode
+   * Delete a company (clicks Delete button, then confirms in ConfirmDialog)
    */
-  async switchToTreeView() {
-    await this.page.getByRole('button', { name: /Tree View/i }).click();
+  async deleteCompany() {
+    await this.page.getByRole('button', { name: /Delete/i }).first().click();
+
+    const responsePromise = this.page.waitForResponse(
+      resp => resp.url().includes('/api/companies/') && resp.request().method() === 'DELETE'
+    );
+    await this.page.locator('.fixed.inset-0').getByRole('button', { name: /^Delete$/i }).click();
+    await responsePromise;
   }
 
-  async switchToInputView() {
-    await this.page.getByRole('button', { name: /Input View/i }).click();
+  /**
+   * Delete a product (clicks Delete button, then confirms in ConfirmDialog)
+   */
+  async deleteProduct() {
+    await this.page.getByRole('button', { name: /Delete/i }).first().click();
+
+    const responsePromise = this.page.waitForResponse(
+      resp => resp.url().includes('/api/products/') && resp.request().method() === 'DELETE'
+    );
+    await this.page.locator('.fixed.inset-0').getByRole('button', { name: /^Delete$/i }).click();
+    await responsePromise;
+  }
+
+  /**
+   * Create a root path via the empty-state UI
+   */
+  async createRootPath(name: string) {
+    await this.page.getByRole('button', { name: /Root Path 등록/i }).click();
+    await this.page.locator('input[placeholder="Path 이름 입력..."]').fill(name);
+
+    const responsePromise = this.page.waitForResponse(
+      resp => resp.url().includes('/api/segments') && resp.request().method() === 'POST',
+      { timeout: 10000 }
+    );
+    await this.page.locator('button:has-text("✓")').click();
+    await responsePromise;
+  }
+
+  /**
+   * Add a child path via the "+" button on a segment node
+   */
+  async addChildPath(parentSegmentName: string, childName: string) {
+    const nodeRow = this.page
+      .locator('.bg-white.border.rounded.p-2')
+      .locator(`text=${parentSegmentName}`)
+      .first()
+      .locator('..');
+
+    await nodeRow.hover();
+    await nodeRow.locator('button:has-text("+")').click();
+
+    await this.page.locator('input[placeholder="Path 이름 입력..."]').fill(childName);
+
+    const responsePromise = this.page.waitForResponse(
+      resp => resp.url().includes('/api/segments') && resp.request().method() === 'POST',
+      { timeout: 10000 }
+    );
+    await this.page.locator('button:has-text("✓")').click();
+    await responsePromise;
+  }
+
+  /**
+   * Check if the "Root Path 등록" button is visible (empty state)
+   */
+  async isEmptyTreeState(): Promise<boolean> {
+    return this.page.getByRole('button', { name: /Root Path 등록/i }).isVisible();
+  }
+
+  /**
+   * Check if a segment is visible in the tree
+   */
+  async isSegmentVisible(name: string): Promise<boolean> {
+    return this.page
+      .locator('.bg-white.border.rounded.p-2')
+      .locator(`text=${name}`)
+      .isVisible();
   }
 }

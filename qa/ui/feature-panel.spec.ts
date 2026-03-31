@@ -27,22 +27,11 @@ test.describe('Test Case Page', () => {
     await cleanupAllTestData();
   });
 
-  test('should display empty test case list', async () => {
+  test('should display empty tree state with Root Path button', async () => {
     await featuresPage.gotoTestCases(companyId, productId);
 
-    const emptyText = await featuresPage.page
-      .getByText(/No test cases yet/)
-      .isVisible();
-    expect(emptyText).toBe(true);
-  });
-
-  test('should add a test case and display it', async () => {
-    await featuresPage.gotoTestCases(companyId, productId);
-
-    await featuresPage.addTestCase('E2E New Test Case');
-
-    const tcExists = await featuresPage.isTestCaseVisible('E2E New Test Case');
-    expect(tcExists).toBe(true);
+    const isEmpty = await featuresPage.isEmptyTreeState();
+    expect(isEmpty).toBe(true);
   });
 
   test('should display test cases created via API', async () => {
@@ -55,7 +44,17 @@ test.describe('Test Case Page', () => {
     expect(tcExists).toBe(true);
   });
 
-  test('should delete a test case', async () => {
+  test('should show segments in tree view', async () => {
+    const seg = await createTestSegment(productId, 'Main');
+    await createTestSegment(productId, 'Login', seg.id);
+
+    await featuresPage.gotoTestCases(companyId, productId);
+
+    const mainVisible = await featuresPage.isSegmentVisible('Main');
+    expect(mainVisible).toBe(true);
+  });
+
+  test('should delete a test case via confirm dialog', async () => {
     await createTestTestCase(productId, 'E2E Delete TC');
 
     await featuresPage.gotoTestCases(companyId, productId);
@@ -67,24 +66,6 @@ test.describe('Test Case Page', () => {
 
     tcExists = await featuresPage.isTestCaseVisible('E2E Delete TC');
     expect(tcExists).toBe(false);
-  });
-
-  test('should toggle between input and tree view', async () => {
-    await createTestSegment(productId, 'Main');
-
-    await featuresPage.gotoTestCases(companyId, productId);
-
-    // Default is input view
-    await featuresPage.switchToTreeView();
-
-    // Tree view should show segments
-    const treeVisible = await featuresPage.page
-      .locator('text=Main')
-      .isVisible();
-    expect(treeVisible).toBe(true);
-
-    // Switch back to input view
-    await featuresPage.switchToInputView();
   });
 
   test('should show path on test case card', async () => {
@@ -99,5 +80,26 @@ test.describe('Test Case Page', () => {
       .locator('text=Main > Login')
       .isVisible();
     expect(pathText).toBe(true);
+  });
+
+  test('should select segment and add test case via modal', async () => {
+    const seg = await createTestSegment(productId, 'Main');
+
+    await featuresPage.gotoTestCases(companyId, productId);
+
+    // Select segment in tree
+    await featuresPage.selectSegmentInTree('Main');
+
+    // Verify selected path is shown
+    const selectedText = await featuresPage.page
+      .getByText(/Selected: Main/)
+      .isVisible();
+    expect(selectedText).toBe(true);
+
+    // Add test case via modal - should use the selected path
+    await featuresPage.addTestCase('TC With Selected Path');
+
+    const tcExists = await featuresPage.isTestCaseVisible('TC With Selected Path');
+    expect(tcExists).toBe(true);
   });
 });

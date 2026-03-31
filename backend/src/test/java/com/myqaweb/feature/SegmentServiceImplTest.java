@@ -120,4 +120,58 @@ class SegmentServiceImplTest {
         segmentService.delete(1L);
         verify(segmentRepository).deleteById(1L);
     }
+
+    @Test
+    void testReparentSuccess() {
+        SegmentEntity newRoot = new SegmentEntity(3L, "New Root", product, null);
+        SegmentEntity reparentedRoot = new SegmentEntity(1L, "Main", product, newRoot);
+
+        when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
+        when(segmentRepository.findById(3L)).thenReturn(Optional.of(newRoot));
+        when(segmentRepository.save(any())).thenReturn(reparentedRoot);
+
+        SegmentDto.SegmentResponse result = segmentService.reparent(1L, 3L);
+
+        assertEquals(1L, result.id());
+        assertEquals(3L, result.parentId());
+        verify(segmentRepository).save(any());
+    }
+
+    @Test
+    void testReparentToNull() {
+        when(segmentRepository.findById(2L)).thenReturn(Optional.of(childSegment));
+        SegmentEntity madeRoot = new SegmentEntity(2L, "Login", product, null);
+        when(segmentRepository.save(any())).thenReturn(madeRoot);
+
+        SegmentDto.SegmentResponse result = segmentService.reparent(2L, null);
+
+        assertNull(result.parentId());
+        verify(segmentRepository).save(any());
+    }
+
+    @Test
+    void testReparentSegmentNotFound() {
+        when(segmentRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> segmentService.reparent(99L, 1L));
+    }
+
+    @Test
+    void testReparentParentNotFound() {
+        when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
+        when(segmentRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> segmentService.reparent(1L, 99L));
+    }
+
+    @Test
+    void testReparentDifferentProduct() {
+        ProductEntity otherProduct = new ProductEntity(2L, company, "Other", Platform.WEB, "Other", LocalDateTime.now());
+        SegmentEntity otherSegment = new SegmentEntity(10L, "Other Root", otherProduct, null);
+
+        when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
+        when(segmentRepository.findById(10L)).thenReturn(Optional.of(otherSegment));
+
+        assertThrows(IllegalArgumentException.class, () -> segmentService.reparent(1L, 10L));
+    }
 }

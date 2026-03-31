@@ -94,8 +94,67 @@ test.describe('Segment API E2E', () => {
     expect(body.data.name).toBe('Main Page');
   });
 
+  test('POST + PATCH /api/segments - reparent segment', async () => {
+    // Cleanup segments from previous tests
+    if (rootSegmentId) {
+      await request.delete(`/api/segments/${rootSegmentId}`).catch(() => {});
+    }
+    // Recreate segments for reparent test
+    const rootResp = await request.post('/api/segments', {
+      data: { productId, name: 'ReparentRoot', parentId: null },
+    });
+    const rootBody = await rootResp.json() as { data: { id: number } };
+    const rRoot = rootBody.data.id;
+
+    const childResp = await request.post('/api/segments', {
+      data: { productId, name: 'ReparentChild', parentId: rRoot },
+    });
+    const childBody = await childResp.json() as { data: { id: number } };
+    const rChild = childBody.data.id;
+
+    // Create a new root and reparent old root under it
+    const newRootResp = await request.post('/api/segments', {
+      data: { productId, name: 'NewRoot', parentId: null },
+    });
+    const newRootBody = await newRootResp.json() as { data: { id: number } };
+    const newRootId = newRootBody.data.id;
+
+    const reparentResponse = await request.patch(`/api/segments/${rRoot}/parent`, {
+      data: { parentId: newRootId },
+    });
+    expect(reparentResponse.status()).toBe(200);
+    const reparentBody = await reparentResponse.json() as { success: boolean; data: { id: number; parentId: number } };
+    expect(reparentBody.success).toBe(true);
+    expect(reparentBody.data.parentId).toBe(newRootId);
+
+    // Verify hierarchy: NewRoot > ReparentRoot > ReparentChild
+    const listResp = await request.get(`/api/segments?productId=${productId}`);
+    const listBody = await listResp.json() as { data: { id: number; parentId: number | null }[] };
+    const segments = listBody.data;
+
+    const oldRoot = segments.find(s => s.id === rRoot);
+    expect(oldRoot?.parentId).toBe(newRootId);
+
+    const child = segments.find(s => s.id === rChild);
+    expect(child?.parentId).toBe(rRoot);
+
+    // Cleanup
+    await request.delete(`/api/segments/${newRootId}`);
+  });
+
   test('DELETE /api/segments/{id} - delete root cascades children', async () => {
-    const response = await request.delete(`/api/segments/${rootSegmentId}`);
+    // Recreate for deletion test
+    const rootResp = await request.post('/api/segments', {
+      data: { productId, name: 'DeleteRoot', parentId: null },
+    });
+    const rootBody = await rootResp.json() as { data: { id: number } };
+    const delRootId = rootBody.data.id;
+
+    await request.post('/api/segments', {
+      data: { productId, name: 'DeleteChild', parentId: delRootId },
+    });
+
+    const response = await request.delete(`/api/segments/${delRootId}`);
     expect(response.status()).toBe(200);
 
     const listResponse = await request.get(`/api/segments?productId=${productId}`);
