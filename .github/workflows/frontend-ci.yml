@@ -127,20 +127,20 @@ jobs:
     name: Slack Notification
     runs-on: ubuntu-latest
     needs: [build-and-test, build-docker]
-    if: ${{ failure() }}
+    if: ${{ always() }}
     steps:
-      - name: Notify Slack on failure
+      - name: Notify Slack
         uses: slackapi/slack-github-action@v2.0.0
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "❌ *${{ github.workflow }}* failed on ${{ github.ref_name }}",
+              "text": "${{ contains(needs.*.result, 'failure') && '❌' || '✅' }} *${{ github.workflow }}* ${{ contains(needs.*.result, 'failure') && 'failed' || 'passed' }} on ${{ github.ref_name }}",
               "blocks": [
                 {
                   "type": "header",
-                  "text": { "type": "plain_text", "text": "❌ ${{ github.workflow }} Failed" }
+                  "text": { "type": "plain_text", "text": "${{ contains(needs.*.result, 'failure') && '❌' || '✅' }} ${{ github.workflow }} ${{ contains(needs.*.result, 'failure') && 'Failed' || 'Passed' }}" }
                 },
                 {
                   "type": "section",

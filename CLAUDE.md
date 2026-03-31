@@ -251,6 +251,29 @@ cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 
 ---
 
+## 📄 문서 기반 구현 워크플로우 (Doc-Driven Development)
+
+`docs/**` 경로의 md 파일을 사양서로 사용하여 구현을 진행한다.
+
+### 워크플로우 단계
+
+| Step | 주체 | 행동 |
+|------|------|------|
+| 1 | User | `docs/**`에 md 파일로 요구사항 작성 |
+| 2 | User | Claude에게 해당 파일을 지목하며 구현 요청 |
+| 3 | Claude | 파일을 읽고, 해당 파일에 **context / 계획 / 구현 절차(Step 목록)** 를 채워 넣음 |
+| 4 | User | 내용 확인 후, Step 별 진행 지시 |
+| 5 | Claude | 각 Step 완료 시 해당 파일에 **✅ 체크 표시**로 완료 상태 표기 |
+| 6 | Claude | 모든 Step 완료 후, 파일 최하단에 **[최종 요약]** 섹션 작성 |
+
+### 규칙
+- ❌ Claude가 임의로 Step을 건너뛰지 않는다
+- ❌ User의 진행 지시 없이 다음 Step으로 넘어가지 않는다
+- ✅ 각 Step 완료 시 반드시 md 파일을 업데이트한다
+- ✅ 최종 요약은 모든 Step이 완료된 후에만 작성한다
+
+---
+
 ## ⚠️ Critical Rules
 
 ### ❌ NEVER Do This
