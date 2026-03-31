@@ -21,24 +21,19 @@ test.describe('Product List Page', () => {
     await cleanupAllTestData();
   });
 
-  test('should display product form after navigating to company', async ({ page }) => {
+  test('should show search bar, sort dropdown, and Add New card', async ({ page }) => {
     await featuresPage.gotoCompany(companyId);
 
-    await expect(page.locator('input[placeholder="Product name..."]')).toBeEnabled();
-    await expect(page.locator('select').first()).toBeEnabled();
+    await expect(page.locator('input[placeholder="Search products..."]')).toBeVisible();
+    await expect(page.locator('select')).toBeVisible();
+    await expect(page.locator('text=Add New').first()).toBeVisible();
   });
 
-  test('should add a WEB product', async ({ page }) => {
+  test('should add a WEB product via modal', async ({ page }) => {
     await featuresPage.gotoCompany(companyId);
 
     const productName = 'E2E Web Product';
-    await page.locator('input[placeholder="Product name..."]').fill(productName);
-
-    const responsePromise = page.waitForResponse(resp =>
-      resp.url().includes('/api/products') && resp.request().method() === 'POST'
-    );
-    await page.getByRole('button', { name: /Add Product/i }).click();
-    await responsePromise;
+    await featuresPage.addProduct(productName);
 
     const productExists = await page.getByText(productName).isVisible();
     expect(productExists).toBe(true);
@@ -60,7 +55,7 @@ test.describe('Product List Page', () => {
     expect(p2).toBe(true);
   });
 
-  test('should delete product when confirmed', async ({ page }) => {
+  test('should delete product via confirm dialog', async ({ page }) => {
     await createTestProduct(companyId, 'E2E Delete Product');
 
     await featuresPage.gotoCompany(companyId);
@@ -68,19 +63,14 @@ test.describe('Product List Page', () => {
     let productExists = await page.getByText('E2E Delete Product').isVisible();
     expect(productExists).toBe(true);
 
-    page.once('dialog', dialog => dialog.accept());
-    const deletePromise = page.waitForResponse(resp =>
-      resp.url().includes('/api/products/') && resp.request().method() === 'DELETE'
-    );
-    await page.getByRole('button', { name: /Delete/i }).first().click();
-    await deletePromise;
+    await featuresPage.deleteProduct();
 
     productExists = await page.getByText('E2E Delete Product').isVisible();
     expect(productExists).toBe(false);
   });
 
   test('should navigate to test cases on product click', async ({ page }) => {
-    const product = await createTestProduct(companyId, 'E2E Navigate Product');
+    await createTestProduct(companyId, 'E2E Navigate Product');
 
     await featuresPage.gotoCompany(companyId);
 
