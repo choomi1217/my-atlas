@@ -266,7 +266,7 @@ SSH 접속 후 필요한 소프트웨어를 설치한다.
 
 ### Step 9: DNS 설정 (커스텀 도메인 사용 시)
 
-- [ ] Route 53에 레코드 추가
+- [ ] Route 53에 레코드 추가 (스킵 — 도메인 없음)
   - `your-domain.com` → CloudFront Distribution (A/AAAA Alias)
   - `api.your-domain.com` → EC2 Elastic IP (A 레코드)
 
@@ -322,3 +322,46 @@ SSH 접속 후 필요한 소프트웨어를 설치한다.
 5. **Frontend 환경변수**: Vite 빌드 시 `VITE_API_BASE_URL`이 빌드에 포함되므로, 프로덕션 빌드 전에 반드시 올바른 API URL(EC2 Elastic IP 또는 도메인)을 설정.
 6. **EC2 보안**: SSH 포트(22)는 반드시 본인 IP만 허용. `.env` 파일 권한은 `chmod 600`으로 제한.
 7. **EC2 중지 vs 종료**: 학습 중단 시 Stop(중지)하면 데이터 유지. Terminate(종료)하면 모든 데이터 삭제됨.
+
+---
+
+## 8. 최종 배포 요약
+
+> **배포 완료일**: 2026-03-30
+
+### 접속 정보
+
+| 항목 | URL / 정보 |
+|------|-----------|
+| Frontend | `https://d1tr7ozyf0jrsl.cloudfront.net` |
+| Backend API | `http://3.34.154.147:8080` |
+| Health Check | `http://3.34.154.147:8080/actuator/health` |
+| EC2 SSH | `ssh -i ~/.ssh/my-atlas-key.pem ec2-user@3.34.154.147` |
+
+### AWS 리소스 목록
+
+| 리소스 | ID / 이름 |
+|--------|----------|
+| VPC | `vpc-0dd2d80dcf32b9926` (10.0.0.0/16) |
+| Subnet | `subnet-0a65868480a1cd1f0` (ap-northeast-2a) |
+| Internet Gateway | `igw-07bc7f096f422f570` |
+| Security Group | `sg-0c9c6e4934a014ce7` (my-atlas-sg) |
+| EC2 Instance | `i-0242a794b86668829` (t3.small, Amazon Linux 2023) |
+| Elastic IP | `3.34.154.147` (`eipalloc-083caff75c55e1245`) |
+| S3 Bucket | `my-atlas-frontend` |
+| CloudFront | `EVMWQ4ZH85AXV` (`d1tr7ozyf0jrsl.cloudfront.net`) |
+| Key Pair | `my-atlas-key` (`~/.ssh/my-atlas-key.pem`) |
+
+### CI/CD 파이프라인
+
+| 워크플로우 | 트리거 | 동작 |
+|-----------|--------|------|
+| `deploy-backend.yml` | develop push (`backend/**`) | SSH → git pull → docker compose build |
+| `deploy-frontend.yml` | develop push (`frontend/**`) | npm build → S3 sync → CloudFront 무효화 |
+
+### 예상 월 비용
+
+| 사용 패턴 | 예상 비용 (USD) |
+|-----------|---------------|
+| 24시간 상시 가동 | ~$18/월 |
+| 학습 시에만 EC2 Start | ~$3-5/월 |
