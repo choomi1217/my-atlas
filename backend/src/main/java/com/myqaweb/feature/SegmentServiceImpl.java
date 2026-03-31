@@ -63,6 +63,27 @@ public class SegmentServiceImpl implements SegmentService {
         segmentRepository.deleteById(id);
     }
 
+    @Override
+    public SegmentDto.SegmentResponse reparent(Long id, Long newParentId) {
+        SegmentEntity entity = segmentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Segment not found: " + id));
+
+        if (newParentId != null) {
+            SegmentEntity newParent = segmentRepository.findById(newParentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Parent segment not found: " + newParentId));
+
+            if (!newParent.getProduct().getId().equals(entity.getProduct().getId())) {
+                throw new IllegalArgumentException("Parent segment does not belong to the same product");
+            }
+            entity.setParent(newParent);
+        } else {
+            entity.setParent(null);
+        }
+
+        SegmentEntity updated = segmentRepository.save(entity);
+        return toResponse(updated);
+    }
+
     private SegmentDto.SegmentResponse toResponse(SegmentEntity entity) {
         return new SegmentDto.SegmentResponse(
                 entity.getId(),

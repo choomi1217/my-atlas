@@ -38,4 +38,13 @@ public interface SegmentService {
      * @param id the segment ID
      */
     void delete(Long id);
+
+    /**
+     * Changes a segment's parent (reparent).
+     *
+     * @param id the segment ID to reparent
+     * @param newParentId the new parent segment ID (null to make root)
+     * @return the updated segment response
+     */
+    SegmentDto.SegmentResponse reparent(Long id, Long newParentId);
 }
