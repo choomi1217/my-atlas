@@ -45,4 +45,12 @@ public class SegmentController {
         segmentService.delete(id);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
+
+    @PatchMapping("/{id}/parent")
+    public ResponseEntity<ApiResponse<SegmentDto.SegmentResponse>> reparent(
+            @PathVariable Long id,
+            @RequestBody SegmentDto.ReparentRequest request) {
+        SegmentDto.SegmentResponse response = segmentService.reparent(id, request.parentId());
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
 }

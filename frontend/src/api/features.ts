@@ -139,6 +139,14 @@ export const segmentApi = {
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/segments/${id}`);
   },
+
+  reparent: async (id: number, parentId: number | null): Promise<Segment> => {
+    const response = await apiClient.patch<ApiResponse<Segment>>(
+      `/api/segments/${id}/parent`,
+      { parentId }
+    );
+    return response.data.data;
+  },
 };
 
 /**

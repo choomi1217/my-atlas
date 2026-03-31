@@ -1,17 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Company } from '@/types/features';
 import { companyApi } from '@/api/features';
 import { Breadcrumb } from '@/components/features/Breadcrumb';
 import { useActiveCompany } from '@/context/ActiveCompanyContext';
+import CompanyFormModal from '@/components/features/CompanyFormModal';
+import ConfirmDialog from '@/components/features/ConfirmDialog';
+
+type SortOption = 'name' | 'newest';
 
 export default function CompanyListPage() {
   const navigate = useNavigate();
   const { setActiveCompany } = useActiveCompany();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [newCompanyName, setNewCompanyName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('name');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
-  // Load companies on mount
   useEffect(() => {
     const loadCompanies = async () => {
       try {
@@ -24,15 +30,21 @@ export default function CompanyListPage() {
     loadCompanies();
   }, []);
 
-  const handleAddCompany = async () => {
-    if (!newCompanyName.trim()) return;
-    try {
-      const company = await companyApi.create(newCompanyName);
-      setCompanies([...companies, company]);
-      setNewCompanyName('');
-    } catch (error) {
-      console.error('Failed to create company:', error);
+  const filteredAndSorted = useMemo(() => {
+    let result = companies;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((c) => c.name.toLowerCase().includes(q));
     }
+    return [...result].sort((a, b) => {
+      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [companies, searchQuery, sortBy]);
+
+  const handleAddCompany = async (name: string) => {
+    const company = await companyApi.create(name);
+    setCompanies([...companies, company]);
   };
 
   const handleSelectCompany = (company: Company) => {
@@ -51,13 +63,15 @@ export default function CompanyListPage() {
     }
   };
 
-  const handleDeleteCompany = async (id: number) => {
-    if (!window.confirm('Delete this company?')) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await companyApi.delete(id);
-      setCompanies(companies.filter((c) => c.id !== id));
+      await companyApi.delete(deleteTarget.id);
+      setCompanies(companies.filter((c) => c.id !== deleteTarget.id));
     } catch (error) {
       console.error('Failed to delete company:', error);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -67,32 +81,52 @@ export default function CompanyListPage() {
 
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
-          {/* Header + Add Company Form */}
+          {/* Header */}
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-4">Companies</h1>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="flex gap-2">
+
+            {/* Search + Sort bar */}
+            <div className="flex gap-3">
+              <div className="flex-1 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                  &#128269;
+                </span>
                 <input
                   type="text"
-                  value={newCompanyName}
-                  onChange={(e) => setNewCompanyName(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddCompany()}
-                  placeholder="Company name..."
-                  className="flex-1 px-3 py-2 border rounded"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search companies..."
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm
+                             focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                 />
-                <button
-                  onClick={handleAddCompany}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Add Company
-                </button>
               </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white
+                           focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="name">Sort: Name</option>
+                <option value="newest">Sort: Newest</option>
+              </select>
             </div>
           </div>
 
           {/* Companies Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {companies.map((company) => (
+            {/* Add New Card */}
+            <div
+              onClick={() => setShowAddModal(true)}
+              className="p-4 bg-white border-2 border-dashed border-gray-300 rounded-lg
+                         hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition
+                         flex flex-col items-center justify-center min-h-[120px]"
+            >
+              <span className="text-3xl text-gray-400 mb-1">+</span>
+              <span className="text-sm text-gray-500">Add New</span>
+            </div>
+
+            {/* Company Cards */}
+            {filteredAndSorted.map((company) => (
               <div
                 key={company.id}
                 onClick={() => handleSelectCompany(company)}
@@ -122,7 +156,7 @@ export default function CompanyListPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteCompany(company.id);
+                      setDeleteTarget({ id: company.id, name: company.name });
                     }}
                     className="flex-1 px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded transition"
                   >
@@ -133,13 +167,35 @@ export default function CompanyListPage() {
             ))}
           </div>
 
+          {filteredAndSorted.length === 0 && companies.length > 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No companies match your search.</p>
+            </div>
+          )}
+
           {companies.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No companies yet. Create one to get started.</p>
+              <p className="text-gray-500 text-lg">No companies yet. Click "+" to create one.</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Add Company Modal */}
+      <CompanyFormModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSubmit={handleAddCompany}
+      />
+
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Delete Company"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? All products and test cases under this company will also be deleted.`}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

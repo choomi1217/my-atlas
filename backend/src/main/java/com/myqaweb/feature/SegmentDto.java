@@ -20,4 +20,8 @@ public class SegmentDto {
             Long productId,
             Long parentId
     ) {}
+
+    public record ReparentRequest(
+            Long parentId
+    ) {}
 }
