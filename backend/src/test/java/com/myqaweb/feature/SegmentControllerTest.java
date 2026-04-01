@@ -227,7 +227,7 @@ class SegmentControllerTest {
                         .content("""
                                 {"parentId": 1}
                                 """))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Cannot set a segment as its own parent"));
     }
@@ -244,7 +244,7 @@ class SegmentControllerTest {
                         .content("""
                                 {"parentId": 2}
                                 """))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Cannot set a descendant segment as parent (circular reference)"));
     }

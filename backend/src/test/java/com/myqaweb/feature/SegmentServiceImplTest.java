@@ -188,10 +188,8 @@ class SegmentServiceImplTest {
     void testReparentCircularReference_ChildAsParent() {
         // childSegment has rootSegment as parent
         // Try to set childSegment as parent of rootSegment (circular)
-        SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment);
-
         when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
-        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment, grandchild));
+        when(segmentRepository.findAllByParentId(1L)).thenReturn(List.of(childSegment));
 
         assertThrows(IllegalArgumentException.class, () -> segmentService.reparent(1L, 2L));
     }
@@ -202,7 +200,8 @@ class SegmentServiceImplTest {
         SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment);
 
         when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
-        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment, grandchild));
+        when(segmentRepository.findAllByParentId(1L)).thenReturn(List.of(childSegment));
+        when(segmentRepository.findAllByParentId(2L)).thenReturn(List.of(grandchild));
 
         assertThrows(IllegalArgumentException.class, () -> segmentService.reparent(1L, 3L));
     }
@@ -211,15 +210,18 @@ class SegmentServiceImplTest {
     void testIsDescendant_True() {
         SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment);
 
-        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment, grandchild));
+        when(segmentRepository.findAllByParentId(1L)).thenReturn(List.of(childSegment));
+        when(segmentRepository.findAllByParentId(2L)).thenReturn(List.of(grandchild));
 
-        assertTrue(segmentService.isDescendant(1L, 2L));
-        assertTrue(segmentService.isDescendant(1L, 3L));
+        // Both calls should work with the same mock setup
+        assertTrue(segmentService.isDescendant(1L, 2L)); // Direct child
+        assertTrue(segmentService.isDescendant(1L, 3L)); // Grandchild
     }
 
     @Test
     void testIsDescendant_False() {
-        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment));
+        when(segmentRepository.findAllByParentId(1L)).thenReturn(List.of(childSegment));
+        when(segmentRepository.findAllByParentId(2L)).thenReturn(List.of()); // No children under child
 
         assertFalse(segmentService.isDescendant(1L, 99L));
     }
@@ -237,7 +239,7 @@ class SegmentServiceImplTest {
 
     @Test
     void testValidateReparent_DescendantFails() {
-        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment));
+        when(segmentRepository.findAllByParentId(1L)).thenReturn(List.of(childSegment));
 
         assertThrows(IllegalArgumentException.class, () -> segmentService.validateReparent(1L, 2L));
     }
