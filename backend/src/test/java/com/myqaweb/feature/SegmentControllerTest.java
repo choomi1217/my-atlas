@@ -212,4 +212,40 @@ class SegmentControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
     }
+
+    // --- Circular Reference Tests ---
+
+    @Test
+    void reparent_returns400WhenSelfAsParent() throws Exception {
+        // Arrange
+        when(segmentService.reparent(eq(1L), eq(1L)))
+                .thenThrow(new IllegalArgumentException("Cannot set a segment as its own parent"));
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/segments/1/parent")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"parentId": 1}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Cannot set a segment as its own parent"));
+    }
+
+    @Test
+    void reparent_returns400WhenCircularReference() throws Exception {
+        // Arrange
+        when(segmentService.reparent(eq(1L), eq(2L)))
+                .thenThrow(new IllegalArgumentException("Cannot set a descendant segment as parent (circular reference)"));
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/segments/1/parent")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"parentId": 2}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Cannot set a descendant segment as parent (circular reference)"));
+    }
 }

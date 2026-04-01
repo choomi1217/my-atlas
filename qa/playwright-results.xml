@@ -1,140 +1,168 @@
-<testsuites id="" name="" tests="87" failures="8" skipped="0" errors="0" time="87.208522">
-<testsuite name="api/company.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="10" failures="0" skipped="0" time="0.354" errors="0">
-<testcase name="Company API E2E › GET /api/companies - empty state returns empty array" classname="api/company.spec.ts" time="0.214">
+<testsuites id="" name="" tests="100" failures="7" skipped="2" errors="0" time="86.94744299999999">
+<testsuite name="api/company.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="10" failures="0" skipped="0" time="0.327" errors="0">
+<testcase name="Company API E2E › GET /api/companies - returns company list with correct structure" classname="api/company.spec.ts" time="0.019">
 </testcase>
-<testcase name="Company API E2E › POST /api/companies - create new company" classname="api/company.spec.ts" time="0.019">
+<testcase name="Company API E2E › POST /api/companies - create new company" classname="api/company.spec.ts" time="0.154">
 </testcase>
-<testcase name="Company API E2E › POST /api/companies - create second company" classname="api/company.spec.ts" time="0.011">
+<testcase name="Company API E2E › POST /api/companies - create second company" classname="api/company.spec.ts" time="0.009">
 </testcase>
-<testcase name="Company API E2E › GET /api/companies - returns both companies" classname="api/company.spec.ts" time="0.007">
+<testcase name="Company API E2E › GET /api/companies - returns both companies" classname="api/company.spec.ts" time="0.009">
 </testcase>
-<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - activates company" classname="api/company.spec.ts" time="0.031">
+<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - activates company" classname="api/company.spec.ts" time="0.063">
 </testcase>
-<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - only one company can be active (partial unique index)" classname="api/company.spec.ts" time="0.015">
+<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - only one company can be active (partial unique index)" classname="api/company.spec.ts" time="0.022">
 </testcase>
-<testcase name="Company API E2E › POST /api/companies - blank name returns 400" classname="api/company.spec.ts" time="0.022">
+<testcase name="Company API E2E › POST /api/companies - blank name returns 400" classname="api/company.spec.ts" time="0.013">
 </testcase>
-<testcase name="Company API E2E › DELETE /api/companies/{id} - removes company" classname="api/company.spec.ts" time="0.01">
+<testcase name="Company API E2E › DELETE /api/companies/{id} - removes company" classname="api/company.spec.ts" time="0.02">
 </testcase>
-<testcase name="Company API E2E › GET /api/companies - deleted company no longer in list" classname="api/company.spec.ts" time="0.009">
+<testcase name="Company API E2E › GET /api/companies - deleted company no longer in list" classname="api/company.spec.ts" time="0.008">
 </testcase>
-<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - deleted company returns 404" classname="api/company.spec.ts" time="0.016">
+<testcase name="Company API E2E › PATCH /api/companies/{id}/activate - deleted company returns 404" classname="api/company.spec.ts" time="0.01">
 </testcase>
 </testsuite>
-<testsuite name="api/convention.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="8" failures="0" skipped="0" time="0.179" errors="0">
-<testcase name="Convention API E2E › GET /api/conventions - returns list" classname="api/convention.spec.ts" time="0.017">
+<testsuite name="api/convention.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="8" failures="0" skipped="0" time="0.14" errors="0">
+<testcase name="Convention API E2E › GET /api/conventions - returns list" classname="api/convention.spec.ts" time="0.012">
 </testcase>
-<testcase name="Convention API E2E › POST /api/conventions - create convention" classname="api/convention.spec.ts" time="0.023">
+<testcase name="Convention API E2E › POST /api/conventions - create convention" classname="api/convention.spec.ts" time="0.015">
 </testcase>
-<testcase name="Convention API E2E › GET /api/conventions/{id} - retrieve created convention" classname="api/convention.spec.ts" time="0.016">
+<testcase name="Convention API E2E › GET /api/conventions/{id} - retrieve created convention" classname="api/convention.spec.ts" time="0.01">
 </testcase>
-<testcase name="Convention API E2E › PUT /api/conventions/{id} - update convention" classname="api/convention.spec.ts" time="0.01">
+<testcase name="Convention API E2E › PUT /api/conventions/{id} - update convention" classname="api/convention.spec.ts" time="0.012">
 </testcase>
 <testcase name="Convention API E2E › POST /api/conventions - validation: blank term returns 400" classname="api/convention.spec.ts" time="0.006">
 </testcase>
 <testcase name="Convention API E2E › POST /api/conventions - validation: blank definition returns 400" classname="api/convention.spec.ts" time="0.007">
 </testcase>
-<testcase name="Convention API E2E › DELETE /api/conventions/{id} - delete convention" classname="api/convention.spec.ts" time="0.09">
+<testcase name="Convention API E2E › DELETE /api/conventions/{id} - delete convention" classname="api/convention.spec.ts" time="0.071">
 </testcase>
-<testcase name="Convention API E2E › GET /api/conventions/{id} - deleted convention returns 404" classname="api/convention.spec.ts" time="0.01">
+<testcase name="Convention API E2E › GET /api/conventions/{id} - deleted convention returns 404" classname="api/convention.spec.ts" time="0.007">
 </testcase>
 </testsuite>
-<testsuite name="api/feature.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="9" failures="0" skipped="0" time="0.129" errors="0">
-<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - empty list" classname="api/feature.spec.ts" time="0.008">
+<testsuite name="api/feature.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="9" failures="0" skipped="0" time="0.151" errors="0">
+<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - empty list" classname="api/feature.spec.ts" time="0.015">
 </testcase>
-<testcase name="TestCase API E2E › POST /api/test-cases - create test case with path" classname="api/feature.spec.ts" time="0.013">
+<testcase name="TestCase API E2E › POST /api/test-cases - create test case with path" classname="api/feature.spec.ts" time="0.041">
 </testcase>
 <testcase name="TestCase API E2E › POST /api/test-cases - create second test case" classname="api/feature.spec.ts" time="0.009">
 </testcase>
-<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - returns both" classname="api/feature.spec.ts" time="0.011">
+<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - returns both" classname="api/feature.spec.ts" time="0.016">
 </testcase>
 <testcase name="TestCase API E2E › PUT /api/test-cases/{id} - updates test case" classname="api/feature.spec.ts" time="0.011">
 </testcase>
-<testcase name="TestCase API E2E › POST /api/test-cases - missing title returns 400" classname="api/feature.spec.ts" time="0.02">
+<testcase name="TestCase API E2E › POST /api/test-cases - missing title returns 400" classname="api/feature.spec.ts" time="0.016">
 </testcase>
-<testcase name="TestCase API E2E › DELETE /api/test-cases/{id} - removes test case" classname="api/feature.spec.ts" time="0.03">
+<testcase name="TestCase API E2E › DELETE /api/test-cases/{id} - removes test case" classname="api/feature.spec.ts" time="0.019">
 </testcase>
-<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - one remains" classname="api/feature.spec.ts" time="0.01">
+<testcase name="TestCase API E2E › GET /api/test-cases?productId={id} - one remains" classname="api/feature.spec.ts" time="0.009">
 </testcase>
-<testcase name="TestCase API E2E › DELETE /api/products/{id} - cascades delete to test cases" classname="api/feature.spec.ts" time="0.017">
-</testcase>
-</testsuite>
-<testsuite name="api/kb.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="8" failures="1" skipped="0" time="0.22" errors="0">
-<testcase name="Knowledge Base API E2E › GET /api/kb - returns list" classname="api/kb.spec.ts" time="0.063">
-<failure message="kb.spec.ts:19:7 GET /api/kb - returns list" type="FAILURE">
-<![CDATA[  [chromium] › api/kb.spec.ts:19:7 › Knowledge Base API E2E › GET /api/kb - returns list ───────────
-
-    Error: expect(received).toBe(expected) // Object.is equality
-
-    Expected: 200
-    Received: 500
-
-      19 |   test('GET /api/kb - returns list', async () => {
-      20 |     const response = await request.get('/api/kb');
-    > 21 |     expect(response.status()).toBe(200);
-         |                               ^
-      22 |     const body = await response.json() as any;
-      23 |     expect(body.success).toBe(true);
-      24 |     expect(Array.isArray(body.data)).toBe(true);
-        at /Users/yeongmi/dev/qa/my-atlas/qa/api/kb.spec.ts:21:31
-]]>
-</failure>
-</testcase>
-<testcase name="Knowledge Base API E2E › POST /api/kb - create manual KB entry" classname="api/kb.spec.ts" time="0.058">
-</testcase>
-<testcase name="Knowledge Base API E2E › GET /api/kb/{id} - retrieve created entry" classname="api/kb.spec.ts" time="0.015">
-</testcase>
-<testcase name="Knowledge Base API E2E › PUT /api/kb/{id} - update entry" classname="api/kb.spec.ts" time="0.018">
-</testcase>
-<testcase name="Knowledge Base API E2E › POST /api/kb - validation: blank title returns 400" classname="api/kb.spec.ts" time="0.007">
-</testcase>
-<testcase name="Knowledge Base API E2E › GET /api/kb/jobs - returns job list" classname="api/kb.spec.ts" time="0.016">
-</testcase>
-<testcase name="Knowledge Base API E2E › DELETE /api/kb/{id} - delete entry" classname="api/kb.spec.ts" time="0.033">
-</testcase>
-<testcase name="Knowledge Base API E2E › GET /api/kb/{id} - deleted entry returns 404" classname="api/kb.spec.ts" time="0.01">
+<testcase name="TestCase API E2E › DELETE /api/products/{id} - cascades delete to test cases" classname="api/feature.spec.ts" time="0.015">
 </testcase>
 </testsuite>
-<testsuite name="api/product.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="10" failures="0" skipped="0" time="0.164" errors="0">
-<testcase name="Product API E2E › GET /api/products?companyId={id} - empty product list" classname="api/product.spec.ts" time="0.014">
+<testsuite name="api/kb.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="8" failures="0" skipped="0" time="0.117" errors="0">
+<testcase name="Knowledge Base API E2E › GET /api/kb - returns list" classname="api/kb.spec.ts" time="0.012">
 </testcase>
-<testcase name="Product API E2E › POST /api/products - create WEB product" classname="api/product.spec.ts" time="0.019">
+<testcase name="Knowledge Base API E2E › POST /api/kb - create manual KB entry" classname="api/kb.spec.ts" time="0.021">
 </testcase>
-<testcase name="Product API E2E › POST /api/products - create MOBILE product" classname="api/product.spec.ts" time="0.023">
+<testcase name="Knowledge Base API E2E › GET /api/kb/{id} - retrieve created entry" classname="api/kb.spec.ts" time="0.009">
+</testcase>
+<testcase name="Knowledge Base API E2E › PUT /api/kb/{id} - update entry" classname="api/kb.spec.ts" time="0.015">
+</testcase>
+<testcase name="Knowledge Base API E2E › POST /api/kb - validation: blank title returns 400" classname="api/kb.spec.ts" time="0.008">
+</testcase>
+<testcase name="Knowledge Base API E2E › GET /api/kb/jobs - returns job list" classname="api/kb.spec.ts" time="0.017">
+</testcase>
+<testcase name="Knowledge Base API E2E › DELETE /api/kb/{id} - delete entry" classname="api/kb.spec.ts" time="0.023">
+</testcase>
+<testcase name="Knowledge Base API E2E › GET /api/kb/{id} - deleted entry returns 404" classname="api/kb.spec.ts" time="0.012">
+</testcase>
+</testsuite>
+<testsuite name="api/product.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="10" failures="0" skipped="0" time="0.151" errors="0">
+<testcase name="Product API E2E › GET /api/products?companyId={id} - empty product list" classname="api/product.spec.ts" time="0.02">
+</testcase>
+<testcase name="Product API E2E › POST /api/products - create WEB product" classname="api/product.spec.ts" time="0.017">
+</testcase>
+<testcase name="Product API E2E › POST /api/products - create MOBILE product" classname="api/product.spec.ts" time="0.012">
 </testcase>
 <testcase name="Product API E2E › GET /api/products?companyId={id} - returns both products" classname="api/product.spec.ts" time="0.012">
 </testcase>
-<testcase name="Product API E2E › PUT /api/products/{id} - updates product" classname="api/product.spec.ts" time="0.043">
+<testcase name="Product API E2E › PUT /api/products/{id} - updates product" classname="api/product.spec.ts" time="0.015">
 </testcase>
-<testcase name="Product API E2E › GET /api/products?companyId={id} - reflects updated product" classname="api/product.spec.ts" time="0.014">
+<testcase name="Product API E2E › GET /api/products?companyId={id} - reflects updated product" classname="api/product.spec.ts" time="0.011">
 </testcase>
-<testcase name="Product API E2E › POST /api/products - missing name returns 400" classname="api/product.spec.ts" time="0.007">
+<testcase name="Product API E2E › POST /api/products - missing name returns 400" classname="api/product.spec.ts" time="0.009">
 </testcase>
-<testcase name="Product API E2E › DELETE /api/products/{id} - removes product" classname="api/product.spec.ts" time="0.011">
+<testcase name="Product API E2E › DELETE /api/products/{id} - removes product" classname="api/product.spec.ts" time="0.013">
 </testcase>
-<testcase name="Product API E2E › GET /api/products?companyId={id} - only one product remains" classname="api/product.spec.ts" time="0.008">
+<testcase name="Product API E2E › GET /api/products?companyId={id} - only one product remains" classname="api/product.spec.ts" time="0.016">
 </testcase>
-<testcase name="Product API E2E › DELETE /api/companies/{id} - cascades delete to products" classname="api/product.spec.ts" time="0.013">
-</testcase>
-</testsuite>
-<testsuite name="api/segment.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="7" failures="0" skipped="0" time="0.131" errors="0">
-<testcase name="Segment API E2E › GET /api/segments?productId={id} - empty segment list" classname="api/segment.spec.ts" time="0.008">
-</testcase>
-<testcase name="Segment API E2E › POST /api/segments - create root segment" classname="api/segment.spec.ts" time="0.009">
-</testcase>
-<testcase name="Segment API E2E › POST /api/segments - create child segment" classname="api/segment.spec.ts" time="0.01">
-</testcase>
-<testcase name="Segment API E2E › GET /api/segments?productId={id} - returns both segments" classname="api/segment.spec.ts" time="0.007">
-</testcase>
-<testcase name="Segment API E2E › PUT /api/segments/{id} - update segment name" classname="api/segment.spec.ts" time="0.008">
-</testcase>
-<testcase name="Segment API E2E › POST + PATCH /api/segments - reparent segment" classname="api/segment.spec.ts" time="0.063">
-</testcase>
-<testcase name="Segment API E2E › DELETE /api/segments/{id} - delete root cascades children" classname="api/segment.spec.ts" time="0.026">
+<testcase name="Product API E2E › DELETE /api/companies/{id} - cascades delete to products" classname="api/product.spec.ts" time="0.026">
 </testcase>
 </testsuite>
-<testsuite name="api/senior-faq.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="8" failures="1" skipped="0" time="0.129" errors="0">
-<testcase name="Senior FAQ API E2E › GET /api/senior/faq - returns list" classname="api/senior-faq.spec.ts" time="0.011">
+<testsuite name="api/segment.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="12" failures="2" skipped="0" time="0.286" errors="0">
+<testcase name="Segment API E2E › GET /api/segments?productId={id} - empty segment list" classname="api/segment.spec.ts" time="0.01">
+</testcase>
+<testcase name="Segment API E2E › POST /api/segments - create root segment" classname="api/segment.spec.ts" time="0.01">
+</testcase>
+<testcase name="Segment API E2E › POST /api/segments - create child segment" classname="api/segment.spec.ts" time="0.012">
+</testcase>
+<testcase name="Segment API E2E › GET /api/segments?productId={id} - returns both segments" classname="api/segment.spec.ts" time="0.008">
+</testcase>
+<testcase name="Segment API E2E › PUT /api/segments/{id} - update segment name" classname="api/segment.spec.ts" time="0.009">
+</testcase>
+<testcase name="Segment API E2E › POST + PATCH /api/segments - reparent segment" classname="api/segment.spec.ts" time="0.061">
+</testcase>
+<testcase name="Segment API E2E › DELETE /api/segments/{id} - delete root cascades children" classname="api/segment.spec.ts" time="0.03">
+</testcase>
+<testcase name="Segment Reparent (Drag &amp; Drop) E2E › PATCH /api/segments/{id}/parent - reparent segment success" classname="api/segment.spec.ts" time="0.038">
+</testcase>
+<testcase name="Segment Reparent (Drag &amp; Drop) E2E › PATCH /api/segments/{id}/parent - reparent to root (null)" classname="api/segment.spec.ts" time="0.035">
+</testcase>
+<testcase name="Segment Reparent (Drag &amp; Drop) E2E › PATCH /api/segments/{id}/parent - circular reference prevention" classname="api/segment.spec.ts" time="0.03">
+<failure message="segment.spec.ts:260:7 PATCH /api/segments/{id}/parent - circular reference prevention" type="FAILURE">
+<![CDATA[  [chromium] › api/segment.spec.ts:260:7 › Segment Reparent (Drag & Drop) E2E › PATCH /api/segments/{id}/parent - circular reference prevention 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 400
+    Received: 200
+
+      284 |
+      285 |     // Verify: Should fail with 400 error
+    > 286 |     expect(reparentResp.status()).toBe(400);
+          |                                   ^
+      287 |
+      288 |     // Verify: A's parentId should remain null
+      289 |     const listResp = await request.get(`/api/segments?productId=${productId}`);
+        at /Users/yeongmi/dev/qa/my-atlas/qa/api/segment.spec.ts:286:35
+]]>
+</failure>
+</testcase>
+<testcase name="Segment Reparent (Drag &amp; Drop) E2E › PATCH /api/segments/{id}/parent - self as parent prevention" classname="api/segment.spec.ts" time="0.028">
+<failure message="segment.spec.ts:298:7 PATCH /api/segments/{id}/parent - self as parent prevention" type="FAILURE">
+<![CDATA[  [chromium] › api/segment.spec.ts:298:7 › Segment Reparent (Drag & Drop) E2E › PATCH /api/segments/{id}/parent - self as parent prevention 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 400
+    Received: 200
+
+      310 |
+      311 |     // Verify: Should fail with 400 error
+    > 312 |     expect(reparentResp.status()).toBe(400);
+          |                                   ^
+      313 |
+      314 |     // Cleanup
+      315 |     await request.delete(`/api/segments/${idA}`);
+        at /Users/yeongmi/dev/qa/my-atlas/qa/api/segment.spec.ts:312:35
+]]>
+</failure>
+</testcase>
+<testcase name="Segment Reparent (Drag &amp; Drop) E2E › PATCH /api/segments/{id}/parent - 404 for non-existent segment" classname="api/segment.spec.ts" time="0.015">
+</testcase>
+</testsuite>
+<testsuite name="api/senior-faq.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="8" failures="1" skipped="0" time="0.135" errors="0">
+<testcase name="Senior FAQ API E2E › GET /api/senior/faq - returns list" classname="api/senior-faq.spec.ts" time="0.027">
 <failure message="senior-faq.spec.ts:19:7 GET /api/senior/faq - returns list" type="FAILURE">
 <![CDATA[  [chromium] › api/senior-faq.spec.ts:19:7 › Senior FAQ API E2E › GET /api/senior/faq - returns list 
 
@@ -154,69 +182,87 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="Senior FAQ API E2E › POST /api/senior/faq - create FAQ" classname="api/senior-faq.spec.ts" time="0.047">
+<testcase name="Senior FAQ API E2E › POST /api/senior/faq - create FAQ" classname="api/senior-faq.spec.ts" time="0.044">
 </testcase>
-<testcase name="Senior FAQ API E2E › GET /api/senior/faq/{id} - retrieve created FAQ" classname="api/senior-faq.spec.ts" time="0.013">
+<testcase name="Senior FAQ API E2E › GET /api/senior/faq/{id} - retrieve created FAQ" classname="api/senior-faq.spec.ts" time="0.014">
 </testcase>
-<testcase name="Senior FAQ API E2E › PUT /api/senior/faq/{id} - update FAQ" classname="api/senior-faq.spec.ts" time="0.015">
+<testcase name="Senior FAQ API E2E › PUT /api/senior/faq/{id} - update FAQ" classname="api/senior-faq.spec.ts" time="0.01">
 </testcase>
-<testcase name="Senior FAQ API E2E › POST /api/senior/faq - validation: blank title returns 400" classname="api/senior-faq.spec.ts" time="0.006">
+<testcase name="Senior FAQ API E2E › POST /api/senior/faq - validation: blank title returns 400" classname="api/senior-faq.spec.ts" time="0.007">
 </testcase>
-<testcase name="Senior FAQ API E2E › POST /api/senior/faq - validation: blank content returns 400" classname="api/senior-faq.spec.ts" time="0.008">
+<testcase name="Senior FAQ API E2E › POST /api/senior/faq - validation: blank content returns 400" classname="api/senior-faq.spec.ts" time="0.007">
 </testcase>
-<testcase name="Senior FAQ API E2E › DELETE /api/senior/faq/{id} - delete FAQ" classname="api/senior-faq.spec.ts" time="0.023">
+<testcase name="Senior FAQ API E2E › DELETE /api/senior/faq/{id} - delete FAQ" classname="api/senior-faq.spec.ts" time="0.019">
 </testcase>
-<testcase name="Senior FAQ API E2E › GET /api/senior/faq/{id} - deleted FAQ returns 404" classname="api/senior-faq.spec.ts" time="0.006">
-</testcase>
-</testsuite>
-<testsuite name="ui/company-panel.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="7" failures="0" skipped="0" time="7.327" errors="0">
-<testcase name="Company List Page › should display Companies heading on page load" classname="ui/company-panel.spec.ts" time="1.227">
-</testcase>
-<testcase name="Company List Page › should add a company via modal" classname="ui/company-panel.spec.ts" time="1.043">
-</testcase>
-<testcase name="Company List Page › should activate company and show Active badge" classname="ui/company-panel.spec.ts" time="1.075">
-</testcase>
-<testcase name="Company List Page › should delete company via confirm dialog" classname="ui/company-panel.spec.ts" time="1.059">
-</testcase>
-<testcase name="Company List Page › should navigate to products on company click" classname="ui/company-panel.spec.ts" time="1.101">
-</testcase>
-<testcase name="Company List Page › should show search bar and sort dropdown" classname="ui/company-panel.spec.ts" time="0.912">
-</testcase>
-<testcase name="Company List Page › should show Add New card" classname="ui/company-panel.spec.ts" time="0.91">
+<testcase name="Senior FAQ API E2E › GET /api/senior/faq/{id} - deleted FAQ returns 404" classname="api/senior-faq.spec.ts" time="0.007">
 </testcase>
 </testsuite>
-<testsuite name="ui/feature-panel.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="6" failures="0" skipped="0" time="5.952" errors="0">
-<testcase name="Test Case Page › should display empty tree state with Root Path button" classname="ui/feature-panel.spec.ts" time="0.938">
+<testsuite name="ui/company-panel.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="7" failures="0" skipped="0" time="8.889" errors="0">
+<testcase name="Company List Page › should display Companies heading on page load" classname="ui/company-panel.spec.ts" time="2.651">
 </testcase>
-<testcase name="Test Case Page › should display test cases created via API" classname="ui/feature-panel.spec.ts" time="0.967">
+<testcase name="Company List Page › should add a company via modal" classname="ui/company-panel.spec.ts" time="1.085">
 </testcase>
-<testcase name="Test Case Page › should show segments in tree view" classname="ui/feature-panel.spec.ts" time="0.938">
+<testcase name="Company List Page › should activate company and show Active badge" classname="ui/company-panel.spec.ts" time="1.052">
 </testcase>
-<testcase name="Test Case Page › should delete a test case via confirm dialog" classname="ui/feature-panel.spec.ts" time="1.001">
+<testcase name="Company List Page › should delete company via confirm dialog" classname="ui/company-panel.spec.ts" time="1.154">
 </testcase>
-<testcase name="Test Case Page › should show path on test case card" classname="ui/feature-panel.spec.ts" time="0.92">
+<testcase name="Company List Page › should navigate to products on company click" classname="ui/company-panel.spec.ts" time="1.137">
 </testcase>
-<testcase name="Test Case Page › should select segment and add test case via modal" classname="ui/feature-panel.spec.ts" time="1.188">
+<testcase name="Company List Page › should show search bar and sort dropdown" classname="ui/company-panel.spec.ts" time="0.87">
 </testcase>
-</testsuite>
-<testsuite name="ui/product-panel.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="6" failures="0" skipped="0" time="5.764" errors="0">
-<testcase name="Product List Page › should show search bar, sort dropdown, and Add New card" classname="ui/product-panel.spec.ts" time="0.937">
-</testcase>
-<testcase name="Product List Page › should add a WEB product via modal" classname="ui/product-panel.spec.ts" time="0.993">
-</testcase>
-<testcase name="Product List Page › should display products created via API" classname="ui/product-panel.spec.ts" time="0.913">
-</testcase>
-<testcase name="Product List Page › should delete product via confirm dialog" classname="ui/product-panel.spec.ts" time="0.953">
-</testcase>
-<testcase name="Product List Page › should navigate to test cases on product click" classname="ui/product-panel.spec.ts" time="1.055">
-</testcase>
-<testcase name="Product List Page › should show empty state when no products exist" classname="ui/product-panel.spec.ts" time="0.913">
+<testcase name="Company List Page › should show Add New card" classname="ui/company-panel.spec.ts" time="0.94">
 </testcase>
 </testsuite>
-<testsuite name="ui/senior.spec.ts" timestamp="2026-03-31T04:02:15.935Z" hostname="chromium" tests="8" failures="6" skipped="0" time="55.092" errors="0">
-<testcase name="Senior Page › should display My Senior heading on page load" classname="ui/senior.spec.ts" time="0.325">
+<testsuite name="ui/feature-panel.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="6" failures="0" skipped="0" time="5.949" errors="0">
+<testcase name="Test Case Page › should display empty tree state with Root Path button" classname="ui/feature-panel.spec.ts" time="0.99">
 </testcase>
-<testcase name="Senior Page › should show FAQ view as default entry" classname="ui/senior.spec.ts" time="5.576">
+<testcase name="Test Case Page › should display test cases created via API" classname="ui/feature-panel.spec.ts" time="0.943">
+</testcase>
+<testcase name="Test Case Page › should show segments in tree view" classname="ui/feature-panel.spec.ts" time="0.923">
+</testcase>
+<testcase name="Test Case Page › should delete a test case via confirm dialog" classname="ui/feature-panel.spec.ts" time="1.03">
+</testcase>
+<testcase name="Test Case Page › should show path on test case card" classname="ui/feature-panel.spec.ts" time="0.924">
+</testcase>
+<testcase name="Test Case Page › should select segment and add test case via modal" classname="ui/feature-panel.spec.ts" time="1.139">
+</testcase>
+</testsuite>
+<testsuite name="ui/product-panel.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="6" failures="0" skipped="0" time="5.777" errors="0">
+<testcase name="Product List Page › should show search bar, sort dropdown, and Add New card" classname="ui/product-panel.spec.ts" time="0.917">
+</testcase>
+<testcase name="Product List Page › should add a WEB product via modal" classname="ui/product-panel.spec.ts" time="0.996">
+</testcase>
+<testcase name="Product List Page › should display products created via API" classname="ui/product-panel.spec.ts" time="0.965">
+</testcase>
+<testcase name="Product List Page › should delete product via confirm dialog" classname="ui/product-panel.spec.ts" time="0.985">
+</testcase>
+<testcase name="Product List Page › should navigate to test cases on product click" classname="ui/product-panel.spec.ts" time="1.019">
+</testcase>
+<testcase name="Product List Page › should show empty state when no products exist" classname="ui/product-panel.spec.ts" time="0.895">
+</testcase>
+</testsuite>
+<testsuite name="ui/segment-dnd.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="8" failures="0" skipped="0" time="18.608" errors="0">
+<testcase name="Segment Drag and Drop (DnD) E2E › should successfully reparent segment via drag and drop" classname="ui/segment-dnd.spec.ts" time="1.067">
+</testcase>
+<testcase name="Segment Drag and Drop (DnD) E2E › should display success message when dragging segment" classname="ui/segment-dnd.spec.ts" time="1.064">
+</testcase>
+<testcase name="Segment Drag and Drop (DnD) E2E › should prevent circular reference and show error toast" classname="ui/segment-dnd.spec.ts" time="11.203">
+</testcase>
+<testcase name="Segment Drag and Drop (DnD) E2E › should promote segment to root level via drag and drop" classname="ui/segment-dnd.spec.ts" time="1.113">
+</testcase>
+<testcase name="Segment Drag and Drop (DnD) E2E › should maintain tree structure after multiple reparents" classname="ui/segment-dnd.spec.ts" time="1.225">
+</testcase>
+<testcase name="Segment Drag and Drop (DnD) E2E › should not allow dragging segment to itself" classname="ui/segment-dnd.spec.ts" time="0.926">
+</testcase>
+<testcase name="Segment Drag and Drop (DnD) E2E › should display tree structure correctly after reparent" classname="ui/segment-dnd.spec.ts" time="1.103">
+</testcase>
+<testcase name="Segment Drag and Drop (DnD) E2E › should handle drag and drop with special characters in names" classname="ui/segment-dnd.spec.ts" time="0.907">
+</testcase>
+</testsuite>
+<testsuite name="ui/senior.spec.ts" timestamp="2026-04-01T04:36:29.416Z" hostname="chromium" tests="8" failures="4" skipped="2" time="34.359" errors="0">
+<testcase name="Senior Page › should display My Senior heading on page load" classname="ui/senior.spec.ts" time="0.323">
+</testcase>
+<testcase name="Senior Page › should show FAQ view as default entry" classname="ui/senior.spec.ts" time="5.56">
 <failure message="senior.spec.ts:15:7 should show FAQ view as default entry" type="FAILURE">
 <![CDATA[  [chromium] › ui/senior.spec.ts:15:7 › Senior Page › should show FAQ view as default entry ────────
 
@@ -262,50 +308,19 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Senior Page › should switch to Chat view when Chat button clicked" classname="ui/senior.spec.ts" time="0.459">
+<testcase name="Senior Page › should switch to Chat view when Chat button clicked" classname="ui/senior.spec.ts" time="0.443">
 </testcase>
-<testcase name="Senior Page › should switch to KB Management view when KB button clicked" classname="ui/senior.spec.ts" time="10.674">
-<failure message="senior.spec.ts:36:7 should switch to KB Management view when KB button clicked" type="FAILURE">
-<![CDATA[  [chromium] › ui/senior.spec.ts:36:7 › Senior Page › should switch to KB Management view when KB button clicked 
-
-    TimeoutError: locator.click: Timeout 10000ms exceeded.
-    Call log:
-      - waiting for getByRole('button', { name: 'KB' })
-
-
-      35 |
-      36 |   test('should switch to KB Management view when KB button clicked', async ({ page }) => {
-    > 37 |     await page.getByRole('button', { name: 'KB' }).click();
-         |                                                    ^
-      38 |
-      39 |     await expect(page.getByRole('button', { name: 'KB Articles' })).toBeVisible();
-      40 |     await expect(page.getByRole('button', { name: 'Company Features' })).toBeVisible();
-        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/senior.spec.ts:37:52
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/ui-senior-Senior-Page-shou-e0b01-view-when-KB-button-clicked-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/ui-senior-Senior-Page-shou-e0b01-view-when-KB-button-clicked-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: test-results/ui-senior-Senior-Page-shou-e0b01-view-when-KB-button-clicked-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|test-results/ui-senior-Senior-Page-shou-e0b01-view-when-KB-button-clicked-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|test-results/ui-senior-Senior-Page-shou-e0b01-view-when-KB-button-clicked-chromium/video.webm]]
-
-[[ATTACHMENT|test-results/ui-senior-Senior-Page-shou-e0b01-view-when-KB-button-clicked-chromium/error-context.md]]
-]]>
-</system-out>
+<testcase name="Senior Page › should switch to KB Management view when KB button clicked" classname="ui/senior.spec.ts" time="0.326">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
 </testcase>
-<testcase name="Senior Page › should navigate between all views" classname="ui/senior.spec.ts" time="5.704">
-<failure message="senior.spec.ts:43:7 should navigate between all views" type="FAILURE">
-<![CDATA[  [chromium] › ui/senior.spec.ts:43:7 › Senior Page › should navigate between all views ────────────
+<testcase name="Senior Page › should navigate between FAQ and Chat views" classname="ui/senior.spec.ts" time="5.699">
+<failure message="senior.spec.ts:42:7 should navigate between FAQ and Chat views" type="FAILURE">
+<![CDATA[  [chromium] › ui/senior.spec.ts:42:7 › Senior Page › should navigate between FAQ and Chat views ───
 
     Error: expect(locator).toBeVisible() failed
 
@@ -319,53 +334,53 @@
       - waiting for locator('input[placeholder*="FAQ"]')
 
 
-      49 |     await page.getByRole('button', { name: /FAQ/ }).click();
-      50 |     await page.waitForResponse(resp => resp.url().includes('/api/senior/faq') && resp.request().method() === 'GET');
-    > 51 |     await expect(page.locator('input[placeholder*="FAQ"]')).toBeVisible();
+      48 |     await page.getByRole('button', { name: /FAQ/ }).click();
+      49 |     await page.waitForResponse(resp => resp.url().includes('/api/senior/faq') && resp.request().method() === 'GET');
+    > 50 |     await expect(page.locator('input[placeholder*="FAQ"]')).toBeVisible();
          |                                                             ^
+      51 |   });
       52 |
-      53 |     // Switch to KB
-      54 |     await page.getByRole('button', { name: 'KB' }).click();
-        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/senior.spec.ts:51:61
+      53 |   // --- FAQ CRUD ---
+        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/senior.spec.ts:50:61
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/ui-senior-Senior-Page-should-navigate-between-all-views-chromium/test-failed-1.png
+    test-results/ui-senior-Senior-Page-shou-8dae2--between-FAQ-and-Chat-views-chromium/test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/ui-senior-Senior-Page-should-navigate-between-all-views-chromium/video.webm
+    test-results/ui-senior-Senior-Page-shou-8dae2--between-FAQ-and-Chat-views-chromium/video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-    Error Context: test-results/ui-senior-Senior-Page-should-navigate-between-all-views-chromium/error-context.md
+    Error Context: test-results/ui-senior-Senior-Page-shou-8dae2--between-FAQ-and-Chat-views-chromium/error-context.md
 ]]>
 </failure>
 <system-out>
 <![CDATA[
-[[ATTACHMENT|test-results/ui-senior-Senior-Page-should-navigate-between-all-views-chromium/test-failed-1.png]]
+[[ATTACHMENT|test-results/ui-senior-Senior-Page-shou-8dae2--between-FAQ-and-Chat-views-chromium/test-failed-1.png]]
 
-[[ATTACHMENT|test-results/ui-senior-Senior-Page-should-navigate-between-all-views-chromium/video.webm]]
+[[ATTACHMENT|test-results/ui-senior-Senior-Page-shou-8dae2--between-FAQ-and-Chat-views-chromium/video.webm]]
 
-[[ATTACHMENT|test-results/ui-senior-Senior-Page-should-navigate-between-all-views-chromium/error-context.md]]
+[[ATTACHMENT|test-results/ui-senior-Senior-Page-shou-8dae2--between-FAQ-and-Chat-views-chromium/error-context.md]]
 ]]>
 </system-out>
 </testcase>
-<testcase name="Senior Page › should create a new FAQ and display it in the list" classname="ui/senior.spec.ts" time="10.766">
-<failure message="senior.spec.ts:64:7 should create a new FAQ and display it in the list" type="FAILURE">
-<![CDATA[  [chromium] › ui/senior.spec.ts:64:7 › Senior Page › should create a new FAQ and display it in the list 
+<testcase name="Senior Page › should create a new FAQ and display it in the list" classname="ui/senior.spec.ts" time="10.82">
+<failure message="senior.spec.ts:55:7 should create a new FAQ and display it in the list" type="FAILURE">
+<![CDATA[  [chromium] › ui/senior.spec.ts:55:7 › Senior Page › should create a new FAQ and display it in the list 
 
     TimeoutError: locator.click: Timeout 10000ms exceeded.
     Call log:
       - waiting for getByRole('button', { name: /추가/ })
 
 
-      69 |
-      70 |     // Click "+ 추가" button
-    > 71 |     await page.getByRole('button', { name: /추가/ }).click();
+      60 |
+      61 |     // Click "+ 추가" button
+    > 62 |     await page.getByRole('button', { name: /추가/ }).click();
          |                                                    ^
-      72 |
-      73 |     // Fill in the form (target inputs inside the modal dialog)
-      74 |     const modal = page.locator('.fixed.inset-0');
-        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/senior.spec.ts:71:52
+      63 |
+      64 |     // Fill in the form (target inputs inside the modal dialog)
+      65 |     const modal = page.locator('.fixed.inset-0');
+        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/senior.spec.ts:62:52
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     test-results/ui-senior-Senior-Page-shou-28baa--and-display-it-in-the-list-chromium/test-failed-1.png
@@ -388,23 +403,23 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Senior Page › should delete a FAQ from the list" classname="ui/senior.spec.ts" time="10.816">
-<failure message="senior.spec.ts:91:7 should delete a FAQ from the list" type="FAILURE">
-<![CDATA[  [chromium] › ui/senior.spec.ts:91:7 › Senior Page › should delete a FAQ from the list ────────────
+<testcase name="Senior Page › should delete a FAQ from the list" classname="ui/senior.spec.ts" time="10.792">
+<failure message="senior.spec.ts:82:7 should delete a FAQ from the list" type="FAILURE">
+<![CDATA[  [chromium] › ui/senior.spec.ts:82:7 › Senior Page › should delete a FAQ from the list ────────────
 
     TimeoutError: locator.click: Timeout 10000ms exceeded.
     Call log:
       - waiting for getByRole('button', { name: /추가/ })
 
 
-       96 |
-       97 |     // Create a FAQ first
-    >  98 |     await page.getByRole('button', { name: /추가/ }).click();
-          |                                                    ^
-       99 |     const modal = page.locator('.fixed.inset-0');
-      100 |     const title = `E2E Delete FAQ ${Date.now()}`;
-      101 |     await modal.locator('input[type="text"]').first().fill(title);
-        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/senior.spec.ts:98:52
+      87 |
+      88 |     // Create a FAQ first
+    > 89 |     await page.getByRole('button', { name: /추가/ }).click();
+         |                                                    ^
+      90 |     const modal = page.locator('.fixed.inset-0');
+      91 |     const title = `E2E Delete FAQ ${Date.now()}`;
+      92 |     await modal.locator('input[type="text"]').first().fill(title);
+        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/senior.spec.ts:89:52
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     test-results/ui-senior-Senior-Page-should-delete-a-FAQ-from-the-list-chromium/test-failed-1.png
@@ -427,44 +442,13 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Senior Page › should switch between KB Articles and Company Features sub-views" classname="ui/senior.spec.ts" time="10.772">
-<failure message="senior.spec.ts:130:7 should switch between KB Articles and Company Features sub-views" type="FAILURE">
-<![CDATA[  [chromium] › ui/senior.spec.ts:130:7 › Senior Page › should switch between KB Articles and Company Features sub-views 
-
-    TimeoutError: locator.click: Timeout 10000ms exceeded.
-    Call log:
-      - waiting for getByRole('button', { name: 'KB' })
-
-
-      129 |
-      130 |   test('should switch between KB Articles and Company Features sub-views', async ({ page }) => {
-    > 131 |     await page.getByRole('button', { name: 'KB' }).click();
-          |                                                    ^
-      132 |
-      133 |     const kbArticlesBtn = page.getByRole('button', { name: 'KB Articles' });
-      134 |     await expect(kbArticlesBtn).toHaveClass(/bg-indigo-100/);
-        at /Users/yeongmi/dev/qa/my-atlas/qa/ui/senior.spec.ts:131:52
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    test-results/ui-senior-Senior-Page-shou-de9fb--Company-Features-sub-views-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    test-results/ui-senior-Senior-Page-shou-de9fb--Company-Features-sub-views-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: test-results/ui-senior-Senior-Page-shou-de9fb--Company-Features-sub-views-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|test-results/ui-senior-Senior-Page-shou-de9fb--Company-Features-sub-views-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|test-results/ui-senior-Senior-Page-shou-de9fb--Company-Features-sub-views-chromium/video.webm]]
-
-[[ATTACHMENT|test-results/ui-senior-Senior-Page-shou-de9fb--Company-Features-sub-views-chromium/error-context.md]]
-]]>
-</system-out>
+<testcase name="Senior Page › should switch between KB Articles and Company Features sub-views" classname="ui/senior.spec.ts" time="0.396">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
 </testcase>
 </testsuite>
 </testsuites>

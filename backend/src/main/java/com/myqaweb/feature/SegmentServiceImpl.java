@@ -64,9 +64,38 @@ public class SegmentServiceImpl implements SegmentService {
     }
 
     @Override
+    public void validateReparent(Long segmentId, Long newParentId) {
+        // Case 1: newParentId is null, which is always valid (making segment root)
+        if (newParentId == null) {
+            return;
+        }
+
+        // Case 2: newParentId is the same as segmentId (cannot be self-parent)
+        if (newParentId.equals(segmentId)) {
+            throw new IllegalArgumentException("Cannot set a segment as its own parent");
+        }
+
+        // Case 3: newParentId is a descendant of segmentId (circular reference)
+        if (isDescendant(segmentId, newParentId)) {
+            throw new IllegalArgumentException("Cannot set a descendant segment as parent (circular reference)");
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isDescendant(Long segmentId, Long potentialParentId) {
+        // Get all descendants of segmentId
+        List<SegmentEntity> descendants = segmentRepository.findAllDescendants(segmentId);
+        return descendants.stream().anyMatch(s -> s.getId().equals(potentialParentId));
+    }
+
+    @Override
     public SegmentDto.SegmentResponse reparent(Long id, Long newParentId) {
         SegmentEntity entity = segmentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Segment not found: " + id));
+
+        // Validate circular references and constraints
+        validateReparent(id, newParentId);
 
         if (newParentId != null) {
             SegmentEntity newParent = segmentRepository.findById(newParentId)

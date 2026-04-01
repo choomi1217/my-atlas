@@ -174,4 +174,71 @@ class SegmentServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> segmentService.reparent(1L, 10L));
     }
+
+    // --- Circular Reference Tests ---
+
+    @Test
+    void testReparentSelfAsParent() {
+        when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
+
+        assertThrows(IllegalArgumentException.class, () -> segmentService.reparent(1L, 1L));
+    }
+
+    @Test
+    void testReparentCircularReference_ChildAsParent() {
+        // childSegment has rootSegment as parent
+        // Try to set childSegment as parent of rootSegment (circular)
+        SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment);
+
+        when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
+        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment, grandchild));
+
+        assertThrows(IllegalArgumentException.class, () -> segmentService.reparent(1L, 2L));
+    }
+
+    @Test
+    void testReparentCircularReference_GrandchildAsParent() {
+        // Try to set grandchild as parent of root (circular)
+        SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment);
+
+        when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
+        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment, grandchild));
+
+        assertThrows(IllegalArgumentException.class, () -> segmentService.reparent(1L, 3L));
+    }
+
+    @Test
+    void testIsDescendant_True() {
+        SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment);
+
+        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment, grandchild));
+
+        assertTrue(segmentService.isDescendant(1L, 2L));
+        assertTrue(segmentService.isDescendant(1L, 3L));
+    }
+
+    @Test
+    void testIsDescendant_False() {
+        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment));
+
+        assertFalse(segmentService.isDescendant(1L, 99L));
+    }
+
+    @Test
+    void testValidateReparent_NullIsValid() {
+        // Should not throw
+        segmentService.validateReparent(1L, null);
+    }
+
+    @Test
+    void testValidateReparent_SelfFails() {
+        assertThrows(IllegalArgumentException.class, () -> segmentService.validateReparent(1L, 1L));
+    }
+
+    @Test
+    void testValidateReparent_DescendantFails() {
+        when(segmentRepository.findAllDescendants(1L)).thenReturn(List.of(childSegment));
+
+        assertThrows(IllegalArgumentException.class, () -> segmentService.validateReparent(1L, 2L));
+    }
 }
