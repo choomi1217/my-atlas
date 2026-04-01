@@ -55,7 +55,8 @@ test.describe('Test Case Page', () => {
   });
 
   test('should delete a test case via confirm dialog', async () => {
-    await createTestTestCase(productId, 'E2E Delete TC');
+    const seg = await createTestSegment(productId, 'Main');
+    await createTestTestCase(productId, 'E2E Delete TC', [seg.id]);
 
     await featuresPage.gotoTestCases(companyId, productId);
 
