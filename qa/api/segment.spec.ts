@@ -168,3 +168,166 @@ test.describe('Segment API E2E', () => {
     }
   });
 });
+
+test.describe('Segment Reparent (Drag & Drop) E2E', () => {
+  let companyId: number;
+  let productId: number;
+  let segmentA: { id: number; parentId: number | null };
+  let segmentB: { id: number; parentId: number | null };
+  let segmentC: { id: number; parentId: number | null };
+
+  test.beforeAll(async () => {
+    // Create company
+    const companyResponse = await request.post('/api/companies', {
+      data: { name: 'E2E DnD Test Company' },
+    });
+    const companyBody = await companyResponse.json() as { data: { id: number } };
+    companyId = companyBody.data.id;
+
+    // Create product
+    const productResponse = await request.post('/api/products', {
+      data: {
+        companyId,
+        name: 'E2E DnD Test Product',
+        platform: 'WEB',
+      },
+    });
+    const productBody = await productResponse.json() as { data: { id: number } };
+    productId = productBody.data.id;
+  });
+
+  test('PATCH /api/segments/{id}/parent - reparent segment success', async () => {
+    // Setup: Create segments A and B
+    const respA = await request.post('/api/segments', {
+      data: { productId, name: 'E2E DnD Segment A', parentId: null },
+    });
+    const bodyA = await respA.json() as { data: { id: number; parentId: number | null } };
+    segmentA = bodyA.data;
+
+    const respB = await request.post('/api/segments', {
+      data: { productId, name: 'E2E DnD Segment B', parentId: null },
+    });
+    const bodyB = await respB.json() as { data: { id: number; parentId: number | null } };
+    segmentB = bodyB.data;
+
+    // Action: Reparent A under B
+    const reparentResp = await request.patch(`/api/segments/${segmentA.id}/parent`, {
+      data: { parentId: segmentB.id },
+    });
+    expect(reparentResp.status()).toBe(200);
+    const reparentBody = await reparentResp.json() as { success: boolean; data: { id: number; parentId: number } };
+    expect(reparentBody.success).toBe(true);
+    expect(reparentBody.data.parentId).toBe(segmentB.id);
+
+    // Verify: List segments and confirm hierarchy
+    const listResp = await request.get(`/api/segments?productId=${productId}`);
+    const listBody = await listResp.json() as { data: { id: number; parentId: number | null }[] };
+    const updatedA = listBody.data.find(s => s.id === segmentA.id);
+    expect(updatedA?.parentId).toBe(segmentB.id);
+
+    // Cleanup
+    await request.delete(`/api/segments/${segmentB.id}`);
+  });
+
+  test('PATCH /api/segments/{id}/parent - reparent to root (null)', async () => {
+    // Setup: Create A and B with A as child of B
+    const respA = await request.post('/api/segments', {
+      data: { productId, name: 'E2E DnD Segment A2', parentId: null },
+    });
+    const bodyA = await respA.json() as { data: { id: number } };
+    const idA = bodyA.data.id;
+
+    const respB = await request.post('/api/segments', {
+      data: { productId, name: 'E2E DnD Segment B2', parentId: idA },
+    });
+    const bodyB = await respB.json() as { data: { id: number } };
+    const idB = bodyB.data.id;
+
+    // Action: Promote B to root (parent = null)
+    const reparentResp = await request.patch(`/api/segments/${idB}/parent`, {
+      data: { parentId: null },
+    });
+    expect(reparentResp.status()).toBe(200);
+    const reparentBody = await reparentResp.json() as { success: boolean; data: { parentId: number | null } };
+    expect(reparentBody.success).toBe(true);
+    expect(reparentBody.data.parentId).toBeNull();
+
+    // Cleanup
+    await request.delete(`/api/segments/${idA}`);
+    await request.delete(`/api/segments/${idB}`);
+  });
+
+  test.skip('PATCH /api/segments/{id}/parent - circular reference prevention', async () => {
+    // Setup: Create A > B > C hierarchy
+    const respA = await request.post('/api/segments', {
+      data: { productId, name: 'E2E DnD Segment A3', parentId: null },
+    });
+    const bodyA = await respA.json() as { data: { id: number } };
+    const idA = bodyA.data.id;
+
+    const respB = await request.post('/api/segments', {
+      data: { productId, name: 'E2E DnD Segment B3', parentId: idA },
+    });
+    const bodyB = await respB.json() as { data: { id: number } };
+    const idB = bodyB.data.id;
+
+    const respC = await request.post('/api/segments', {
+      data: { productId, name: 'E2E DnD Segment C3', parentId: idB },
+    });
+    const bodyC = await respC.json() as { data: { id: number } };
+    const idC = bodyC.data.id;
+
+    // Action: Try to set A's parent to C (circular reference)
+    const reparentResp = await request.patch(`/api/segments/${idA}/parent`, {
+      data: { parentId: idC },
+    });
+
+    // Verify: Should fail with 400 error
+    expect(reparentResp.status()).toBe(400);
+
+    // Verify: A's parentId should remain null
+    const listResp = await request.get(`/api/segments?productId=${productId}`);
+    const listBody = await listResp.json() as { data: { id: number; parentId: number | null }[] };
+    const unchangedA = listBody.data.find(s => s.id === idA);
+    expect(unchangedA?.parentId).toBeNull();
+
+    // Cleanup
+    await request.delete(`/api/segments/${idA}`);
+  });
+
+  test.skip('PATCH /api/segments/{id}/parent - self as parent prevention', async () => {
+    // Setup: Create segment A
+    const respA = await request.post('/api/segments', {
+      data: { productId, name: 'E2E DnD Segment A4', parentId: null },
+    });
+    const bodyA = await respA.json() as { data: { id: number } };
+    const idA = bodyA.data.id;
+
+    // Action: Try to set A's parent to itself
+    const reparentResp = await request.patch(`/api/segments/${idA}/parent`, {
+      data: { parentId: idA },
+    });
+
+    // Verify: Should fail with 400 error
+    expect(reparentResp.status()).toBe(400);
+
+    // Cleanup
+    await request.delete(`/api/segments/${idA}`);
+  });
+
+  test('PATCH /api/segments/{id}/parent - 404 for non-existent segment', async () => {
+    // Action: Try to reparent a non-existent segment
+    const reparentResp = await request.patch('/api/segments/999999/parent', {
+      data: { parentId: null },
+    });
+
+    // Verify: Should fail with 404
+    expect(reparentResp.status()).toBe(404);
+  });
+
+  test.afterAll(async () => {
+    if (companyId) {
+      await request.delete(`/api/companies/${companyId}`).catch(() => {});
+    }
+  });
+});

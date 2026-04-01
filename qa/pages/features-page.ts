@@ -258,4 +258,65 @@ export class FeaturesPage {
       .locator(`text=${name}`)
       .isVisible();
   }
+
+  /**
+   * Drag a segment node to another segment (drop target)
+   */
+  async dragSegmentToSegment(sourceName: string, targetName: string) {
+    const source = this.page
+      .locator('.flex.items-center.gap-1.py-1.px-2.rounded')
+      .filter({ hasText: sourceName })
+      .first();
+
+    const target = this.page
+      .locator('.flex.items-center.gap-1.py-1.px-2.rounded')
+      .filter({ hasText: targetName })
+      .first();
+
+    // Wait for response after drop
+    const responsePromise = this.page.waitForResponse(
+      resp => resp.url().includes('/api/segments/') && resp.request().method() === 'PATCH'
+    );
+
+    await source.dragTo(target);
+    await responsePromise;
+  }
+
+  /**
+   * Get toast message text (success or error)
+   */
+  async getToastMessage(): Promise<string | null> {
+    const toast = this.page.locator('.fixed.bottom-4.right-4');
+    if (await toast.isVisible()) {
+      return toast.textContent();
+    }
+    return null;
+  }
+
+  /**
+   * Wait for toast to be visible
+   */
+  async waitForToast(timeout = 5000) {
+    await this.page.locator('.fixed.bottom-4.right-4').waitFor({ state: 'visible', timeout });
+  }
+
+  /**
+   * Check if segment has opacity-50 class (dragging state)
+   */
+  async isSegmentDragging(name: string): Promise<boolean> {
+    const segment = this.page
+      .locator('.flex.items-center.gap-1.py-1.px-2.rounded.opacity-50')
+      .filter({ hasText: name });
+    return segment.isVisible();
+  }
+
+  /**
+   * Check if segment has blue highlight (drop target)
+   */
+  async isSegmentHighlighted(name: string): Promise<boolean> {
+    const segment = this.page
+      .locator('.flex.items-center.gap-1.py-1.px-2.rounded.bg-blue-100')
+      .filter({ hasText: name });
+    return segment.isVisible();
+  }
 }

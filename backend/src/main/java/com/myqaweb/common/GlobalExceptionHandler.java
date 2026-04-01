@@ -28,13 +28,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handle resource not found / illegal argument exceptions.
+     * Handle illegal argument exceptions (validation errors).
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(
             IllegalArgumentException ex) {
         log.warn("Illegal argument: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ex.getMessage()));
     }
 

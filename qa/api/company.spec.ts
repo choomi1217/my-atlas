@@ -7,6 +7,16 @@ test.beforeAll(async ({ playwright }) => {
   request = await playwright.request.newContext({
     baseURL: API_URL,
   });
+
+  // Clean up only E2E test companies from previous test runs
+  // Preserve seed data (my-atlas, etc.)
+  const allCompanies = await request.get('/api/companies');
+  const list = (await allCompanies.json() as any).data || [];
+  for (const company of list) {
+    if (company.name.includes('E2E') || company.name.includes('Test')) {
+      await request.delete(`/api/companies/${company.id}`);
+    }
+  }
 });
 
 test.afterAll(async () => {
@@ -17,20 +27,12 @@ test.describe('Company API E2E', () => {
   let companyId: number;
   let companyId2: number;
 
-  test('GET /api/companies - empty state returns empty array', async () => {
-    // Clean up first
-    const allCompanies = await request.get('/api/companies');
-    const list = (await allCompanies.json() as any).data || [];
-    for (const company of list) {
-      await request.delete(`/api/companies/${company.id}`);
-    }
-
+  test('GET /api/companies - returns company list with correct structure', async () => {
     const response = await request.get('/api/companies');
     expect(response.status()).toBe(200);
     const body = await response.json() as any;
     expect(body.success).toBe(true);
     expect(Array.isArray(body.data)).toBe(true);
-    expect(body.data.length).toBe(0);
   });
 
   test('POST /api/companies - create new company', async () => {

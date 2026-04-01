@@ -30,3 +30,21 @@
 **추후 개발 시 고려사항:**
 - AI가 TestCase를 자동 생성/보완하는 기능 설계
 - Prompt Text 필드 복원 또는 새로운 AI 인터페이스 설계
+
+### 3. Test Run (테스트 수행) 기능
+**배경:**
+- TestCase를 작성하는 것과 별개로, 특정 버전/릴리스에 대해 어떤 TestCase들을 수행할지 선택하고 결과를 기록하는 기능이 필요
+- TestRail의 Test Run 개념과 유사: TestCase 풀에서 원하는 케이스를 골라 Test Run을 생성하고, 각 케이스의 수행 결과(Pass/Fail 등)를 기록
+- 현재는 TestCase 작성만 가능하고, 실제 테스트 수행 이력을 관리할 수 없음
+
+**핵심 개념:**
+- **Test Run**: 특정 버전/목적에 대해 수행할 TestCase 묶음 (예: "v2.1 릴리스 QA", "핫픽스 검증")
+- **Test Result**: Test Run 내 각 TestCase의 수행 결과 (Pass, Fail, Blocked, Skipped, Retest 등)
+
+**필요 기능:**
+- Test Run 생성 시 대상 TestCase 선택 (다건 선택)
+- Test Run에 버전/릴리스명, 설명 등 메타데이터 부여
+- 각 TestCase별 결과 상태 선택 (Pass / Fail / Blocked / Skipped / Retest 등)
+- 결과에 코멘트/비고 작성 가능
+- Test Run 단위 진행률 확인 (예: 15/30 완료, Pass 12 / Fail 2 / Blocked 1)
+- Test Run 이력 관리 (과거 Run 조회, 버전별 비교)

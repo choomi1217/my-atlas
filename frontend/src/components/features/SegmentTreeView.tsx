@@ -29,6 +29,11 @@ interface InlineInputState {
   parentId: number | null;
 }
 
+interface DragState {
+  draggedSegmentId: number | null;
+  dragOverSegmentId: number | null;
+}
+
 export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
   segments,
   testCases,
@@ -41,12 +46,43 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
 }) => {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
+  // Expand all nodes on initial load
+  useEffect(() => {
+    if (segments.length > 0) {
+      setExpanded(new Set(segments.map(s => s.id)));
+    }
+  }, [segments]);
   const [inlineInput, setInlineInput] = useState<InlineInputState | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [dragState, setDragState] = useState<DragState>({ draggedSegmentId: null, dragOverSegmentId: null });
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Show toast message for 3 seconds
+  const showToast = useCallback((text: string, type: 'success' | 'error' = 'error') => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToastMessage({ text, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  }, []);
+
+  // Cleanup toast timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const childrenMap = useMemo(() => {
     const map = new Map<number | null, Segment[]>();
@@ -240,6 +276,95 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
     }
   };
 
+  // Drag and drop handlers
+  const handleDragStart = useCallback((e: React.DragEvent, segmentId: number) => {
+    e.stopPropagation();
+    setDragState({ draggedSegmentId: segmentId, dragOverSegmentId: null });
+    e.dataTransfer.effectAllowed = 'move';
+    if (e.dataTransfer.setDragImage) {
+      // Create a simple drag image
+      const img = new Image();
+      e.dataTransfer.setDragImage(img, 0, 0);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, segmentId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    setDragState((prev) => ({
+      ...prev,
+      dragOverSegmentId: segmentId,
+    }));
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.stopPropagation();
+    // Only clear dragOverSegmentId if we're actually leaving the element
+    if ((e.target as HTMLElement).contains(e.relatedTarget as HTMLElement)) {
+      return;
+    }
+    setDragState((prev) => ({
+      ...prev,
+      dragOverSegmentId: null,
+    }));
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent, targetSegmentId: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const { draggedSegmentId } = dragState;
+
+      // Reset drag state
+      setDragState({ draggedSegmentId: null, dragOverSegmentId: null });
+
+      // Validation
+      if (!draggedSegmentId || draggedSegmentId === targetSegmentId) {
+        return;
+      }
+
+      // Check if trying to move a segment to one of its descendants (circular reference)
+      const isDescendant = (parent: number | null, child: number): boolean => {
+        if (parent === null) return false;
+        const childSegment = segments.find((s) => s.id === parent);
+        if (!childSegment) return false;
+        if (childSegment.id === child) return true;
+        return isDescendant(childSegment.parentId, child);
+      };
+
+      if (isDescendant(targetSegmentId, draggedSegmentId)) {
+        showToast('자식 세그먼트를 부모로 설정할 수 없습니다.', 'error');
+        return;
+      }
+
+      // Perform the update
+      setIsUpdating(true);
+      try {
+        const updated = await segmentApi.reparent(draggedSegmentId, targetSegmentId);
+        // Update the segments list
+        const newSegments = segments.map((s) =>
+          s.id === updated.id ? updated : s
+        );
+        onSegmentsUpdated(newSegments);
+        showToast('세그먼트를 이동했습니다.', 'success');
+      } catch (error) {
+        console.error('Failed to move segment:', error);
+        const errorMsg =
+          error instanceof Error ? error.message : '세그먼트 이동 실패';
+        showToast(`세그먼트 이동 실패: ${errorMsg}`, 'error');
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [dragState, segments, onSegmentsUpdated, showToast]
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragState({ draggedSegmentId: null, dragOverSegmentId: null });
+  }, []);
+
   const renderInlineInput = () => (
     <div className="flex items-center gap-1 ml-4 my-1">
       <input
@@ -284,6 +409,8 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
     const count = countTestCases(currentPath);
     const isLeaf = children.length === 0;
     const nodeSelected = isSelected(currentPath);
+    const isDragging = dragState.draggedSegmentId === segment.id;
+    const isDropTarget = dragState.dragOverSegmentId === segment.id;
 
     const showAboveInput =
       inlineInput?.mode === 'above' && inlineInput.targetId === segment.id;
@@ -295,11 +422,21 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
         {showAboveInput && renderInlineInput()}
         <div className="ml-4">
           <div
+            draggable={!isUpdating}
+            onDragStart={(e) => handleDragStart(e, segment.id)}
+            onDragOver={(e) => handleDragOver(e, segment.id)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, segment.id)}
+            onDragEnd={handleDragEnd}
             className={`flex items-center gap-1 py-1 px-2 rounded text-sm group ${
               nodeSelected
                 ? 'bg-blue-100 border-l-2 border-blue-500'
+                : isDropTarget
+                ? 'bg-blue-100 border-l-2 border-blue-400'
                 : 'hover:bg-gray-100'
-            } cursor-pointer`}
+            } ${isDragging ? 'opacity-50' : 'opacity-100'} ${
+              !isUpdating ? 'cursor-move' : 'cursor-not-allowed'
+            } transition-colors`}
             onClick={() => handleSelectNode(currentPath)}
             onContextMenu={(e) => handleContextMenu(e, segment, currentPath)}
           >
@@ -423,6 +560,19 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          className={`fixed bottom-4 right-4 px-4 py-3 rounded shadow-lg text-white text-sm z-50 ${
+            toastMessage.type === 'success'
+              ? 'bg-green-500'
+              : 'bg-red-500'
+          } animate-fade-in`}
+        >
+          {toastMessage.text}
+        </div>
+      )}
     </>
   );
 };
