@@ -257,7 +257,7 @@ test.describe('Segment Reparent (Drag & Drop) E2E', () => {
     await request.delete(`/api/segments/${idB}`);
   });
 
-  test.skip('PATCH /api/segments/{id}/parent - circular reference prevention', async () => {
+  test('PATCH /api/segments/{id}/parent - circular reference prevention', async () => {
     // Setup: Create A > B > C hierarchy
     const respA = await request.post('/api/segments', {
       data: { productId, name: 'E2E DnD Segment A3', parentId: null },
@@ -295,7 +295,7 @@ test.describe('Segment Reparent (Drag & Drop) E2E', () => {
     await request.delete(`/api/segments/${idA}`);
   });
 
-  test.skip('PATCH /api/segments/{id}/parent - self as parent prevention', async () => {
+  test('PATCH /api/segments/{id}/parent - self as parent prevention', async () => {
     // Setup: Create segment A
     const respA = await request.post('/api/segments', {
       data: { productId, name: 'E2E DnD Segment A4', parentId: null },

@@ -199,10 +199,10 @@
         <!-- 프로젝트 카드들 -->
         <div class="project-card">
           <div class="project-title">AI 응답 검증 자동화</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Studio 내 AI 채팅으로 Pie를 생성하는 신규 기능 출시 전, 600개 이상의 질의에 대한 응답 품질 전수 검증 필요 — QA 인력 부족으로 인계받아 단독 처리</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">엑셀 질문지를 배열로 변환 후 JavaScript for문으로 자동 요청, 응답을 수집</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">수집한 응답을 <strong>질문 | AI 응답 | 기대 응답 | Claude 판단 점수</strong> 형식의 CSV로 가공, Claude.ai에 채점 기준을 Prompt로 정의하여 응답 품질 자동 평가</span></div>
-          <span class="result-badge badge-green">예상 테스트 완료 일정 1주일 → 하루만에 완료 (약 85% 단축)</span>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Studio AI 채팅 기능 출시 전, 600개 이상의 질의에 대한 응답 품질 전수 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">엑셀 내용을 스크립트로 자동으로 응답 수집</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">수집한 응답을 <strong>질문 | AI 응답 | 기대 응답 | Claude 판단 점수</strong> 형식의 CSV로 가공, Claude에 채점 기준을 Prompt로 정의하여 응답 품질 자동 평가</span></div>
+          <span class="result-badge badge-green">예상 테스트 완료 일주일  →  하루로 단축 </span>
           <div class="tags">
             <span class="tag tag-blue">JavaScript</span><span class="tag tag-blue">Prompt Engineering</span><span class="tag tag-gray">CSV</span><span class="tag tag-gray">Claude.ai</span>
           </div>
@@ -210,47 +210,43 @@
 
         <div class="project-card">
           <div class="project-title">API 스크립트 자동화</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">개발 경력을 바탕으로 네트워크 요청·JSON 응답 구조 분석에 익숙하여, 팀의 반복 작업을 API 스크립트로 직접 해결</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">네트워크 요청·JSON 응답 구조 분석, 팀의 반복 작업을 API 스크립트로 해결</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">페이지네이션 등 대량 데이터 필요 시 API 반복 호출로 테스트 데이터 자동 생성</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">다수 유저 팀 이동 등 운영팀이 수동 처리 불가한 작업을 스크립트로 대체 처리</span></div>
-          <span class="result-badge badge-amber">개발자 출신 QA — 자동화 가능 여부 판단부터 직접 구현까지</span>
           <div class="tags">
-            <span class="tag tag-blue">API 자동화</span><span class="tag tag-blue">DevTools</span><span class="tag tag-gray">Python / Shell</span>
+            <span class="tag tag-blue">JavaScript</span><span class="tag tag-blue">API 자동화</span><span class="tag tag-blue">DevTools</span>
           </div>
         </div>
 
         <div class="project-card">
           <div class="project-title">reCAPTCHA v2 QA</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Email Abusing 대응 reCAPTCHA v2 도입 시 자동화 도구로 CAPTCHA를 검증하는 방법 팀 내 부재</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Playwright로 봇 시도 시 CAPTCHA에 정상 차단되는 것을 코드로 검증·문서화</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Email Abusing 대응 reCAPTCHA v2 도입, 자동화 도구로 CAPTCHA 테스트</span></div>
           <div class="tags">
-            <span class="tag tag-blue">Playwright</span><span class="tag tag-blue">E2E 자동화</span><span class="tag tag-gray">보안 QA</span>
+            <span class="tag tag-blue">Playwright</span><span class="tag tag-gray">보안 QA</span>
           </div>
         </div>
 
         <div class="project-card">
           <div class="project-title">Test Case 설계</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">파일 용량 제한(1GB) 경계값 분석 — 경계 이하·경계·경계 초과 케이스로 업로드 제한 검증 (900MB+99MB / +100MB / +101MB)</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Reach Final Scene / Exact Path / Free Path 간 6가지 상태 전이 조합 전수 검증</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Cloud 권한(역할·플랜·멤버십)에 따른 UT 기능 접근 시나리오 설계</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">경계값 테스트 — 경계 이하·경계·경계 초과 케이스로 파일 용량 제한(1GB) 검증</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">상태 전이 조합 전수 검증</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">권한(역할·플랜·멤버십)에 따른 기능 접근 시나리오 설계</span></div>
           <div class="tags">
             <span class="tag tag-gray">경계값 분석</span><span class="tag tag-gray">상태 전이 테스트</span><span class="tag tag-gray">권한 기반 테스트</span>
           </div>
         </div>
 
         <div class="project-card">
-          <div class="project-title">QA Sprint 프로세스 설계 및 운영</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">프론트엔드 팀 Sprint 주기에 맞춰 QA팀 Sprint 보드 최초 설계 및 운영 체계 수립</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">테스트 일정, 워크플로우, Jira Automation 구성 — 재직 기간 동안 실제 운영</span></div>
+          <div class="project-title">QA Sprint 설계 및 운영</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">개발팀 Sprint 주기에 맞춰 QA팀 Sprint 보드 설계 및 운영</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">테스트 일정, 워크플로우, Jira Automation 구성</span></div>
           <div class="tags">
-            <span class="tag tag-blue">Jira</span><span class="tag tag-gray">Sprint Board</span><span class="tag tag-gray">Automation</span><span class="tag tag-gray">TestRail</span>
+            <span class="tag tag-blue">Jira</span><span class="tag tag-gray">Sprint Board</span><span class="tag tag-gray">Jira Automation</span><span class="tag tag-gray">TestRail</span>
           </div>
         </div>
-
         <div class="project-card">
           <div class="project-title">Playwright Test Architecture Design</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Typed Manifest(JSON) 기반으로 Account, Membership, Role, Plan을 선언적으로 관리하는 테스트 환경 설계</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">환경 변수(TENANT, SERVER)와 테스트 메타데이터 자동 주입 — Public Cloud / Enterprise 다중 서버 환경 대응</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Account, Membership, Role, Plan을 관리하는 테스트 환경 설계</span></div>
           <div class="tags">
             <span class="tag tag-blue">Playwright</span><span class="tag tag-blue">JSON Manifest</span><span class="tag tag-gray">GitHub Actions</span><span class="tag tag-gray">AWS</span>
           </div>
@@ -276,10 +272,10 @@
       <div class="exp-right">
         <div class="project-card">
           <div class="project-title">부산교통공사 지하철 관리 시스템</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">DB 중복 적재 무한루프 버그를 Scheduler Lock으로 해결</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">DB 중복 적재 버그를 Scheduler Lock으로 해결</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">JPA N+1 문제 진단 및 QueryDSL 개선 — 성능 이슈 탐지 경험</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">테스트 서버(WAS 1대) vs 운영 서버(WAS 2대) 환경 차이 문제를 Blue-Green 배포로 해결</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">GitLab CI/CD + Discord 알림 봇 구축으로 팀 개발 문화 개선 주도</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">테스트 서버(WAS 1대) vs 운영 서버(WAS 2대) 환경 차이 문제 해결</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"> CI/CD, Slack 알림 봇 구축</span></div>
           <div class="tags">
             <span class="tag tag-gray">Java</span><span class="tag tag-gray">Spring Boot</span><span class="tag tag-gray">PostgreSQL</span><span class="tag tag-gray">Kafka</span><span class="tag tag-gray">ElasticSearch</span><span class="tag tag-gray">Docker</span>
           </div>
@@ -296,9 +292,9 @@
       <div class="exp-right">
         <div class="project-card">
           <div class="project-title">GIS 기반 도로명주소 웹 애플리케이션</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">조직 내 최초 Test Code(JUnit + Mockito) 도입 — 테스트 자동화 필요성을 직접 경험하고 주도한 계기</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Test Code(JUnit + Mockito) 사용 — 테스트 자동화 필요성을 직접 경험하고 주도한 계기</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Apache Solr API, GeoServer, Spring Scheduler 등 다양한 기술 스택 실무 경험</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">법 재개정에 따른 지도 이미지 재생성 백오피스 개발 — 알고리즘 설계부터 구현까지 단독 수행</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">지도 이미지 재생성 백오피스 — 알고리즘 설계부터 구현까지 단독 수행</span></div>
           <div class="tags">
             <span class="tag tag-gray">Java</span><span class="tag tag-gray">Spring Framework</span><span class="tag tag-gray">PostgreSQL</span><span class="tag tag-gray">Oracle</span><span class="tag tag-gray">Apache Solr</span><span class="tag tag-gray">GeoServer</span>
           </div>
@@ -327,7 +323,7 @@
           <div class="project-accent-title">QA 지식 관리 & AI 테스트 자동화 웹 애플리케이션</div>
           <div class="project-accent-sub">github.com/choomi1217/my-atlas</div>
 
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">QA 업무 효율화를 위해 직접 설계·개발 중인 풀스택 웹 서비스. Spring Boot + React + PostgreSQL(pgvector) 기반</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">QA 업무 효율화를 위해 직접 설계·개발 중인 풀스택 웹 서비스. <br/> Spring Boot + React + PostgreSQL(pgvector) 기반</span></div>
 
           <div class="sub-label">구현 완료 기능</div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>My Senior (AI QA 챗봇)</strong> — 사용자 질문을 임베딩하여 pgvector 코사인 유사도 검색으로 관련 QA 지식을 컨텍스트로 주입, Claude API로 SSE 스트리밍 답변 생성. RAG 파이프라인 완성</span></div>

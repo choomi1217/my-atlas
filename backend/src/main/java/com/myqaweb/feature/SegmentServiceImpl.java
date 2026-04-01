@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Queue;
+import java.util.LinkedList;
 
 /**
  * Service implementation for Segment operations.
@@ -83,10 +85,22 @@ public class SegmentServiceImpl implements SegmentService {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isDescendant(Long segmentId, Long potentialParentId) {
-        // Get all descendants of segmentId
-        List<SegmentEntity> descendants = segmentRepository.findAllDescendants(segmentId);
-        return descendants.stream().anyMatch(s -> s.getId().equals(potentialParentId));
+    public boolean isDescendant(Long segmentId, Long potentialDescendantId) {
+        // BFS to find all descendants of segmentId
+        Queue<Long> queue = new LinkedList<>();
+        queue.add(segmentId);
+
+        while (!queue.isEmpty()) {
+            Long current = queue.poll();
+            List<SegmentEntity> children = segmentRepository.findAllByParentId(current);
+            for (SegmentEntity child : children) {
+                if (child.getId().equals(potentialDescendantId)) {
+                    return true;
+                }
+                queue.add(child.getId());
+            }
+        }
+        return false;
     }
 
     @Override
