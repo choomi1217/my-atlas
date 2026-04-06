@@ -178,6 +178,62 @@ export async function createTestTestCase(
   }
 }
 
+export interface VersionData {
+  id: number;
+  name: string;
+  releaseDate?: string;
+  description?: string;
+  productId: number;
+  phases: PhaseData[];
+  isReleaseDatePassed: boolean;
+  warningMessage?: string;
+}
+
+export interface PhaseData {
+  id: number;
+  phaseName: string;
+  testRunId: number;
+  orderIndex: number;
+  versionId: number;
+}
+
+/**
+ * Create a test version with phases
+ */
+export async function createTestVersion(
+  productId: number,
+  name: string = 'E2E Test Version',
+  releaseDate?: string,
+  phases: Array<{ phaseName: string; testRunId: number; orderIndex: number }> = [],
+): Promise<VersionData> {
+  try {
+    const response = await client.post(`/api/products/${productId}/versions`, {
+      productId,
+      name,
+      releaseDate: releaseDate ?? null,
+      description: `Test version ${name}`,
+      phases,
+    });
+    return response.data.data as VersionData;
+  } catch (error) {
+    console.error('Failed to create test version:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all versions for a product
+ */
+export async function getVersionsByProductId(productId: number): Promise<VersionData[]> {
+  try {
+    const response = await client.get(`/api/products/${productId}/versions`);
+    return response.data.data as VersionData[];
+  } catch (error) {
+    console.error(`Failed to fetch versions for product ${productId}:`, error);
+    return [];
+  }
+}
+
 /**
  * Clean up all test data (cascade delete company)
  */

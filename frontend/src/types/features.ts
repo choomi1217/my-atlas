@@ -105,3 +105,73 @@ export interface ApiResponse<T> {
   message: string;
   data: T;
 }
+
+/**
+ * Test run result status enum.
+ */
+export enum RunResultStatus {
+  PASS = 'PASS',
+  FAIL = 'FAIL',
+  BLOCKED = 'BLOCKED',
+  SKIPPED = 'SKIPPED',
+  RETEST = 'RETEST',
+  UNTESTED = 'UNTESTED',
+}
+
+/**
+ * Test run interface.
+ */
+export interface TestRun {
+  id: number;
+  productId: number;
+  name: string;
+  description?: string;
+  testCaseCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Progress stats interface.
+ */
+export interface ProgressStats {
+  total: number;
+  completed: number;
+  pass: number;
+  fail: number;
+  blocked: number;
+  skipped: number;
+  retest: number;
+  untested: number;
+}
+
+/**
+ * Version phase interface.
+ */
+export interface VersionPhase {
+  id: number;
+  phaseName: string;
+  testRunId: number;
+  testRunName: string;
+  testRunTestCaseCount: number;
+  orderIndex: number;
+  phaseProgress: ProgressStats;
+}
+
+/**
+ * Version interface.
+ */
+export interface Version {
+  id: number;
+  productId: number;
+  name: string;
+  description?: string;
+  releaseDate?: string;
+  copiedFrom?: number;
+  phases: VersionPhase[];
+  totalProgress: ProgressStats;
+  isReleaseDatePassed: boolean;
+  warningMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
