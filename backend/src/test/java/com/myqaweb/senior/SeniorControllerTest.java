@@ -203,7 +203,7 @@ class SeniorControllerTest {
                         .content("""
                                 {"title": "Title", "content": "Content"}
                                 """))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("FAQ not found: 99"));
     }
@@ -246,7 +246,7 @@ class SeniorControllerTest {
 
         // Act & Assert
         mockMvc.perform(delete("/api/senior/faq/99"))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("FAQ not found: 99"));
     }

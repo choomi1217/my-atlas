@@ -125,7 +125,7 @@ class SegmentControllerTest {
                         .content("""
                                 {"productId": 10, "name": "Nope"}
                                 """))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 
@@ -152,7 +152,7 @@ class SegmentControllerTest {
 
         // Act & Assert
         mockMvc.perform(delete("/api/segments/99"))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 
@@ -209,7 +209,7 @@ class SegmentControllerTest {
                         .content("""
                                 {"parentId": 1}
                                 """))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 
