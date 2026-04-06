@@ -42,7 +42,6 @@ jobs:
       - name: Start backend application
         working-directory: ./backend
         run: |
-          mkdir -p /app/logs
           ./gradlew bootRun &
           sleep 10
           # Wait for backend to be ready
