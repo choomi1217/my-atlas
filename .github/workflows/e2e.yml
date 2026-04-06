@@ -104,7 +104,7 @@ jobs:
 
       - name: Start Docker Compose stack
         run: |
-          docker-compose up -d --build
+          docker compose up -d --build
           echo "Waiting for services to be healthy..."
           timeout 120 bash -c 'until curl -sf http://localhost:8080/actuator/health; do sleep 3; done'
           echo "Backend is healthy"
@@ -152,7 +152,7 @@ jobs:
 
       - name: Stop Docker Compose stack
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v
 
   deploy-gate:
     name: AWS Deploy Gate
