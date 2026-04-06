@@ -51,8 +51,8 @@ jobs:
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
           SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'sk-test-dummy-anthropic-key' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy-openai-key' }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -98,8 +98,8 @@ jobs:
           SPRING_DATASOURCE_USERNAME=myqaweb
           SPRING_DATASOURCE_PASSWORD=admin
           VITE_API_BASE_URL=http://localhost:8080
-          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY || 'sk-test-dummy-anthropic-key' }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY || 'sk-test-dummy-openai-key' }}
           ENVEOF
 
       - name: Start Docker Compose stack
