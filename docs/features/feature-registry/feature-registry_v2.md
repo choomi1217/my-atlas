@@ -1,5 +1,12 @@
 # Product Test Suite — TestCase System Design
 
+> 변경 유형: 기능 추가  
+> 작성일: 2026-03-20  
+> 버전: v2  
+> 상태: 완료
+
+---
+
 ## Overview
 
 Redesign the existing Product Test Suite into a TestRail-style drill-down navigation.
