@@ -1,8 +1,8 @@
 package com.myqaweb.common;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.embedding.Embedding;
@@ -10,6 +10,7 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingResponse;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -24,8 +25,12 @@ class EmbeddingServiceTest {
     @Mock
     private EmbeddingModel embeddingModel;
 
-    @InjectMocks
     private EmbeddingService embeddingService;
+
+    @BeforeEach
+    void setUp() {
+        embeddingService = new EmbeddingService(Optional.of(embeddingModel));
+    }
 
     // --- embed ---
 

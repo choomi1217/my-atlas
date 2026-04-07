@@ -2,7 +2,7 @@ name: Deploy Backend to EC2
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ main ]
     paths:
       - 'backend/**'
       - 'docker-compose.yml'
@@ -22,7 +22,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/ec2-user/my-atlas
-            git pull origin develop
+            git pull origin main
             docker compose up -d --build backend
             echo "Waiting for backend to start..."
             sleep 15
