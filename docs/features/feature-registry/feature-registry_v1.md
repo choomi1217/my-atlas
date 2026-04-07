@@ -1,5 +1,12 @@
 # Implement Product Test Suite
 
+> 변경 유형: 기능 추가  
+> 작성일: 2026-03-18  
+> 버전: v1  
+> 상태: 완료
+
+---
+
 > ⚠️ **Deprecated**: 이 문서는 초기 설계입니다. 현재 구현은 드릴다운 방식으로 변경되었습니다. 최신 설계는 [feature-registry_v2.md](./feature-registry_v2.md)를 참고하세요.
 
 ## Current Project State
