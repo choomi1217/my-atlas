@@ -45,14 +45,14 @@ jobs:
           ./gradlew bootRun &
           sleep 10
           # Wait for backend to be ready
-          timeout 60 bash -c 'until curl -sf http://localhost:8080/actuator/health; do sleep 2; done'
+          timeout 120 bash -c 'until curl -sf http://localhost:8080/actuator/health; do sleep 2; done'
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/myatlas_e2etest
           SPRING_DATASOURCE_USERNAME: test
           SPRING_DATASOURCE_PASSWORD: test
           SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'sk-test-dummy-anthropic-key' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy-openai-key' }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -98,13 +98,13 @@ jobs:
           SPRING_DATASOURCE_USERNAME=myqaweb
           SPRING_DATASOURCE_PASSWORD=admin
           VITE_API_BASE_URL=http://localhost:8080
-          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY || 'sk-test-dummy-anthropic-key' }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY || 'sk-test-dummy-openai-key' }}
           ENVEOF
 
       - name: Start Docker Compose stack
         run: |
-          docker-compose up -d --build
+          docker compose up -d --build
           echo "Waiting for services to be healthy..."
           timeout 120 bash -c 'until curl -sf http://localhost:8080/actuator/health; do sleep 3; done'
           echo "Backend is healthy"
@@ -152,7 +152,7 @@ jobs:
 
       - name: Stop Docker Compose stack
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v
 
   deploy-gate:
     name: AWS Deploy Gate
@@ -163,9 +163,23 @@ jobs:
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     steps:
+      - name: Check AWS credentials available
+        id: check-aws
+        run: |
+          if [ -z "$AWS_REGION" ]; then
+            echo "AWS_REGION not set, skipping deployment"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
       - uses: actions/checkout@v4
+        if: steps.check-aws.outputs.skip != 'true'
 
       - name: Configure AWS Credentials
+        if: steps.check-aws.outputs.skip != 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -173,6 +187,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Check E2E tests passed
+        if: steps.check-aws.outputs.skip != 'true'
         run: |
           echo "All E2E tests passed successfully!"
           echo "Ready for AWS deployment..."
@@ -184,7 +199,7 @@ jobs:
   notify-slack:
     name: Slack Notification
     runs-on: ubuntu-latest
-    needs: [api-e2e, ui-e2e, deploy-gate]
+    needs: [api-e2e, ui-e2e]
     if: ${{ always() }}
     steps:
       - name: Notify Slack

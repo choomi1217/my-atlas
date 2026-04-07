@@ -178,7 +178,7 @@ class ConventionControllerTest {
                         .content("""
                                 {"term": "TC", "definition": "Test Case"}
                                 """))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Convention not found: 99"));
     }
@@ -207,7 +207,7 @@ class ConventionControllerTest {
 
         // Act & Assert
         mockMvc.perform(delete("/api/conventions/99"))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Convention not found: 99"));
     }

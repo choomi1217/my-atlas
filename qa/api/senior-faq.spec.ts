@@ -91,7 +91,7 @@ test.describe('Senior FAQ API E2E', () => {
 
   test('GET /api/senior/faq/{id} - deleted FAQ returns 404', async () => {
     const response = await request.get(`/api/senior/faq/${faqId}`);
-    expect(response.status()).toBe(404);
+    expect(response.status()).toBe(404);  // GET은 실제로 404 반환 (리소스 미존재)
     const body = await response.json() as any;
     expect(body.success).toBe(false);
   });

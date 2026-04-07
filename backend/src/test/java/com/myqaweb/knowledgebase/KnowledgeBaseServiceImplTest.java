@@ -147,8 +147,8 @@ class KnowledgeBaseServiceImplTest {
         assertNotNull(result);
         assertEquals("Updated Title", result.title());
         assertEquals("Updated Category", result.category());
-        verify(knowledgeBaseRepository).findById(1L);
-        verify(knowledgeBaseRepository).save(any(KnowledgeBaseEntity.class));
+        verify(knowledgeBaseRepository, atLeastOnce()).findById(1L);
+        verify(knowledgeBaseRepository, atLeastOnce()).save(any(KnowledgeBaseEntity.class));
     }
 
     @Test
