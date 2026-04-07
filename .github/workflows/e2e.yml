@@ -160,13 +160,26 @@ jobs:
     needs: [api-e2e, ui-e2e]
     if: |
       github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
-      secrets.AWS_REGION != ''
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     steps:
+      - name: Check AWS credentials available
+        id: check-aws
+        run: |
+          if [ -z "$AWS_REGION" ]; then
+            echo "AWS_REGION not set, skipping deployment"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
       - uses: actions/checkout@v4
+        if: steps.check-aws.outputs.skip != 'true'
 
       - name: Configure AWS Credentials
+        if: steps.check-aws.outputs.skip != 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -174,6 +187,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Check E2E tests passed
+        if: steps.check-aws.outputs.skip != 'true'
         run: |
           echo "All E2E tests passed successfully!"
           echo "Ready for AWS deployment..."
