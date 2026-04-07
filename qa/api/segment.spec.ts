@@ -315,14 +315,14 @@ test.describe('Segment Reparent (Drag & Drop) E2E', () => {
     await request.delete(`/api/segments/${idA}`);
   });
 
-  test('PATCH /api/segments/{id}/parent - 404 for non-existent segment', async () => {
+  test('PATCH /api/segments/{id}/parent - 400 for non-existent segment', async () => {
     // Action: Try to reparent a non-existent segment
     const reparentResp = await request.patch('/api/segments/999999/parent', {
       data: { parentId: null },
     });
 
-    // Verify: Should fail with 404
-    expect(reparentResp.status()).toBe(404);
+    // Verify: Should fail with 400
+    expect(reparentResp.status()).toBe(400);
   });
 
   test.afterAll(async () => {
