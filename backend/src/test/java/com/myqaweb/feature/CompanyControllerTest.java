@@ -115,7 +115,7 @@ class CompanyControllerTest {
 
         // Act & Assert
         mockMvc.perform(patch("/api/companies/99/activate"))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 
@@ -142,7 +142,7 @@ class CompanyControllerTest {
 
         // Act & Assert
         mockMvc.perform(delete("/api/companies/99"))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 }

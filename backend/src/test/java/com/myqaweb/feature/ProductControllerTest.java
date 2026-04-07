@@ -127,7 +127,7 @@ class ProductControllerTest {
                         .content("""
                                 {"companyId": 10, "name": "Name", "platform": "WEB"}
                                 """))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 

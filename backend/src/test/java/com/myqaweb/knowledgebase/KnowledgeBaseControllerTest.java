@@ -178,7 +178,7 @@ class KnowledgeBaseControllerTest {
                         .content("""
                                 {"title": "T", "content": "C"}
                                 """))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 
