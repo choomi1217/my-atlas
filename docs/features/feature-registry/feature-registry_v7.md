@@ -1,8 +1,11 @@
-# feature-registry_v7
-Feature Registry — Segment 드래그 앤 드롭으로 계층 구조 변경
+# Feature Registry — Segment 드래그 앤 드롭 (v7)
 
-## 변경 유형
-기능 추가
+> 변경 유형: 기능 추가  
+> 작성일: 2026-03-28  
+> 버전: v7  
+> 상태: 완료
+
+---
 
 ## 배경
 v6까지 TestCase 목록은 Path 트리 구조로 표시되지만, Segment의 계층을 변경하려면 현재 불가능하다.

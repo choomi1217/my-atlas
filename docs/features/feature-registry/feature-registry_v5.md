@@ -1,8 +1,11 @@
-# feature-registry_v5
-Feature Registry UI 버그 수정 및 UX 개선
+# Feature Registry — UI 버그 수정 및 UX 개선 (v5)
 
-## 변경 유형
-버그 수정 + 기능 개선
+> 변경 유형: 버그 수정 + 기능 개선  
+> 작성일: 2026-03-25  
+> 버전: v5  
+> 상태: 완료
+
+---
 
 ## 배경
 v4에서 TreeView 기반 Path 관리를 도입했으나, TestCase의 Add/Edit이 모달이 아닌 인라인 폼으로 구현되어 UX가 의도와 다르다.
