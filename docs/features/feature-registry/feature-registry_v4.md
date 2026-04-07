@@ -1,4 +1,11 @@
-# feature-registry_v4
+# Feature Registry — Tree View 기반 Path 관리 (v4)
+
+> 변경 유형: 기능 개선  
+> 작성일: 2026-03-24  
+> 버전: v4  
+> 상태: 완료
+
+---
 
 ## 개요
 

@@ -1,179 +1,341 @@
 # my-atlas: Claude Code Project Context
 
-## 📋 Project Overview
+## Project Overview
 
-**my-atlas** is a full-stack QA (Quality Assurance) knowledge management application built with Spring Boot and React. It provides AI-powered assistance for QA professionals to manage testing conventions, feature documentation, and knowledge bases using Claude AI.
+**my-atlas**는 Spring Boot + React 기반 QA 지식 관리 애플리케이션이다.
+Claude AI와 OpenAI 임베딩을 활용하여 QA 전문가의 테스트 컨벤션, 기능 문서, 지식 베이스를 관리한다.
 
-### Key Features
-- **AI Senior QA Chat** (`/senior`) — Conversational AI advisor powered by Claude
-- **Knowledge Base** (`/kb`) — QA best practices and testing guidelines
-- **Word Conventions** (`/conventions`) — Terminology standardization
-- **Feature Registry** (`/features`) — Feature tracking and documentation
+### 핵심 기능 (구현 완료)
+
+| 기능 | 라우트 | 설명 | 상태 |
+|------|--------|------|------|
+| My Senior | `/senior` | AI 시니어 QA 챗봇 (RAG + SSE 스트리밍), FAQ 카드뷰, FAQ→Chat 컨텍스트 전달 | 구현 완료 |
+| Knowledge Base | `/kb` | QA 지식 CRUD + PDF 업로드 파이프라인 (청킹, 임베딩), 소스 필터 탭 | 구현 완료 |
+| Word Conventions | `/conventions` | 팀 용어 표준화 CRUD | 구현 완료 |
+| Feature Registry | `/features` | Company → Product → TestCase 3단계 드릴다운, Segment 트리, DnD | 구현 완료 |
 
 ---
 
-## 🏗️ Monorepo Structure
+## Monorepo Structure
 
 ```
 my-atlas/
 ├── backend/                  # Spring Boot REST API (Java 21, Gradle)
 │   ├── src/main/java/com/myqaweb/
-│   ├── src/test/java/
+│   │   ├── MyQaWebApplication.java
+│   │   ├── senior/           # AI Chat (SSE) + FAQ CRUD + RAG pipeline
+│   │   ├── knowledgebase/    # KB CRUD + PDF upload pipeline
+│   │   ├── convention/       # Convention CRUD
+│   │   ├── feature/          # Company, Product, Segment, TestCase
+│   │   └── common/           # EmbeddingService, GlobalExceptionHandler, ApiResponse
+│   ├── src/test/java/        # 179 tests (Unit + Integration via Testcontainers)
+│   ├── src/main/resources/
+│   │   ├── application.yml   # Spring config (Flyway, Spring AI, pgvector)
+│   │   ├── logback-spring.xml
+│   │   └── db/migration/     # Flyway V1~V7
 │   ├── build.gradle
-│   └── gradle
+│   └── CLAUDE.md             # Backend 전용 가이드
 ├── frontend/                 # React SPA (TypeScript, Vite, Tailwind)
 │   ├── src/
+│   │   ├── pages/            # SeniorPage, KnowledgeBasePage, ConventionsPage, features/*
+│   │   ├── components/       # senior/ (ChatView, FaqView, FaqCard, FaqFormModal)
+│   │   │                     # kb/ (PdfUploadModal, PdfJobStatusCard)
+│   │   │                     # features/ (TestCaseFormModal, SegmentTreeView, ConfirmDialog, etc.)
+│   │   ├── hooks/            # useSeniorChat, useFaq, useKnowledgeBase, usePdfUpload
+│   │   ├── api/              # senior.ts (chatApi, faqApi, kbApi), features.ts
+│   │   ├── types/            # senior.ts, features.ts
+│   │   ├── context/          # ActiveCompanyContext.tsx
+│   │   └── stores/           # featureStore.ts (Zustand)
 │   ├── package.json
-│   └── vite.config.ts
-├── docker-compose.yml        # Postgres, backend, frontend orchestration
-├── .github/workflows/        # CI/CD pipelines
-├── .env                      # Environment variables
-└── CLAUDE.md                 # This file
+│   ├── vitest.config.ts      # Frontend unit test config
+│   └── CLAUDE.md             # Frontend 전용 가이드
+├── qa/                       # Playwright E2E Tests (98 tests: API 65 + UI 33)
+│   ├── api/                  # company, product, segment, feature, kb, convention, senior-faq
+│   ├── ui/                   # company-panel, product-panel, feature-panel, kb, senior, segment-dnd
+│   ├── helpers/api-helpers.ts
+│   ├── pages/features-page.ts
+│   ├── playwright.config.ts
+│   └── CLAUDE.md             # E2E 테스트 가이드
+├── docs/                     # Doc-Driven Development 문서
+│   ├── features/
+│   │   ├── feature-registry/ # feature-registry.md + v1~v8, v10, backlog
+│   │   ├── knowledge-base/   # knowledge-base.md + v0, v0.1
+│   │   └── senior/           # my-senior.md + v0~v2
+│   ├── ops/                  # ops.md + v1~v6
+│   ├── qa/                   # qa_v1~v8, testcase_v1
+│   └── ui/                   # ui_v1
+├── .github/workflows/        # CI/CD (5 workflows)
+├── .claude/agents/           # Sub-agent definitions (4 agents)
+├── docker-compose.yml        # DB + Backend + Frontend
+├── .env                      # 환경 변수 (gitignored)
+└── CLAUDE.md                 # 이 파일
 ```
-
-**Backend responsibilities:**
-- RESTful API for CRUD operations (conventions, features, knowledge base, seniors)
-- Integration with Claude API via Spring AI for AI-powered features
-- Database management (PostgreSQL + pgvector for embeddings)
-- Authentication & authorization (if applicable)
-
-**Frontend responsibilities:**
-- React UI for all four feature domains
-- API client communication with backend
-- State management and user interactions
-- Responsive design with Tailwind CSS
 
 ---
 
-## 🌿 Git Branch Strategy
+## Database Schema
+
+### PostgreSQL 15 + pgvector
+
+| 테이블 | 용도 | 벡터 컬럼 | 보호 |
+|--------|------|-----------|------|
+| `knowledge_base` | QA 지식 (수동 작성 + PDF 청킹) | embedding (1536 dims) | **삭제 절대 금지** |
+| `pdf_upload_job` | PDF 업로드 이력/상태 | 없음 | **삭제 절대 금지** |
+| `faq` | 시니어 QA FAQ | embedding (1536 dims) | - |
+| `convention` | 용어 컨벤션 | 없음 | - |
+| `company` | 회사 (partial unique: is_active=true 1개) | 없음 | - |
+| `product` | 제품 (company_id FK) | 없음 | - |
+| `segment` | 세그먼트 계층 (self-ref parent_id, Adjacency List) | 없음 | - |
+| `test_case` | 테스트 케이스 (path: bigint[], steps: jsonb) | 없음 | - |
+
+### Flyway Migrations (V1~V7)
+
+| 버전 | 설명 |
+|------|------|
+| V1 | Company, Product 생성 |
+| V2 | TestCase 생성 |
+| V3 | Feature 제거, Segment 추가, TestCase에 product_id/path 이전 |
+| V4 | Senior 테이블 (faq, knowledge_base, convention) |
+| V5 | knowledge_base에 source 컬럼 추가 |
+| V6 | pdf_upload_job 테이블 생성 |
+| V7 | 초기 데이터 시드 (my-atlas company, Product Test Suite, 22 TestCases) |
+
+### Enum Values
+
+- **Platform**: WEB, DESKTOP, MOBILE, ETC
+- **Priority**: HIGH, MEDIUM, LOW
+- **TestType**: SMOKE, FUNCTIONAL, REGRESSION, E2E
+- **TestStatus**: DRAFT, ACTIVE, DEPRECATED
+- **PdfJobStatus**: PENDING, PROCESSING, DONE, FAILED
+
+---
+
+## Backend API Endpoints
+
+모든 엔드포인트는 `ApiResponse<T>` (success, message, data) 형식으로 응답한다.
+
+### Senior (채팅 + FAQ)
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| POST | `/api/senior/chat` | SSE 스트리밍 AI 채팅 (body: `{ message, faqContext? }`) |
+| GET | `/api/senior/faq` | FAQ 전체 조회 |
+| GET | `/api/senior/faq/{id}` | FAQ 단건 조회 |
+| POST | `/api/senior/faq` | FAQ 생성 (+ 비동기 임베딩) |
+| PUT | `/api/senior/faq/{id}` | FAQ 수정 (+ 비동기 임베딩) |
+| DELETE | `/api/senior/faq/{id}` | FAQ 삭제 |
+
+### Knowledge Base
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/kb` | KB 전체 조회 |
+| GET | `/api/kb/{id}` | KB 단건 조회 |
+| POST | `/api/kb` | KB 생성 (+ 비동기 임베딩) |
+| PUT | `/api/kb/{id}` | KB 수정 |
+| DELETE | `/api/kb/{id}` | KB 삭제 |
+| POST | `/api/kb/upload-pdf` | PDF 업로드 (multipart: file, bookTitle) → jobId |
+| GET | `/api/kb/jobs/{jobId}` | Job 상태 조회 |
+| GET | `/api/kb/jobs` | 전체 Job 목록 |
+| DELETE | `/api/kb/books/{source}` | 책 단위 전체 청크 + Job 삭제 |
+
+### Convention
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/conventions` | Convention 전체 조회 |
+| GET | `/api/conventions/{id}` | 단건 조회 |
+| POST | `/api/conventions` | Convention 생성 |
+| PUT | `/api/conventions/{id}` | 수정 |
+| DELETE | `/api/conventions/{id}` | 삭제 |
+
+### Feature Registry
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/companies` | 회사 목록 |
+| POST | `/api/companies` | 회사 생성 |
+| PATCH | `/api/companies/{id}/activate` | 회사 활성화 (1개만) |
+| DELETE | `/api/companies/{id}` | 회사 삭제 (CASCADE) |
+| GET | `/api/products?companyId={id}` | 제품 목록 |
+| POST | `/api/products` | 제품 생성 |
+| PUT | `/api/products/{id}` | 제품 수정 |
+| DELETE | `/api/products/{id}` | 제품 삭제 (CASCADE) |
+| GET | `/api/segments?productId={id}` | 세그먼트 조회 |
+| POST | `/api/segments` | 세그먼트 생성 |
+| PUT | `/api/segments/{id}` | 이름 수정 |
+| PATCH | `/api/segments/{id}/parent` | 부모 변경 (DnD, 순환 참조 검증) |
+| DELETE | `/api/segments/{id}` | 삭제 (CASCADE) |
+| GET | `/api/test-cases?productId={id}` | 테스트 케이스 목록 |
+| POST | `/api/test-cases` | 테스트 케이스 생성 |
+| PUT | `/api/test-cases/{id}` | 수정 |
+| DELETE | `/api/test-cases/{id}` | 삭제 |
+| POST | `/api/test-cases/generate-draft` | AI 드래프트 생성 |
+
+---
+
+## AWS Infrastructure (Production)
 
 ```
-main (production-ready)
+[사용자]
+   ├─ Frontend ──→ CloudFront (EVMWQ4ZH85AXV) ──→ S3 (my-atlas-frontend)
+   │                d1tr7ozyf0jrsl.cloudfront.net
+   └─ API 요청 ──→ EC2 (3.34.154.147:8080)
+                    t3.small / Amazon Linux
+                    ├── Backend Container (Spring Boot, port 8080)
+                    └── PostgreSQL Container (pgvector:pg15, port 5432)
+                        └── pgdata volume
+```
+
+### AWS Resources
+
+| Resource | Type | ID |
+|----------|------|----|
+| VPC | Network | vpc-0dd2d80dcf32b9926 |
+| Public Subnet | Network | subnet-0a65868480a1cd1f0 (ap-northeast-2a) |
+| Internet Gateway | Network | igw-07bc7f096f422f570 |
+| Security Group | Network | sg-0c9c6e4934a014ce7 |
+| EC2 | Compute | i-0242a794b86668829 (t3.small) |
+| Elastic IP | Network | 3.34.154.147 |
+| S3 | Storage | my-atlas-frontend |
+| CloudFront | CDN | EVMWQ4ZH85AXV |
+| Key Pair | Auth | my-atlas-key (~/.ssh/my-atlas-key.pem) |
+
+### 미구성 항목
+- ALB/NLB (로드밸런서 없음), 백엔드 HTTPS 미적용 (HTTP 8080 직접 노출)
+- Auto Scaling, 커스텀 도메인, Staging 환경 없음
+
+---
+
+## CI/CD Pipelines
+
+| Workflow | Trigger | Status |
+|----------|---------|--------|
+| `backend-ci.yml` | Push/PR (main, develop) | 정상 (JaCoCo 비활성) |
+| `frontend-ci.yml` | Push/PR (main, develop) | 부분 동작 (continue-on-error) |
+| `e2e.yml` | Push/PR + manual | 정상 (98개 전부 통과) |
+| `deploy-backend.yml` | Push to main (backend/**) | SSH → git pull → docker compose rebuild |
+| `deploy-frontend.yml` | Push to main (frontend/**) | npm build → S3 sync → CloudFront invalidation |
+
+### 배포 흐름
+
+```
+feature/* → develop (PR) → main (PR)
+                                │
+                    ┌───────────┼───────────┐
+                    ▼                       ▼
+            deploy-backend          deploy-frontend
+            (SSH → EC2)             (S3 + CloudFront)
+```
+
+모든 워크플로우에 Slack 알림 연동 완료 (Block Kit 포맷, 성공/실패 모두 `always()` 조건).
+
+### GitHub Secrets (필요)
+
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `EC2_HOST`, `EC2_SSH_KEY`, `EC2_USER`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `SLACK_WEBHOOK_URL`
+
+---
+
+## Test Infrastructure
+
+### Backend (179 tests)
+- **Unit Tests**: JUnit 5 + Mockito (Service + Controller 전 도메인)
+- **Integration Tests**: Testcontainers (pgvector:pg15) — KB vector search, FAQ vector search, PDF pipeline, Company activation mutex
+- **Test DB**: H2 인메모리 (unit), pgvector Docker (integration)
+- **실행**: `cd backend && ./gradlew test`
+
+### Frontend (33 tests)
+- **Unit Tests**: Vitest + React Testing Library
+- **대상**: useSeniorChat hook, FaqCard, ChatView, SeniorPage
+- **실행**: `cd frontend && npm test`
+
+### E2E (98 tests)
+- **API Tests** (65): company(6), product(10), segment(11), feature(19), kb(7), convention(6), senior-faq(6)
+- **UI Tests** (33): company-panel(7), product-panel(4), feature-panel(5), kb(5), senior(12)
+- **실행**: `cd qa && npx playwright test`
+
+---
+
+## Git Branch Strategy
+
+```
+main (production-ready, AWS 배포 대상)
   ↑
   │ PR (require 1+ reviewer)
   │
-develop (integration branch)
+develop (integration branch, localhost 개발)
   ↑
-  ├─ feature/xyz (feature branches)
+  ├─ feature/xyz (feature branches, Claude WorkTree로 분리)
   ├─ bugfix/xyz
   └─ hotfix/xyz (emergency fixes to main)
 ```
 
 **Rules:**
-- `main` branch is **read-only** — no direct commits or pushes
-- All work → `feature/*` or `bugfix/*` branches off `develop`
-- Hotfixes branch from `main`, merged back to both `main` and `develop`
-- `develop` is the default branch for pull requests
-- All PRs require at least **1 code review** before merge
+- `main` branch는 **read-only** — direct commit/push 금지
+- 모든 작업 → `feature/*` or `bugfix/*` from `develop`
+- Hotfix는 `main`에서 분기 → `main` + `develop` 양쪽 머지
+- PR은 최소 **1 code review** 필수
 
 ---
 
-## 💬 Commit Message Format
-
-Follow the Conventional Commits standard:
+## Commit Message Format
 
 ```
 [type] subject
 
 Optional body explaining why and what.
-
-Optional footer (e.g., Closes #123)
 ```
 
-**Types:**
-- `feat` — New feature
-- `fix` — Bug fix
-- `refactor` — Code restructuring (no feature/bug change)
-- `test` — Test additions or fixes
-- `docs` — Documentation only
-- `chore` — Build, dependencies, tooling (no code change)
+**Types:** `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
 **Examples:**
 ```
 [feat] Add email notification for test case updates
-
 [fix] Resolve null pointer in knowledge base service
-- Fixed NullPointerException when fetching KB with no tags
-
-[refactor] Extract validation logic to separate utility class
-
 [test] Increase service layer test coverage to 75%
-
-[docs] Update backend API documentation
 ```
 
 ---
 
-## 🔀 Pull Request Guidelines
+## Pull Request Guidelines
 
-### PR Direction
-- **Only allowed:** `develop` → `main` (release PRs)
-- **Feature/bugfix:** Always PR to `develop` first
-- **Hotfixes:** PR to `main`, then cherry-pick or merge back to `develop`
-
-### PR Requirements
-1. ✅ At least 1 approval from a teammate
-2. ✅ All CI/CD checks pass (`.github/workflows/`)
-3. ✅ Meaningful description (what & why, not just what)
-4. ✅ Commits follow the format above
-5. ✅ No merge commits — prefer rebase or squash
+- **Feature/bugfix:** feature/* → develop (PR)
+- **Release:** develop → main (PR)
+- **Hotfix:** hotfix/* → main (PR) + cherry-pick to develop
+- No merge commits — prefer rebase or squash
 
 ---
 
-## 🤖 Sub-agent Delegation for Claude Code
+## Sub-agent Delegation
 
-When working on **backend tasks**, reference `/my-atlas/backend/CLAUDE.md`:
-```
-backend/CLAUDE.md contains:
-- Java 21 + Spring Boot 3.3.1 build/test commands (Gradle)
-- Package structure & naming conventions
-- Code style (interfaces, DTOs, exception handling)
-- Security guidelines (SQL injection prevention, input validation)
-- Test requirements (unit, integration, coverage)
-```
-
-When working on **frontend tasks**, reference `/my-atlas/frontend/CLAUDE.md`:
-```
-frontend/CLAUDE.md contains:
-- React 18 + TypeScript + Vite commands
-- Directory structure (components, pages, hooks, stores, api, types, utils)
-- Code style (functional components, no any, Props interfaces)
-- Security guidelines (dangerouslySetInnerHTML, .env.local)
-- Test & build processes
-```
+When working on **backend tasks**, reference `backend/CLAUDE.md`.
+When working on **frontend tasks**, reference `frontend/CLAUDE.md`.
+When working on **E2E tests**, reference `qa/CLAUDE.md`.
 
 ---
 
-## 🔄 Sub-agent Workflow for Feature Implementation
+## 4-Agent Pipeline for Feature Implementation
 
-**For all feature requests**, Claude must execute the following 4-agent pipeline in order:
-
-Each agent is defined in `.claude/agents/` with specific tool permissions:
+**모든 기능 구현 요청**에 대해 아래 4단계를 순서대로 실행한다.
+각 Agent는 `.claude/agents/`에 정의되어 있다.
 
 ### Agent-A — Code Implementation
 **File:** `.claude/agents/code-implementor.md`
-**Task:** Write feature code
 **Tools:** Read, Write, Edit, Glob, Grep
-**Scope:** Implement feature based on requirements, reference existing code patterns
-**Success Criteria:** Code compiles, follows project conventions
+**Scope:** 요구사항에 따라 코드 구현
 
 ### Agent-B — Backend Unit & Integration Tests
 **File:** `.claude/agents/unit-test-writer.md`
-**Task:** Write JUnit 5 / Mockito tests for Agent-A's backend code
 **Tools:** Read, Write, Edit, Glob, Grep
-**Scope:** Unit tests and integration tests in `backend/src/test/java/`
-**Success Criteria:** Test files exist with meaningful coverage of service and controller layers
+**Scope:** `backend/src/test/java/`에 JUnit 5 / Mockito 테스트 작성
 
 ### Agent-C — E2E Tests (Playwright)
 **File:** `.claude/agents/e2e-test-writer.md`
-**Task:** Write Playwright E2E tests (API + UI) for Agent-A's feature
 **Tools:** Read, Write, Edit, Glob, Grep
-**Scope:** E2E test specs in `qa/api/` and `qa/ui/`, plus page objects and helpers
-**Success Criteria:** E2E test files exist covering the feature's API endpoints and UI flows
+**Scope:** `qa/api/`, `qa/ui/`에 Playwright E2E 테스트 작성
 
 ### Agent-D — Build & Test Verification
 **File:** `.claude/agents/build-verifier.md`
-**Task:** Compile, run all tests, verify full stack E2E passes
 **Tools:** Bash, Read, Glob, Grep (Write/Edit disabled)
 **Commands (must all pass in order):**
 ```bash
@@ -192,66 +354,74 @@ cd /Users/yeongmi/dev/qa/my-atlas/qa && npx playwright test
 # Teardown (always, unconditional)
 cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 ```
-**Success Criteria:** ALL of the following must pass:
-- `./gradlew clean build` exits 0
-- `./gradlew test` exits 0 with 0 failures
-- `docker compose up -d && sleep 10` succeeds, all containers running
-- `npx playwright test` exits 0 with 0 E2E failures
-
-**On Failure:** Analyze error logs, identify whether Agent-A (code fix), Agent-B (unit test fix), or Agent-C (E2E test fix) is responsible, return detailed error report, re-run Agent-D from Step 1 after fix is applied.
-
-**Implementation is NOT complete until all four steps pass.**
 
 **Absolute Rules:**
-- ❌ **NEVER declare "complete"** without Agent-D passing ALL four steps (build + unit tests + docker stack + E2E)
+- ❌ **NEVER declare "complete"** without Agent-D passing ALL four steps
 - ❌ **NEVER skip** any agent in the pipeline
-- ❌ **NEVER skip E2E** — "optional" does not apply to Agent-D's E2E step
-- ❌ **NEVER let Agent-B write E2E tests or Agent-C write unit tests** — each agent has exclusive scope
+- ❌ **NEVER skip E2E** — "optional" does not apply
+- ❌ **NEVER let Agent-B write E2E tests or Agent-C write unit tests** — exclusive scope
 - ✅ **ALWAYS fix** build/test errors before final approval
-- ✅ **ALWAYS capture** error context for debugging
 - ✅ **ALWAYS run `docker compose down`** after Agent-D finishes, regardless of outcome
+- ✅ Agent-C/D는 User 승인 없이 자동 진행
 
 ---
 
-## 📝 버전 문서화 규칙
+## 버전 문서화 규칙
 
-### 메인 명세서
+### 메인 명세서 (Master)
 각 기능의 현재 구현 상태를 정리한 **버전 없는 md 파일**이 메인 명세서이다.
 - 경로: `docs/features/{feature-name}/{feature-name}.md`
 - 예시: `knowledge-base.md`, `feature-registry.md`, `my-senior.md`
 - 기능의 전체 구조(스키마, API, 파일구조, 핵심기능, 테스트)를 한눈에 파악 가능
+- 메인 명세서 하단에 **버전 히스토리 타임라인 테이블**을 유지한다
 
 ### 버전 문서
 변경 시 반드시 버전 문서를 작성한다.
 
 ### 문서 경로 (유형별 분리)
+
 | 변경 유형 | 경로 | 파일명 패턴 |
 |-----------|------|-------------|
-| 버그 수정 | `docs/features/{feature-name}/` | `{feature-name}_v{버전}.md` |
-| 기능 추가 | `docs/features/{feature-name}/` | `{feature-name}_v{버전}.md` |
-| 기능 개선 | `docs/features/{feature-name}/` | `{feature-name}_v{버전}.md` |
-| 환경 개선 | `docs/ops/` | `{주제}_v{버전}.md` |
+| 버그 수정 / 기능 추가 / 기능 개선 | `docs/features/{feature-name}/` | `{feature-name}_v{버전}.md` |
+| 환경 개선 | `docs/ops/` | `v{버전}.md` |
+| 테스트 전략 | `docs/qa/` | `qa_v{버전}.md` |
 
-### 워크플로우
-1. Plan 수립
-2. 코드 개발
-3. 버전 md 작성
+### 버전 문서 Header 양식
+
+모든 버전 문서의 상단에 아래 형식의 Header를 반드시 포함한다:
+
+```
+> 변경 유형: {기능 추가 | 기능 개선 | 버그 수정 | 환경 개선 | 테스트 보강}  
+> 작성일: {YYYY-MM-DD}  
+> 버전: {v1 | v0.1 | ...}  
+> 상태: {진행 중 | 완료}
+
+---
+```
 
 ### 버전 번호
 - 기능 추가 / 기능 개선 → 메이저 증가 (v0 → v1)
 - 버그 수정 / 환경 개선 → 패치 증가 (v0 → v0.1)
 
 ### 변경 유형 태그
+
 | 태그 | 설명 |
 |------|------|
 | 버그 수정 | 기존 기능의 오류 수정 |
 | 기능 추가 | 새로운 기능 개발 |
 | 기능 개선 | 기존 기능의 UX/성능 개선 |
 | 환경 개선 | 설정, 인프라, 빌드 환경 변경 |
+| 테스트 보강 | 테스트 커버리지 확대 |
+
+### 워크플로우
+1. Plan 수립
+2. 코드 개발
+3. 버전 md 작성 (Header 포함)
+4. 메인 명세서 버전 히스토리 업데이트
 
 ---
 
-## 📄 문서 기반 구현 워크플로우 (Doc-Driven Development)
+## 문서 기반 구현 워크플로우 (Doc-Driven Development)
 
 `docs/**` 경로의 md 파일을 사양서로 사용하여 구현을 진행한다.
 
@@ -274,86 +444,11 @@ cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 
 ---
 
-## ⚠️ Critical Rules
+## Critical Rules
 
-### ❌ NEVER Do This
-- **Direct push to `main`** — Always use feature → develop → main flow
-- **Force push** to `main` or `develop` — Use regular commits & rebase
-- **Commit sensitive data** — API keys, passwords go in `.env` (in .gitignore)
-- **Skip pre-commit hooks** — They exist for a reason
-- **Merge without review** — Every PR requires human approval
+### 데이터베이스 삭제 금지 (CRITICAL)
 
-### ✅ Always Do This
-- **Run tests locally** before pushing
-- **Pull latest develop** before creating a feature branch
-- **Check CI/CD status** in GitHub Actions
-- **Write clear commit messages** following the format
-- **Update .env** if new environment variables are added
-
----
-
-## 📁 Environment Configuration
-
-### Local Development (`.env` or `.env.local`)
-Copy from `.env` and fill in:
-```bash
-# Database
-POSTGRES_USER=qa_user
-POSTGRES_PASSWORD=secure_password
-POSTGRES_DB=myatlas_db
-
-# Backend Spring
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/myatlas_db
-SPRING_DATASOURCE_USERNAME=qa_user
-SPRING_DATASOURCE_PASSWORD=secure_password
-
-# Anthropic Claude API
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Frontend
-VITE_API_BASE_URL=http://localhost:8080
-```
-
-- **Never commit `.env`** — it's in `.gitignore`
-- Use `.env` as a template for new variables
-- GitHub Actions securely access sensitive values via **GitHub Secrets** (see setup guide below)
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Docker & Docker Compose
-- Java 21 (backend local dev)
-- Node.js 18+ (frontend local dev)
-- Git
-
-### Run Everything
-```bash
-docker-compose up -d
-# Backend at http://localhost:8080
-# Frontend at http://localhost:5173 (or check console)
-# Postgres at localhost:5432
-```
-
-### Backend Only
-```bash
-cd backend
-./gradlew bootRun
-```
-
-### Frontend Only
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-## ⚠️ 데이터베이스 삭제 금지 (CRITICAL)
-
-### knowledge_base 테이블 — 절대 삭제 금지
+#### knowledge_base 테이블 — 절대 삭제 금지
 이 테이블에는 실제 PDF 도서를 청킹·임베딩하여 저장한 운영 데이터가 포함되어 있다.
 재생성 시 OpenAI Embedding API 호출 비용과 수 분~수십 분의 처리 시간이 발생한다.
 
@@ -366,17 +461,115 @@ npm run dev
 
 특정 데이터 삭제가 필요한 경우, 사용자에게 직접 실행하도록 안내만 할 것.
 
-### pdf_upload_job 테이블 — 절대 삭제 금지
-업로드 이력 및 처리 상태를 관리한다.
-- ❌ `DELETE FROM pdf_upload_job` (어떤 WHERE 조건이든)
-- ❌ `TRUNCATE pdf_upload_job`
-- ❌ `DROP TABLE pdf_upload_job`
+#### pdf_upload_job 테이블 — 절대 삭제 금지
+- ❌ `DELETE FROM pdf_upload_job`, `TRUNCATE`, `DROP TABLE` 금지
+
+#### 일반 규칙
+- 스키마 변경 없는 작업에서 DB 데이터 삭제 금지 — 기존 데이터 항상 보존
+- E2E 테스트에서 seed 데이터 (my-atlas company 등) 삭제 금지
+
+### OpenAI API 비용 보호
+- 불필요한 임베딩 API 호출 금지
+- 실패 시 성공분 보존 (이미 생성된 임베딩 재생성 금지)
+- 중복 임베딩 생성 금지
+
+### Git 안전 규칙
+- ❌ `main` 또는 `develop`에 Direct push 금지
+- ❌ Force push 금지
+- ❌ Sensitive data commit 금지 (API keys → `.env`)
+- ❌ Pre-commit hooks skip 금지
+- ❌ Review 없이 merge 금지
+- ✅ 로컬 테스트 통과 후 push
+- ✅ feature branch 생성 전 latest develop pull
+
+### Frontend 레이아웃 규칙
+- 모든 Frontend 개발 시 **드릴다운 방식** 사용
+- 다중 패널 나란히 표시 금지 — 한 번에 하나의 뷰가 전체 콘텐츠 영역을 차지
+
+### 테스트 전용 유틸리티 금지
+- 테스트 전용 유틸리티 클래스 작성 금지
+- 테스트 리소스는 실제 파일로 `src/test/resources/`에 배치
 
 ---
 
-## 📚 Further Reading
+## Spring Configuration Summary
 
-- **Backend details** → See `/my-atlas/backend/CLAUDE.md`
-- **Frontend details** → See `/my-atlas/frontend/CLAUDE.md`
-- **Docker setup** → See `docker-compose.yml`
-- **Spring AI + Claude** → See `backend/src/main/resources/application.yml`
+### application.yml (주요 설정)
+
+| 항목 | 설정값 |
+|------|--------|
+| Hibernate ddl-auto | validate (Flyway가 스키마 관리) |
+| Flyway | enabled, classpath:db/migration |
+| AI 모델 | claude-3-5-sonnet-20241022 (Spring AI Anthropic) |
+| 임베딩 모델 | text-embedding-3-small (OpenAI, 1536 dims) |
+| pgvector | COSINE_DISTANCE |
+| Multipart | max 500MB (PDF 업로드 대응) |
+| Actuator | health, info 노출 |
+| 로깅 | Console + File (./logs/backend_{session}.log) |
+
+### Test 환경 (`test/resources/application.yml`)
+- H2 인메모리 DB, Flyway 비활성, 더미 API 키
+
+---
+
+## Environment Configuration
+
+### Local Development (`.env`)
+```bash
+POSTGRES_DB=myqaweb
+POSTGRES_USER=myqaweb
+POSTGRES_PASSWORD=<password>
+
+SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/myqaweb
+SPRING_DATASOURCE_USERNAME=myqaweb
+SPRING_DATASOURCE_PASSWORD=<password>
+
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+### Feature Toggle
+- `FEATURE_EMBEDDING_ENABLED=false` (application.yml, default: false) — 임베딩 기능 토글
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Docker & Docker Compose
+- Java 21 (backend local dev)
+- Node.js 20+ (frontend local dev)
+
+### Run Everything
+```bash
+docker compose up -d
+# Backend:  http://localhost:8080
+# Frontend: http://localhost:5173
+# Postgres: localhost:5432
+```
+
+### Backend Only
+```bash
+cd backend && ./gradlew bootRun
+```
+
+### Frontend Only
+```bash
+cd frontend && npm install && npm run dev
+```
+
+---
+
+## Further Reading
+
+- **Backend details** → `backend/CLAUDE.md`
+- **Frontend details** → `frontend/CLAUDE.md`
+- **E2E test details** → `qa/CLAUDE.md`
+- **Ops 현황 종합** → `docs/ops/ops.md`
+- **Feature Registry 명세** → `docs/features/feature-registry/feature-registry.md`
+- **Knowledge Base 명세** → `docs/features/knowledge-base/knowledge-base.md`
+- **My Senior 명세** → `docs/features/senior/my-senior.md`
+- **테스트 전략** → `docs/qa/qa_v1.md` (종합 플랜)
+- **Docker setup** → `docker-compose.yml`
+- **Spring AI config** → `backend/src/main/resources/application.yml`
