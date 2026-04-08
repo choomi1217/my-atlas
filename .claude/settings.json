@@ -11,7 +11,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "curl -s -X POST \"$SLACK_CLAUDE_WEBHOOK_URL\" -H 'Content-Type: application/json' -d '{\"text\": \"✅ Claude Code 작업이 완료되었습니다. 확인해주세요.\"}' > /dev/null 2>&1 || true",
+            "command": "bash scripts/claude-slack-notify.sh stop",
             "timeout": 10
           }
         ]
@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "curl -s -X POST \"$SLACK_CLAUDE_WEBHOOK_URL\" -H 'Content-Type: application/json' -d '{\"text\": \"🔔 Claude Code가 권한 승인을 기다리고 있습니다. 확인해주세요.\"}' > /dev/null 2>&1 || true",
+            "command": "bash scripts/claude-slack-notify.sh notification",
             "timeout": 10
           }
         ]
