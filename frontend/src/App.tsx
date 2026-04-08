@@ -10,6 +10,7 @@ import CompanyListPage from '@/pages/features/CompanyListPage'
 import ProductListPage from '@/pages/features/ProductListPage'
 import TestCasePage from '@/pages/features/TestCasePage'
 import TestRunListPage from '@/pages/features/TestRunListPage'
+import TestRunDetailPage from '@/pages/features/TestRunDetailPage'
 import VersionListPage from '@/pages/features/VersionListPage'
 import VersionDetailPage from '@/pages/features/VersionDetailPage'
 import VersionPhaseDetailPage from '@/pages/features/VersionPhaseDetailPage'
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="/features/companies/:companyId" element={<ProductListPage />} />
               <Route path="/features/companies/:companyId/products/:productId" element={<TestCasePage />} />
               <Route path="/features/companies/:companyId/products/:productId/test-runs" element={<TestRunListPage />} />
+              <Route path="/features/companies/:companyId/products/:productId/test-runs/:testRunId" element={<TestRunDetailPage />} />
               <Route path="/features/companies/:companyId/products/:productId/versions" element={<VersionListPage />} />
               <Route path="/features/companies/:companyId/products/:productId/versions/:versionId" element={<VersionDetailPage />} />
               <Route path="/features/companies/:companyId/products/:productId/versions/:versionId/phases/:phaseId" element={<VersionPhaseDetailPage />} />
