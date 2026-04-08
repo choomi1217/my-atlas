@@ -29,7 +29,7 @@ public class FaqEntity {
     @Column(length = 500)
     private String tags;
 
-    @Column(columnDefinition = "VECTOR(1536)")
+    @Transient
     private float[] embedding;
 
     @CreationTimestamp

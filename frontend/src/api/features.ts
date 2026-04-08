@@ -10,7 +10,13 @@ import {
   TestCaseType,
   TestCaseStatus,
   TestStep,
+  TestRun,
+  Version,
+  VersionPhase,
+  RunResultStatus,
+  TestResult,
 } from '@/types/features';
+// ProgressStats is used indirectly via Version/VersionPhase types
 
 /**
  * Company API endpoints.
@@ -241,6 +247,237 @@ export const testCaseApi = {
       {
         productId,
         path,
+      }
+    );
+    return response.data.data;
+  },
+};
+
+/**
+ * Test Run API endpoints.
+ */
+export const testRunApi = {
+  getByProductId: async (productId: number): Promise<TestRun[]> => {
+    const response = await apiClient.get<ApiResponse<TestRun[]>>(
+      `/api/products/${productId}/test-runs`
+    );
+    return response.data.data;
+  },
+
+  getById: async (id: number): Promise<TestRun> => {
+    const response = await apiClient.get<ApiResponse<TestRun>>(
+      `/api/test-runs/${id}`
+    );
+    return response.data.data;
+  },
+
+  create: async (
+    productId: number,
+    name: string,
+    description: string,
+    testCaseIds: number[]
+  ): Promise<TestRun> => {
+    const response = await apiClient.post<ApiResponse<TestRun>>(
+      `/api/products/${productId}/test-runs`,
+      {
+        productId,
+        name,
+        description,
+        testCaseIds,
+      }
+    );
+    return response.data.data;
+  },
+
+  update: async (
+    id: number,
+    name?: string,
+    description?: string,
+    testCaseIds?: number[]
+  ): Promise<TestRun> => {
+    const response = await apiClient.patch<ApiResponse<TestRun>>(
+      `/api/test-runs/${id}`,
+      {
+        name,
+        description,
+        testCaseIds,
+      }
+    );
+    return response.data.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/test-runs/${id}`);
+  },
+};
+
+/**
+ * Version API endpoints.
+ */
+export const versionApi = {
+  getByProductId: async (productId: number): Promise<Version[]> => {
+    const response = await apiClient.get<ApiResponse<Version[]>>(
+      `/api/products/${productId}/versions`
+    );
+    return response.data.data;
+  },
+
+  getById: async (id: number): Promise<Version> => {
+    const response = await apiClient.get<ApiResponse<Version>>(
+      `/api/versions/${id}`
+    );
+    return response.data.data;
+  },
+
+  create: async (
+    productId: number,
+    name: string,
+    description: string,
+    releaseDate: string | null,
+    phases: Array<{ phaseName: string; testRunId: number }>
+  ): Promise<Version> => {
+    const response = await apiClient.post<ApiResponse<Version>>(
+      `/api/products/${productId}/versions`,
+      {
+        productId,
+        name,
+        description,
+        releaseDate,
+        phases,
+      }
+    );
+    return response.data.data;
+  },
+
+  update: async (
+    id: number,
+    name?: string,
+    description?: string,
+    releaseDate?: string | null
+  ): Promise<Version> => {
+    const response = await apiClient.patch<ApiResponse<Version>>(
+      `/api/versions/${id}`,
+      {
+        name,
+        description,
+        releaseDate,
+      }
+    );
+    return response.data.data;
+  },
+
+  copy: async (
+    id: number,
+    newName: string,
+    newReleaseDate: string | null
+  ): Promise<Version> => {
+    const response = await apiClient.post<ApiResponse<Version>>(
+      `/api/versions/${id}/copy`,
+      {
+        newName,
+        newReleaseDate,
+      }
+    );
+    return response.data.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/versions/${id}`);
+  },
+};
+
+/**
+ * Version Phase API endpoints.
+ */
+export const versionPhaseApi = {
+  getByVersionId: async (versionId: number): Promise<VersionPhase[]> => {
+    const response = await apiClient.get<ApiResponse<VersionPhase[]>>(
+      `/api/versions/${versionId}/phases`
+    );
+    return response.data.data;
+  },
+
+  addPhase: async (
+    versionId: number,
+    phaseName: string,
+    testRunId: number
+  ): Promise<VersionPhase> => {
+    const response = await apiClient.post<ApiResponse<VersionPhase>>(
+      `/api/versions/${versionId}/phases`,
+      {
+        phaseName,
+        testRunId,
+      }
+    );
+    return response.data.data;
+  },
+
+  updatePhase: async (
+    versionId: number,
+    phaseId: number,
+    phaseName?: string,
+    testRunId?: number
+  ): Promise<VersionPhase> => {
+    const response = await apiClient.patch<ApiResponse<VersionPhase>>(
+      `/api/versions/${versionId}/phases/${phaseId}`,
+      {
+        phaseName,
+        testRunId,
+      }
+    );
+    return response.data.data;
+  },
+
+  deletePhase: async (versionId: number, phaseId: number): Promise<void> => {
+    await apiClient.delete(`/api/versions/${versionId}/phases/${phaseId}`);
+  },
+
+  reorderPhase: async (
+    versionId: number,
+    phaseId: number,
+    newOrderIndex: number
+  ): Promise<void> => {
+    await apiClient.post(
+      `/api/versions/${versionId}/phases/${phaseId}/reorder`,
+      {
+        newOrderIndex,
+      }
+    );
+  },
+};
+
+/**
+ * Test Result API endpoints.
+ */
+export const testResultApi = {
+  getByVersionId: async (versionId: number): Promise<TestResult[]> => {
+    const response = await apiClient.get<ApiResponse<TestResult[]>>(
+      `/api/versions/${versionId}/results`
+    );
+    return response.data.data;
+  },
+
+  getByVersionPhaseId: async (
+    versionId: number,
+    phaseId: number
+  ): Promise<TestResult[]> => {
+    const response = await apiClient.get<ApiResponse<TestResult[]>>(
+      `/api/versions/${versionId}/phases/${phaseId}/results`
+    );
+    return response.data.data;
+  },
+
+  updateResult: async (
+    versionId: number,
+    resultId: number,
+    status: RunResultStatus,
+    comment?: string
+  ): Promise<TestResult> => {
+    const response = await apiClient.patch<ApiResponse<TestResult>>(
+      `/api/versions/${versionId}/results/${resultId}`,
+      {
+        status,
+        comment,
       }
     );
     return response.data.data;

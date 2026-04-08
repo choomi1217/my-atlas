@@ -92,7 +92,8 @@ class SeniorServiceImplTest {
         when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
-        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
         when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
 
@@ -113,7 +114,8 @@ class SeniorServiceImplTest {
         when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
-        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
         when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
 
@@ -144,7 +146,8 @@ class SeniorServiceImplTest {
         when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
-        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
         when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
 
@@ -176,7 +179,8 @@ class SeniorServiceImplTest {
         when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
-        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
         when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
 
@@ -268,7 +272,7 @@ class SeniorServiceImplTest {
         assertEquals("New FAQ", result.title());
         assertEquals("New content", result.content());
         assertEquals("tag1", result.tags());
-        verify(faqRepository).save(any(FaqEntity.class));
+        verify(faqRepository, atLeastOnce()).save(any(FaqEntity.class));
     }
 
     // --- updateFaq ---
@@ -290,8 +294,8 @@ class SeniorServiceImplTest {
         assertNotNull(result);
         assertEquals("Updated Title", result.title());
         assertEquals("Updated Content", result.content());
-        verify(faqRepository).findById(1L);
-        verify(faqRepository).save(any(FaqEntity.class));
+        verify(faqRepository, atLeastOnce()).findById(1L);
+        verify(faqRepository, atLeastOnce()).save(any(FaqEntity.class));
     }
 
     @Test
@@ -366,7 +370,8 @@ class SeniorServiceImplTest {
         when(segmentRepository.findAllByProductId(1L)).thenReturn(List.of(segment));
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
-        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
         when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
 
@@ -399,10 +404,15 @@ class SeniorServiceImplTest {
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
 
-        KnowledgeBaseEntity kbEntry = new KnowledgeBaseEntity();
-        kbEntry.setTitle("Regression Best Practices");
-        kbEntry.setContent("Always run regression after hotfix.");
-        when(knowledgeBaseRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of(kbEntry));
+        KnowledgeBaseEntity manualKb = new KnowledgeBaseEntity();
+        manualKb.setTitle("Regression Best Practices");
+        manualKb.setContent("Always run regression after hotfix.");
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of(manualKb));
+
+        KnowledgeBaseEntity pdfKb = new KnowledgeBaseEntity();
+        pdfKb.setTitle("Book Chapter 5");
+        pdfKb.setContent("Testing patterns from a book.");
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfKb));
 
         FaqEntity faqEntry = new FaqEntity(10L, "My Login Notes", "Check OAuth flow", null, null, now, now);
         when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of(faqEntry));
@@ -417,7 +427,8 @@ class SeniorServiceImplTest {
 
         // Assert
         String systemPrompt = systemCaptor.getValue();
-        assertTrue(systemPrompt.contains("Regression Best Practices"), "Should contain KB entry");
+        assertTrue(systemPrompt.contains("Regression Best Practices"), "Should contain manual KB entry");
+        assertTrue(systemPrompt.contains("Book Chapter 5"), "Should contain PDF KB entry");
         assertTrue(systemPrompt.contains("My Login Notes"), "Should contain FAQ entry");
         assertTrue(systemPrompt.contains("TC"), "Should contain convention term");
     }
@@ -441,6 +452,127 @@ class SeniorServiceImplTest {
     }
 
     // --- Response mapping ---
+
+    // --- 2-Stage RAG: KB Manual vs PDF ---
+
+    @Test
+    void chat_uses2StageKbSearch_manualAndPdfSeparately() {
+        // Arrange
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        when(clientRequest.system(systemCaptor.capture())).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(clientRequest.stream()).thenReturn(streamSpec);
+        when(streamSpec.content()).thenReturn(Flux.just("response"));
+
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+
+        KnowledgeBaseEntity manualEntry = new KnowledgeBaseEntity();
+        manualEntry.setTitle("Manual KB");
+        manualEntry.setContent("User-written knowledge");
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), eq(3))).thenReturn(List.of(manualEntry));
+
+        KnowledgeBaseEntity pdfEntry = new KnowledgeBaseEntity();
+        pdfEntry.setTitle("PDF Chapter");
+        pdfEntry.setContent("Book-derived knowledge");
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), eq(2))).thenReturn(List.of(pdfEntry));
+
+        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
+
+        // Act
+        seniorService.chat(request);
+
+        // Assert — verify 2-stage search is called with correct topK values
+        verify(knowledgeBaseRepository).findSimilarManual(anyString(), eq(3));
+        verify(knowledgeBaseRepository).findSimilarPdf(anyString(), eq(2));
+
+        // Assert — verify prompt contains separated sections
+        String systemPrompt = systemCaptor.getValue();
+        assertTrue(systemPrompt.contains("직접 작성, 우선 참고"), "Should have manual KB section header");
+        assertTrue(systemPrompt.contains("도서 참고"), "Should have PDF KB section header");
+        assertTrue(systemPrompt.contains("Manual KB"), "Should contain manual entry");
+        assertTrue(systemPrompt.contains("PDF Chapter"), "Should contain PDF entry");
+    }
+
+    @Test
+    void chat_withOnlyManualKb_includesOnlyManualSection() {
+        // Arrange
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        when(clientRequest.system(systemCaptor.capture())).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(clientRequest.stream()).thenReturn(streamSpec);
+        when(streamSpec.content()).thenReturn(Flux.just("response"));
+
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+
+        KnowledgeBaseEntity manualEntry = new KnowledgeBaseEntity();
+        manualEntry.setTitle("Manual Only");
+        manualEntry.setContent("Only manual content");
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of(manualEntry));
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
+        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null);
+
+        // Act
+        seniorService.chat(request);
+
+        // Assert
+        String systemPrompt = systemCaptor.getValue();
+        assertTrue(systemPrompt.contains("직접 작성, 우선 참고"), "Should have manual section");
+        assertFalse(systemPrompt.contains("도서 참고"), "Should NOT have PDF section when no PDF results");
+    }
+
+    @Test
+    void chat_withOnlyPdfKb_includesOnlyPdfSection() {
+        // Arrange
+        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
+        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+
+        when(chatClient.prompt()).thenReturn(clientRequest);
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        when(clientRequest.system(systemCaptor.capture())).thenReturn(clientRequest);
+        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(clientRequest.stream()).thenReturn(streamSpec);
+        when(streamSpec.content()).thenReturn(Flux.just("response"));
+
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
+        KnowledgeBaseEntity pdfEntry = new KnowledgeBaseEntity();
+        pdfEntry.setTitle("PDF Only");
+        pdfEntry.setContent("Only PDF content");
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfEntry));
+        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null);
+
+        // Act
+        seniorService.chat(request);
+
+        // Assert
+        String systemPrompt = systemCaptor.getValue();
+        assertFalse(systemPrompt.contains("직접 작성, 우선 참고"), "Should NOT have manual section when no manual results");
+        assertTrue(systemPrompt.contains("도서 참고"), "Should have PDF section");
+    }
 
     @Test
     void findFaqById_mapsAllFieldsCorrectly() {

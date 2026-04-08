@@ -37,7 +37,8 @@ public class SeniorServiceImpl implements SeniorService {
 
     private static final Logger log = LoggerFactory.getLogger(SeniorServiceImpl.class);
     private static final int FAQ_TOP_K = 3;
-    private static final int KB_TOP_K = 3;
+    private static final int KB_MANUAL_TOP_K = 3;
+    private static final int KB_PDF_TOP_K = 2;
 
     private final ChatClient chatClient;
     private final EmbeddingService embeddingService;
@@ -200,11 +201,24 @@ public class SeniorServiceImpl implements SeniorService {
         try {
             float[] queryEmbedding = embeddingService.embed(userMessage);
             String vectorStr = embeddingService.toVectorString(queryEmbedding);
-            List<KnowledgeBaseEntity> kbResults = knowledgeBaseRepository.findSimilar(vectorStr, KB_TOP_K);
 
-            if (!kbResults.isEmpty()) {
-                sb.append("=== QA Knowledge Base ===\n");
-                for (KnowledgeBaseEntity kb : kbResults) {
+            // Priority 1: Manual KB entries (user-written, highest relevance)
+            List<KnowledgeBaseEntity> manualResults =
+                    knowledgeBaseRepository.findSimilarManual(vectorStr, KB_MANUAL_TOP_K);
+            if (!manualResults.isEmpty()) {
+                sb.append("=== QA Knowledge Base (직접 작성, 우선 참고) ===\n");
+                for (KnowledgeBaseEntity kb : manualResults) {
+                    sb.append("- ").append(kb.getTitle()).append(": ").append(kb.getContent()).append("\n");
+                }
+                sb.append("\n");
+            }
+
+            // Priority 2: PDF book chunks (supplementary reference)
+            List<KnowledgeBaseEntity> pdfResults =
+                    knowledgeBaseRepository.findSimilarPdf(vectorStr, KB_PDF_TOP_K);
+            if (!pdfResults.isEmpty()) {
+                sb.append("=== QA Knowledge Base (도서 참고) ===\n");
+                for (KnowledgeBaseEntity kb : pdfResults) {
                     sb.append("- ").append(kb.getTitle()).append(": ").append(kb.getContent()).append("\n");
                 }
                 sb.append("\n");
@@ -250,10 +264,8 @@ public class SeniorServiceImpl implements SeniorService {
             try {
                 String text = title + " " + content;
                 float[] embedding = embeddingService.embed(text);
-                faqRepository.findById(entityId).ifPresent(entity -> {
-                    entity.setEmbedding(embedding);
-                    faqRepository.save(entity);
-                });
+                String vectorStr = embeddingService.toVectorString(embedding);
+                faqRepository.updateEmbedding(entityId, vectorStr);
             } catch (Exception e) {
                 log.warn("Failed to generate embedding for FAQ id={}", entityId, e);
             }

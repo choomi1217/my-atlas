@@ -99,3 +99,67 @@ test.describe('Knowledge Base API E2E', () => {
     expect(body.success).toBe(false);
   });
 });
+
+test.describe('Knowledge Base Image API E2E', () => {
+  let uploadedImageUrl: string;
+
+  test('POST /api/kb/images - upload valid PNG image', async () => {
+    // Create a minimal 1x1 red PNG (68 bytes)
+    const pngHeader = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, // 8-bit RGB
+      0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
+      0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00, 0x00,
+      0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33,
+      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, // IEND chunk
+      0xae, 0x42, 0x60, 0x82,
+    ]);
+
+    const response = await request.post('/api/kb/images', {
+      multipart: {
+        file: {
+          name: 'e2e-test-image.png',
+          mimeType: 'image/png',
+          buffer: pngHeader,
+        },
+      },
+    });
+    expect(response.status()).toBe(201);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.url).toBeDefined();
+    expect(body.data.url).toContain('/api/kb/images/');
+    expect(body.data.url).toMatch(/\.png$/);
+    uploadedImageUrl = body.data.url;
+  });
+
+  test('GET /api/kb/images/{filename} - serve uploaded image', async () => {
+    expect(uploadedImageUrl).toBeDefined();
+    const response = await request.get(uploadedImageUrl);
+    expect(response.status()).toBe(200);
+    const contentType = response.headers()['content-type'];
+    expect(contentType).toContain('image/png');
+  });
+
+  test('POST /api/kb/images - empty file returns 400', async () => {
+    const response = await request.post('/api/kb/images', {
+      multipart: {
+        file: {
+          name: 'empty.png',
+          mimeType: 'image/png',
+          buffer: Buffer.alloc(0),
+        },
+      },
+    });
+    expect(response.status()).toBe(400);
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+  });
+
+  test('GET /api/kb/images/nonexistent.png - returns 404', async () => {
+    const response = await request.get('/api/kb/images/nonexistent-file.png');
+    expect(response.status()).toBe(404);
+  });
+});
