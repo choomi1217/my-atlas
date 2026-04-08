@@ -1,8 +1,11 @@
-# feature-registry_v6
-Feature Registry — TestCase 모달 UI 다듬기
+# Feature Registry — TestCase 모달 UI 다듬기 (v6)
 
-## 변경 유형
-기능 개선
+> 변경 유형: 기능 개선  
+> 작성일: 2026-03-26  
+> 버전: v6  
+> 상태: 완료
+
+---
 
 ## 배경
 v5에서 TestCase Add/Edit 모달, Company/Product 목록 UX, ConfirmDialog 등 대규모 UI 개선을 완료했다.

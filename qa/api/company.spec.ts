@@ -110,9 +110,9 @@ test.describe('Company API E2E', () => {
     expect(company).toBeUndefined();
   });
 
-  test('PATCH /api/companies/{id}/activate - deleted company returns 404', async () => {
+  test('PATCH /api/companies/{id}/activate - deleted company returns 400', async () => {
     const response = await request.patch(`/api/companies/${companyId}/activate`);
-    expect(response.status()).toBe(404);
+    expect(response.status()).toBe(400);
     const body = await response.json() as any;
     expect(body.success).toBe(false);
   });

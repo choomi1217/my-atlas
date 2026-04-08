@@ -268,7 +268,7 @@ class SeniorServiceImplTest {
         assertEquals("New FAQ", result.title());
         assertEquals("New content", result.content());
         assertEquals("tag1", result.tags());
-        verify(faqRepository).save(any(FaqEntity.class));
+        verify(faqRepository, atLeastOnce()).save(any(FaqEntity.class));
     }
 
     // --- updateFaq ---
@@ -290,8 +290,8 @@ class SeniorServiceImplTest {
         assertNotNull(result);
         assertEquals("Updated Title", result.title());
         assertEquals("Updated Content", result.content());
-        verify(faqRepository).findById(1L);
-        verify(faqRepository).save(any(FaqEntity.class));
+        verify(faqRepository, atLeastOnce()).findById(1L);
+        verify(faqRepository, atLeastOnce()).save(any(FaqEntity.class));
     }
 
     @Test

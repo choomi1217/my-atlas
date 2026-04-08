@@ -226,3 +226,18 @@ types/
 - `./gradlew clean build` — PASSED
 - `./gradlew test` — all passed, 0 failed
 - `npx playwright test` — 60 passed, 0 failed
+
+---
+
+## 버전 히스토리
+
+My Senior 관련 변경 이력을 시간순으로 기록한다. 각 버전 문서는 `docs/features/senior/` 디렉토리에 별도 파일로 존재한다.
+
+### 타임라인
+
+| 날짜 | 버전 문서 | 변경 유형 | 요약 |
+|------|-----------|-----------|------|
+| 2026-03-20 | [my-senior_v0.md](my-senior_v0.md) | 기능 추가 | My Senior 초기 설계. AI 시니어 QA 챗봇 + FAQ + KB 3탭 구조, RAG 파이프라인, SSE 스트리밍 |
+| 2026-03-22 | [my-senior_v1.md](my-senior_v1.md) | 기능 추가 | FAQ 개선. 기본 진입 화면을 Chat → FAQ로 변경, FAQ → Chat 컨텍스트 전달, faqContext System Prompt 병합 |
+| 2026-03-28 | [my-senior_v2.md](my-senior_v2.md) | 테스트 보강 | E2E 테스트 보강. API 5개 + UI 3개 추가 (수정 검증, 검색 필터링, Chat 컨텍스트 전달) |
+| 2026-04-07 | [my-senior_v3.md](my-senior_v3.md) | 버그 수정 | Hibernate 6 + pgvector VECTOR 타입 매핑 오류 수정. 커스텀 VectorType UserType으로 PGobject ↔ float[] 변환 처리 |

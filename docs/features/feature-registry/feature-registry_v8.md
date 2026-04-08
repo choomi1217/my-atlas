@@ -1,8 +1,11 @@
-# feature-registry_v8
-Feature Registry — Segment 순환 참조 검증 쿼리 수정
+# Feature Registry — Segment 순환 참조 검증 쿼리 수정 (v8)
 
-## 변경 유형
-버그 수정
+> 변경 유형: 버그 수정  
+> 작성일: 2026-03-30  
+> 버전: v8  
+> 상태: 완료
+
+---
 
 ## 배경
 v7에서 순환 참조 검증 로직을 구현할 때, SegmentRepository에 PostgreSQL 네이티브 문법인

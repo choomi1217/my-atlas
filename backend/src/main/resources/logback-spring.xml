@@ -4,8 +4,8 @@
     <!-- Capture startup timestamp once — this becomes the session identifier -->
     <timestamp key="SESSION_TS" datePattern="yyyyMMdd_HHmmss"/>
 
-    <!-- Log directory: configurable via LOG_DIR env var, defaults to /app/logs -->
-    <property name="LOG_DIR" value="${LOG_DIR:-/app/logs}"/>
+    <!-- Log directory: configurable via LOG_DIR env var, defaults to ./logs -->
+    <property name="LOG_DIR" value="${LOG_DIR:-./logs}"/>
 
     <!-- Shared log pattern -->
     <property name="LOG_PATTERN"
