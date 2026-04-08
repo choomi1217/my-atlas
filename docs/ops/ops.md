@@ -312,4 +312,4 @@ Ops 관련 변경 이력을 시간순으로 기록한다. 각 버전 문서는 `
 | 2026-03-27 | [v3.md](v3.md) | 환경 개선 | AWS 최초 배포. VPC/Subnet → EC2(t3.small) → Docker Compose(Backend+DB) → S3+CloudFront(Frontend) 전체 구성. 로컬 DB를 pg_dump로 EC2에 복원. CORS 설정 포함 |
 | 2026-03-30 | [v4.md](v4.md) | 환경 개선 | Slack 알림 전면 전환. 모든 CI/CD 워크플로우(5개)에 성공/실패 Slack 알림 추가. Block Kit 포맷 적용, `failure()` → `always()` 조건 변경 |
 | 2026-04-06 | [v5.md](v5.md) | 버그 수정 | CI/CD 파이프라인 6건 수정. Logback 경로 권한 오류, API 키 누락 시 빌드 실패, docker-compose 명령 deprecation, 테스트 상태코드 불일치 해결. E2E 98개 전부 통과 확인 |
-| 2026-04-07 | [v6.md](v6.md) | 환경 개선 | Git 브랜치 전략 문서화. main(AWS 배포), develop(로컬 개발), feature branches(Claude WorkTree) 역할 정의 |
+| 2026-04-07 | [v6.md](v6.md) | 환경 개선 | Git WorkTree Docker 환경 분리. 볼륨 이름 고정, setup-worktree.sh로 .env 심볼릭 링크 + docker-compose.override.yml 자동 생성, 워크트리별 고유 포트 할당 |

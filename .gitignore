@@ -2,6 +2,9 @@
 .env
 application-secret.yml
 
+# Docker Compose worktree override (자동 생성)
+docker-compose.override.yml
+
 # AWS keys
 *.pem
 
