@@ -9,7 +9,6 @@ import {
 import axios from 'axios';
 
 const API_BASE_URL = process.env.API_URL || 'http://localhost:8080';
-const FRONTEND_URL = 'http://localhost:5173';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -91,14 +90,14 @@ test.describe('Version Management UI E2E', () => {
 
   // Helper: navigate to ProductListPage for our company
   async function goToProductList() {
-    await page.goto(`${FRONTEND_URL}/features/companies/${companyId}`);
+    await page.goto(`/features/companies/${companyId}`);
     await page.waitForLoadState('networkidle');
   }
 
   // Helper: navigate to VersionListPage
   async function goToVersionList() {
     await page.goto(
-      `${FRONTEND_URL}/features/companies/${companyId}/products/${productId}/versions`
+      `/features/companies/${companyId}/products/${productId}/versions`
     );
     await page.waitForLoadState('networkidle');
   }
@@ -106,7 +105,7 @@ test.describe('Version Management UI E2E', () => {
   // Helper: navigate to VersionDetailPage
   async function goToVersionDetail(vid: number) {
     await page.goto(
-      `${FRONTEND_URL}/features/companies/${companyId}/products/${productId}/versions/${vid}`
+      `/features/companies/${companyId}/products/${productId}/versions/${vid}`
     );
     await page.waitForLoadState('networkidle');
   }
@@ -191,10 +190,10 @@ test.describe('Version Management UI E2E', () => {
 
     await goToVersionList();
 
-    // Click "상세보기" button on version card
-    const detailBtn = page.locator('[data-testid="version-detail-btn"]').first();
-    await expect(detailBtn).toBeVisible();
-    await detailBtn.click();
+    // Click version card (entire card is clickable, no separate detail button)
+    const versionCard = page.locator('[data-testid="version-card"]').first();
+    await expect(versionCard).toBeVisible();
+    await versionCard.click();
     await page.waitForLoadState('networkidle');
 
     // Should be on VersionDetailPage
@@ -268,7 +267,7 @@ test.describe('Version Management UI E2E', () => {
 
     // Navigate to phase results page
     await page.goto(
-      `${FRONTEND_URL}/features/companies/${companyId}/products/${productId}/versions/${versionId}/phases/${phaseId}`
+      `/features/companies/${companyId}/products/${productId}/versions/${versionId}/phases/${phaseId}`
     );
     await page.waitForLoadState('networkidle');
 

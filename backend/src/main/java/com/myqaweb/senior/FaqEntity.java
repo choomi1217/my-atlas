@@ -1,10 +1,12 @@
 package com.myqaweb.senior;
 
+import com.myqaweb.common.VectorType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
@@ -29,7 +31,8 @@ public class FaqEntity {
     @Column(length = 500)
     private String tags;
 
-    @Transient
+    @Column(columnDefinition = "VECTOR(1536)")
+    @Type(VectorType.class)
     private float[] embedding;
 
     @CreationTimestamp
