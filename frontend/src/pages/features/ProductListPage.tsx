@@ -71,6 +71,16 @@ export default function ProductListPage() {
     navigate(`/features/companies/${company!.id}/products/${product.id}`);
   };
 
+  const handleSelectTestRuns = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    navigate(`/features/companies/${company!.id}/products/${product.id}/test-runs`);
+  };
+
+  const handleSelectVersions = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    navigate(`/features/companies/${company!.id}/products/${product.id}/versions`);
+  };
+
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -158,15 +168,29 @@ export default function ProductListPage() {
                 {product.description && (
                   <p className="text-sm text-gray-600 mb-3">{product.description}</p>
                 )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteTarget({ id: product.id, name: product.name });
-                  }}
-                  className="w-full px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded transition"
-                >
-                  Delete
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={(e) => handleSelectTestRuns(e, product)}
+                    className="w-full px-3 py-1 text-sm bg-green-100 text-green-600 hover:bg-green-200 rounded transition"
+                  >
+                    Test Runs
+                  </button>
+                  <button
+                    onClick={(e) => handleSelectVersions(e, product)}
+                    className="w-full px-3 py-1 text-sm bg-purple-100 text-purple-600 hover:bg-purple-200 rounded transition"
+                  >
+                    Versions
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget({ id: product.id, name: product.name });
+                    }}
+                    className="w-full px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded transition"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>

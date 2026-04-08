@@ -129,7 +129,12 @@ export default function VersionListPage() {
             <div
               key={version.id}
               data-testid="version-card"
-              className={`border rounded-lg p-4 hover:shadow-lg transition ${
+              onClick={() =>
+                navigate(
+                  `/features/companies/${companyId}/products/${productId}/versions/${version.id}`
+                )
+              }
+              className={`border rounded-lg p-4 hover:shadow-lg transition cursor-pointer ${
                 version.isReleaseDatePassed
                   ? 'border-orange-300 bg-orange-50'
                   : 'border-gray-200'
@@ -175,18 +180,10 @@ export default function VersionListPage() {
 
                 <div className="flex gap-2">
                   <button
-                    data-testid="version-detail-btn"
-                    onClick={() =>
-                      navigate(
-                        `/features/companies/${companyId}/products/${productId}/versions/${version.id}`
-                      )
-                    }
-                    className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded"
-                  >
-                    상세보기
-                  </button>
-                  <button
-                    onClick={() => handleDelete(version.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(version.id);
+                    }}
                     className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded"
                   >
                     삭제

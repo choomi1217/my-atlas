@@ -107,6 +107,22 @@ export interface ApiResponse<T> {
 }
 
 /**
+ * Test result response from API.
+ */
+export interface TestResult {
+  id: number;
+  versionId: number;
+  versionPhaseId: number;
+  testCaseId: number;
+  testCaseTitle: string;
+  status: RunResultStatus;
+  comment: string | null;
+  executedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
  * Test run result status enum.
  */
 export enum RunResultStatus {

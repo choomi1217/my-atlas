@@ -28,7 +28,7 @@ export default function VersionCopyModal({
     if (isOpen) {
       // Generate default new name with suffix
       setForm({
-        newName: `${versionName}-延期`,
+        newName: '',
         newReleaseDate: '',
       });
     }
@@ -59,7 +59,7 @@ export default function VersionCopyModal({
       <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
         <div className="p-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">
-            버전 분기 (복사)
+            버전 복사
           </h2>
           <p className="text-sm text-gray-600 mb-4">
             "{versionName}"을(를) 기반으로 새로운 버전을 생성합니다.
@@ -78,7 +78,7 @@ export default function VersionCopyModal({
                   setForm({ ...form, newName: e.target.value })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="예: v9-延期, v9-hotfix"
+                placeholder="새로운 버전명"
               />
             </div>
 
@@ -122,7 +122,7 @@ export default function VersionCopyModal({
                 disabled={isSubmitting}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {isSubmitting ? '분기 중...' : '분기'}
+                {isSubmitting ? '복사 중...' : '복사'}
               </button>
             </div>
           </form>

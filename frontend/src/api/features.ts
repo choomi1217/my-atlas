@@ -14,6 +14,7 @@ import {
   Version,
   VersionPhase,
   RunResultStatus,
+  TestResult,
 } from '@/types/features';
 // ProgressStats is used indirectly via Version/VersionPhase types
 
@@ -449,8 +450,8 @@ export const versionPhaseApi = {
  * Test Result API endpoints.
  */
 export const testResultApi = {
-  getByVersionId: async (versionId: number): Promise<unknown[]> => {
-    const response = await apiClient.get<ApiResponse<unknown[]>>(
+  getByVersionId: async (versionId: number): Promise<TestResult[]> => {
+    const response = await apiClient.get<ApiResponse<TestResult[]>>(
       `/api/versions/${versionId}/results`
     );
     return response.data.data;
@@ -459,8 +460,8 @@ export const testResultApi = {
   getByVersionPhaseId: async (
     versionId: number,
     phaseId: number
-  ): Promise<unknown[]> => {
-    const response = await apiClient.get<ApiResponse<unknown[]>>(
+  ): Promise<TestResult[]> => {
+    const response = await apiClient.get<ApiResponse<TestResult[]>>(
       `/api/versions/${versionId}/phases/${phaseId}/results`
     );
     return response.data.data;
@@ -471,8 +472,8 @@ export const testResultApi = {
     resultId: number,
     status: RunResultStatus,
     comment?: string
-  ): Promise<unknown> => {
-    const response = await apiClient.patch<ApiResponse<unknown>>(
+  ): Promise<TestResult> => {
+    const response = await apiClient.patch<ApiResponse<TestResult>>(
       `/api/versions/${versionId}/results/${resultId}`,
       {
         status,

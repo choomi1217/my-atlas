@@ -3,14 +3,14 @@ version: "3.9"
 services:
   db:
     image: pgvector/pgvector:pg15
-    container_name: myqaweb-db
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-myqaweb}-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-myqaweb}
       POSTGRES_USER: ${POSTGRES_USER:-myqaweb}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -23,7 +23,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: myqaweb-backend
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-myqaweb}-backend
     restart: unless-stopped
     depends_on:
       db:
@@ -35,7 +35,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     volumes:
       - ./logs:/app/logs
 
@@ -43,12 +43,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: myqaweb-frontend
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-myqaweb}-frontend
     restart: unless-stopped
     environment:
-      VITE_API_BASE_URL: http://localhost:8080
+      VITE_API_BASE_URL: http://localhost:${BACKEND_PORT:-8080}
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     volumes:
       - ./frontend/src:/app/src
     depends_on:
@@ -56,3 +56,4 @@ services:
 
 volumes:
   pgdata:
+    name: my-atlas_pgdata

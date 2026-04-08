@@ -73,7 +73,7 @@ export default function TestRunListPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('이 테스트 실행을 삭제하시겠습니까?')) return;
+    if (!confirm('Delete this test run?')) return;
     try {
       await testRunApi.delete(id);
       setTestRuns(testRuns.filter((tr) => tr.id !== id));
@@ -84,7 +84,7 @@ export default function TestRunListPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-center text-gray-600">테스트 실행 로드 중...</div>
+      <div className="p-6 text-center text-gray-600">Loading test runs...</div>
     );
   }
 
@@ -97,7 +97,7 @@ export default function TestRunListPage() {
         >
           ← 돌아가기
         </button>
-        <h1 className="text-3xl font-bold text-gray-800">테스트 실행</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Test Runs</h1>
         <p className="text-gray-600 mt-1">Product: {productName}</p>
       </div>
 
@@ -114,12 +114,12 @@ export default function TestRunListPage() {
         }}
         className="mb-6 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
       >
-        + 새 테스트 실행
+        + New Test Run
       </button>
 
       <div className="grid gap-4">
         {testRuns.length === 0 ? (
-          <p className="text-gray-500">테스트 실행이 없습니다.</p>
+          <p className="text-gray-500">No test runs yet.</p>
         ) : (
           testRuns.map((tr) => (
             <div

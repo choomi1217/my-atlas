@@ -26,6 +26,7 @@ export default function VersionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isPhaseModalOpen, setIsPhaseModalOpen] = useState(false);
+  const [copiedFromName, setCopiedFromName] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -48,6 +49,16 @@ export default function VersionDetailPage() {
         // Load test runs
         const runs = await testRunApi.getByProductId(Number(productId));
         setTestRuns(runs);
+
+        // Resolve copiedFrom name
+        if (v.copiedFrom) {
+          try {
+            const source = await versionApi.getById(v.copiedFrom);
+            setCopiedFromName(source.name);
+          } catch {
+            setCopiedFromName(null);
+          }
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load version');
       } finally {
@@ -160,7 +171,7 @@ export default function VersionDetailPage() {
               onClick={() => setIsCopyModalOpen(true)}
               className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50"
             >
-              분기
+              버전 복사
             </button>
             <button
               onClick={handleDeleteVersion}
@@ -202,7 +213,9 @@ export default function VersionDetailPage() {
           <div>
             <p className="text-xs text-gray-600">복사 출처</p>
             <p className="text-sm font-semibold text-gray-800">
-              {version.copiedFrom ? `Version #${version.copiedFrom}` : '신규'}
+              {version.copiedFrom
+                ? copiedFromName || `ID: ${version.copiedFrom}`
+                : '신규'}
             </p>
           </div>
           {version.description && (
@@ -239,7 +252,12 @@ export default function VersionDetailPage() {
             {version.phases.map((phase, index) => (
               <div
                 key={phase.id}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition"
+                onClick={() =>
+                  navigate(
+                    `/features/companies/${companyId}/products/${productId}/versions/${version.id}/phases/${phase.id}`
+                  )
+                }
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition cursor-pointer"
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
@@ -252,7 +270,10 @@ export default function VersionDetailPage() {
                     </p>
                   </div>
                   <button
-                    onClick={() => handleDeletePhase(phase.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeletePhase(phase.id);
+                    }}
                     className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded"
                   >
                     삭제
@@ -265,16 +286,6 @@ export default function VersionDetailPage() {
                   showDetailed={true}
                 />
 
-                <button
-                  onClick={() =>
-                    navigate(
-                      `/features/companies/${companyId}/products/${productId}/versions/${version.id}/phases/${phase.id}`
-                    )
-                  }
-                  className="mt-3 text-sm text-blue-600 hover:text-blue-700"
-                >
-                  결과 보기 →
-                </button>
               </div>
             ))}
           </div>

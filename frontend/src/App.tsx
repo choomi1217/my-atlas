@@ -10,15 +10,10 @@ import TestRunListPage from '@/pages/features/TestRunListPage'
 import VersionListPage from '@/pages/features/VersionListPage'
 import VersionDetailPage from '@/pages/features/VersionDetailPage'
 import VersionPhaseDetailPage from '@/pages/features/VersionPhaseDetailPage'
-import ResumePage from '@/pages/ResumePage'
 
 export default function App() {
   return (
     <Routes>
-      {/* Resume 페이지: 숨겨진 URL (/resume), 레이아웃 없음 */}
-      <Route path="/resume" element={<ResumePage />} />
-
-      {/* 나머지 페이지: 레이아웃 포함 */}
       <Route
         path="/*"
         element={
