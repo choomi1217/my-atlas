@@ -41,7 +41,7 @@ test.describe('Knowledge Base UI E2E', () => {
   });
 
   test('should navigate to write page when "+ 직접 작성" is clicked', async ({ page }) => {
-    await page.getByRole('button', { name: /직접 작성/ }).click();
+    await page.getByRole('button', { name: '+ 직접 작성' }).click();
     await expect(page).toHaveURL(/\/kb\/write/);
     await expect(page.locator('h2').filter({ hasText: '새 글 작성' })).toBeVisible();
   });
@@ -165,20 +165,15 @@ test.describe('Knowledge Base UI E2E', () => {
       createdKbId = body.data.id;
     }
 
-    // Wait for the KB list to load
-    await page.waitForResponse(
-      resp => resp.url().includes('/api/kb') && resp.request().method() === 'GET'
-    );
-
-    // Find a card with our test data (look for any E2E card)
+    // Wait for KB cards to render
     const card = page.locator('.cursor-pointer').filter({ hasText: /E2E/ }).first();
-    await expect(card).toBeVisible();
+    await expect(card).toBeVisible({ timeout: 10000 });
     await card.click();
 
     // Should navigate to detail page
     await expect(page).toHaveURL(/\/kb\/\d+/);
-    // Detail page should have a title heading
-    await expect(page.locator('h1')).toBeVisible();
+    // Detail page should have the title in h1 (not the sidebar h1)
+    await expect(page.locator('h1.text-3xl')).toBeVisible();
   });
 
   // --- Card preview ---
