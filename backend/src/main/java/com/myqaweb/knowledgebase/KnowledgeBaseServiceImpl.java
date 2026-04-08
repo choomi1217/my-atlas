@@ -77,16 +77,36 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private void scheduleEmbeddingGeneration(Long entityId, String title, String content) {
         Thread.startVirtualThread(() -> {
             try {
-                String text = title + " " + content;
+                String text = title + " " + stripMarkdown(content);
                 float[] embedding = embeddingService.embed(text);
-                knowledgeBaseRepository.findById(entityId).ifPresent(entity -> {
-                    entity.setEmbedding(embedding);
-                    knowledgeBaseRepository.save(entity);
-                });
+                String vectorStr = embeddingService.toVectorString(embedding);
+                knowledgeBaseRepository.updateEmbedding(entityId, vectorStr);
             } catch (Exception e) {
                 log.warn("Failed to generate embedding for KB id={}", entityId, e);
             }
         });
+    }
+
+    /**
+     * Strips Markdown syntax from text to improve embedding quality.
+     * Removes image tags, links, headings, bold/italic markers, code blocks, etc.
+     */
+    static String stripMarkdown(String md) {
+        if (md == null || md.isBlank()) return "";
+        return md
+                .replaceAll("```[\\s\\S]*?```", " ")           // fenced code blocks
+                .replaceAll("`[^`]*`", " ")                     // inline code
+                .replaceAll("!\\[([^]]*)]\\([^)]*\\)", "$1")   // images → alt text
+                .replaceAll("\\[([^]]*)]\\([^)]*\\)", "$1")     // links → text
+                .replaceAll("^#{1,6}\\s+", "")                  // headings
+                .replaceAll("(\\*{1,3}|_{1,3})", "")            // bold/italic
+                .replaceAll("^>\\s?", "")                        // blockquotes
+                .replaceAll("^[-*+]\\s+", "")                    // unordered lists
+                .replaceAll("^\\d+\\.\\s+", "")                  // ordered lists
+                .replaceAll("---+|===+|\\*\\*\\*+", "")          // horizontal rules
+                .replaceAll("~{2}[^~]*~{2}", "")                // strikethrough
+                .replaceAll("\\n{2,}", "\n")                     // multiple newlines
+                .trim();
     }
 
     private KnowledgeBaseDto.KbResponse toResponse(KnowledgeBaseEntity entity) {

@@ -142,7 +142,7 @@ class KnowledgeBaseIntegrationTest extends BaseIntegrationTest {
         KnowledgeBaseEntity entity = new KnowledgeBaseEntity();
         entity.setTitle(title);
         entity.setContent("Content for " + title);
-        entity.setEmbedding(embedding);
-        kbRepository.save(entity);
+        KnowledgeBaseEntity saved = kbRepository.saveAndFlush(entity);
+        kbRepository.updateEmbedding(saved.getId(), toVectorString(embedding));
     }
 }

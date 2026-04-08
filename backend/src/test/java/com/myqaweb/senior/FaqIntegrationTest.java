@@ -60,20 +60,18 @@ class FaqIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void saveFaqWithEmbedding_persistsVector() {
+    void saveFaqWithEmbedding_persistsAndIsSearchable() {
         // Arrange
         float[] embedding = createEmbedding(0.3f, 0.7f, 0.1f);
         saveFaq("Test FAQ", embedding);
 
-        // Act
-        FaqEntity saved = faqRepository.findAll().get(0);
+        // Act — verify embedding was persisted by searching for it
+        List<FaqEntity> results = faqRepository.findSimilar(
+                toVectorString(createEmbedding(0.3f, 0.7f, 0.1f)), 1);
 
         // Assert
-        assertNotNull(saved.getEmbedding());
-        assertEquals(1536, saved.getEmbedding().length);
-        assertEquals(0.3f, saved.getEmbedding()[0], 0.001f);
-        assertEquals(0.7f, saved.getEmbedding()[1], 0.001f);
-        assertEquals(0.1f, saved.getEmbedding()[2], 0.001f);
+        assertEquals(1, results.size());
+        assertEquals("Test FAQ", results.get(0).getTitle());
     }
 
     // --- Helpers ---
@@ -101,7 +99,7 @@ class FaqIntegrationTest extends BaseIntegrationTest {
         entity.setTitle(title);
         entity.setContent("Content for " + title);
         entity.setTags("test");
-        entity.setEmbedding(embedding);
-        faqRepository.save(entity);
+        FaqEntity saved = faqRepository.saveAndFlush(entity);
+        faqRepository.updateEmbedding(saved.getId(), toVectorString(embedding));
     }
 }

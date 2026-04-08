@@ -214,4 +214,113 @@ class KnowledgeBaseServiceImplTest {
         assertEquals(now, result.createdAt());
         assertEquals(now, result.updatedAt());
     }
+
+    // --- stripMarkdown ---
+
+    @Test
+    void stripMarkdown_nullInput_returnsEmpty() {
+        assertEquals("", KnowledgeBaseServiceImpl.stripMarkdown(null));
+    }
+
+    @Test
+    void stripMarkdown_blankInput_returnsEmpty() {
+        assertEquals("", KnowledgeBaseServiceImpl.stripMarkdown("   "));
+    }
+
+    @Test
+    void stripMarkdown_emptyInput_returnsEmpty() {
+        assertEquals("", KnowledgeBaseServiceImpl.stripMarkdown(""));
+    }
+
+    @Test
+    void stripMarkdown_stripsHeadings() {
+        assertEquals("Title", KnowledgeBaseServiceImpl.stripMarkdown("# Title"));
+        assertEquals("Subtitle", KnowledgeBaseServiceImpl.stripMarkdown("## Subtitle"));
+        assertEquals("Sub-sub", KnowledgeBaseServiceImpl.stripMarkdown("### Sub-sub"));
+    }
+
+    @Test
+    void stripMarkdown_stripsBoldAndItalic() {
+        String result = KnowledgeBaseServiceImpl.stripMarkdown("This is **bold** and *italic* text");
+        assertFalse(result.contains("**"));
+        assertFalse(result.contains("*"));
+        assertTrue(result.contains("bold"));
+        assertTrue(result.contains("italic"));
+        assertTrue(result.contains("text"));
+    }
+
+    @Test
+    void stripMarkdown_stripsUnderscoreBoldItalic() {
+        String result = KnowledgeBaseServiceImpl.stripMarkdown("This is __bold__ and _italic_ text");
+        assertFalse(result.contains("__"));
+        assertFalse(result.contains("_"));
+        assertTrue(result.contains("bold"));
+        assertTrue(result.contains("italic"));
+    }
+
+    @Test
+    void stripMarkdown_stripsImages_keepsAltText() {
+        String result = KnowledgeBaseServiceImpl.stripMarkdown("See ![diagram](http://example.com/img.png) here");
+        assertFalse(result.contains("!["));
+        assertFalse(result.contains("http://example.com"));
+        assertTrue(result.contains("diagram"));
+    }
+
+    @Test
+    void stripMarkdown_stripsLinks_keepsText() {
+        String result = KnowledgeBaseServiceImpl.stripMarkdown("Click [here](http://example.com) for more");
+        assertFalse(result.contains("[here]"));
+        assertFalse(result.contains("http://example.com"));
+        assertTrue(result.contains("here"));
+        assertTrue(result.contains("for more"));
+    }
+
+    @Test
+    void stripMarkdown_stripsFencedCodeBlocks() {
+        String input = "Before\n```java\nSystem.out.println(\"hello\");\n```\nAfter";
+        String result = KnowledgeBaseServiceImpl.stripMarkdown(input);
+        assertFalse(result.contains("```"));
+        assertFalse(result.contains("System.out.println"));
+        assertTrue(result.contains("Before"));
+        assertTrue(result.contains("After"));
+    }
+
+    @Test
+    void stripMarkdown_stripsInlineCode() {
+        String result = KnowledgeBaseServiceImpl.stripMarkdown("Use `assertEquals` for assertions");
+        assertFalse(result.contains("`"));
+        assertTrue(result.contains("assertions"));
+    }
+
+    @Test
+    void stripMarkdown_stripsStrikethrough() {
+        String result = KnowledgeBaseServiceImpl.stripMarkdown("This is ~~deleted~~ text");
+        assertFalse(result.contains("~~"));
+        assertTrue(result.contains("text"));
+    }
+
+    @Test
+    void stripMarkdown_stripsHorizontalRules() {
+        String result = KnowledgeBaseServiceImpl.stripMarkdown("Above\n---\nBelow");
+        assertFalse(result.contains("---"));
+    }
+
+    @Test
+    void stripMarkdown_plainText_unchanged() {
+        String input = "This is plain text without any markdown.";
+        assertEquals(input, KnowledgeBaseServiceImpl.stripMarkdown(input));
+    }
+
+    @Test
+    void stripMarkdown_mixedMarkdown_cleansAll() {
+        String input = "# Title\n\nThis is **bold** with a [link](http://url) and `code`.";
+        String result = KnowledgeBaseServiceImpl.stripMarkdown(input);
+        assertFalse(result.contains("#"));
+        assertFalse(result.contains("**"));
+        assertFalse(result.contains("[link]"));
+        assertFalse(result.contains("`"));
+        assertTrue(result.contains("Title"));
+        assertTrue(result.contains("bold"));
+        assertTrue(result.contains("link"));
+    }
 }
