@@ -12,8 +12,7 @@ test.describe('Senior Page', () => {
     await expect(page.locator('h2').filter({ hasText: 'My Senior' })).toBeVisible();
   });
 
-  test.fixme('should show FAQ view as default entry', async ({ page }) => {
-    // TODO: Senior API 500 에러 수정 후 복원 (feature/my-senior)
+  test('should show FAQ view as default entry', async ({ page }) => {
     // FAQ is the default view - wait for FAQ list to load
     await page.waitForResponse(resp => resp.url().includes('/api/senior/faq') && resp.request().method() === 'GET');
 
@@ -40,8 +39,7 @@ test.describe('Senior Page', () => {
     test.skip();
   });
 
-  test.fixme('should navigate between FAQ and Chat views', async ({ page }) => {
-    // TODO: Senior API 500 에러 수정 후 복원 (feature/my-senior)
+  test('should navigate between FAQ and Chat views', async ({ page }) => {
     // Default is FAQ, switch to Chat
     await page.getByRole('button', { name: /Chat/ }).click();
     await expect(page.locator('textarea')).toBeVisible();
@@ -54,8 +52,7 @@ test.describe('Senior Page', () => {
 
   // --- FAQ CRUD ---
 
-  test.fixme('should create a new FAQ and display it in the list', async ({ page }) => {
-    // TODO: Senior API 500 에러 수정 후 복원 (feature/my-senior)
+  test('should create a new FAQ and display it in the list', async ({ page }) => {
     // FAQ is default view - wait for list to load
     await page.waitForResponse(
       resp => resp.url().includes('/api/senior/faq') && resp.request().method() === 'GET'
@@ -82,8 +79,7 @@ test.describe('Senior Page', () => {
     await expect(page.getByText(title)).toBeVisible();
   });
 
-  test.fixme('should delete a FAQ from the list', async ({ page }) => {
-    // TODO: Senior API 500 에러 수정 후 복원 (feature/my-senior)
+  test('should delete a FAQ from the list', async ({ page }) => {
     // FAQ is default view - wait for list to load
     await page.waitForResponse(
       resp => resp.url().includes('/api/senior/faq') && resp.request().method() === 'GET'
