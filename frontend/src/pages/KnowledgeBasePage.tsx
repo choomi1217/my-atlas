@@ -1,8 +1,28 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useKnowledgeBase, SourceFilter } from '@/hooks/useKnowledgeBase';
-import { KbItem } from '@/types/senior';
-import KbFormModal from '@/components/senior/KbFormModal';
 import PdfUploadModal from '@/components/kb/PdfUploadModal';
+
+function stripMarkdown(md: string): string {
+  return md
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`]*`/g, ' ')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/(\*{1,3}|_{1,3})/g, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/^[-*+]\s+/gm, '')
+    .replace(/^\d+\.\s+/gm, '')
+    .replace(/---+|===+|\*\*\*+/g, '')
+    .replace(/\n{2,}/g, ' ')
+    .trim();
+}
+
+function truncate(text: string, maxLen: number): string {
+  const stripped = stripMarkdown(text);
+  return stripped.length > maxLen ? stripped.slice(0, maxLen) + '...' : stripped;
+}
 
 const filterTabs: { key: SourceFilter; label: string }[] = [
   { key: 'all', label: '전체' },
@@ -21,25 +41,12 @@ export default function KnowledgeBasePage() {
     manualCount,
     pdfCount,
     fetchKbItems,
-    createKbItem,
-    updateKbItem,
     deleteKbItem,
     deleteBook,
   } = useKnowledgeBase();
 
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const navigate = useNavigate();
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
-  const [editItem, setEditItem] = useState<KbItem | null>(null);
-
-  const handleCreate = () => {
-    setEditItem(null);
-    setIsFormModalOpen(true);
-  };
-
-  const handleEdit = (item: KbItem) => {
-    setEditItem(item);
-    setIsFormModalOpen(true);
-  };
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('이 KB 항목을 삭제하시겠습니까?')) return;
@@ -49,19 +56,6 @@ export default function KnowledgeBasePage() {
   const handleDeleteBook = async (source: string) => {
     if (!window.confirm(`"${source}"의 전체 청크를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     await deleteBook(source);
-  };
-
-  const handleFormSubmit = async (request: {
-    title: string;
-    content: string;
-    category?: string;
-    tags?: string;
-  }) => {
-    if (editItem) {
-      await updateKbItem(editItem.id, request);
-    } else {
-      await createKbItem(request);
-    }
   };
 
   const getCount = (key: SourceFilter) => {
@@ -84,7 +78,7 @@ export default function KnowledgeBasePage() {
         <h2 className="text-2xl font-bold text-gray-800">Knowledge Base</h2>
         <div className="flex gap-2">
           <button
-            onClick={handleCreate}
+            onClick={() => navigate('/kb/write')}
             className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md
                        hover:bg-indigo-700 transition-colors"
           >
@@ -159,7 +153,8 @@ export default function KnowledgeBasePage() {
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+              onClick={() => navigate(`/kb/${item.id}`)}
+              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -185,7 +180,7 @@ export default function KnowledgeBasePage() {
                 <p className="text-xs text-purple-600 mb-1">source: {item.source}</p>
               )}
 
-              <p className="text-sm text-gray-600 line-clamp-3 mb-3">{item.content}</p>
+              <p className="text-sm text-gray-600 line-clamp-3 mb-3">{truncate(item.content, 150)}</p>
 
               {item.tags && (
                 <div className="flex flex-wrap gap-1 mb-3">
@@ -204,13 +199,13 @@ export default function KnowledgeBasePage() {
               {!item.source && (
                 <div className="flex justify-end gap-2">
                   <button
-                    onClick={() => handleEdit(item)}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/kb/edit/${item.id}`); }}
                     className="text-xs text-indigo-600 hover:underline"
                   >
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(item.id)}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                     className="text-xs text-red-500 hover:underline"
                   >
                     Delete
@@ -223,13 +218,6 @@ export default function KnowledgeBasePage() {
       )}
 
       {/* Modals */}
-      <KbFormModal
-        isOpen={isFormModalOpen}
-        onClose={() => setIsFormModalOpen(false)}
-        onSubmit={handleFormSubmit}
-        editItem={editItem}
-      />
-
       <PdfUploadModal
         isOpen={isPdfModalOpen}
         onClose={() => setIsPdfModalOpen(false)}

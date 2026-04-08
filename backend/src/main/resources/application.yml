@@ -62,3 +62,8 @@ logging:
 feature:
   embedding:
     enabled: ${FEATURE_EMBEDDING_ENABLED:false}
+
+# KB image upload
+kb:
+  image:
+    upload-dir: ${KB_IMAGE_UPLOAD_DIR:kb-images}

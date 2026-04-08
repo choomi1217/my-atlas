@@ -35,7 +35,7 @@ public class KnowledgeBaseEntity {
     @Column(length = 200)
     private String source;
 
-    @Column(columnDefinition = "VECTOR(1536)")
+    @Transient
     private float[] embedding;
 
     @CreationTimestamp

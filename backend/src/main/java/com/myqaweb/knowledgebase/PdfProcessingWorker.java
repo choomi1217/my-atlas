@@ -111,13 +111,14 @@ public class PdfProcessingWorker {
         while (retries < MAX_RETRIES) {
             try {
                 float[] embedding = embeddingService.embed(chunk.title() + " " + chunk.content());
+                String vectorStr = embeddingService.toVectorString(embedding);
 
                 KnowledgeBaseEntity entity = new KnowledgeBaseEntity();
                 entity.setTitle(chunk.title());
                 entity.setContent(chunk.content());
                 entity.setSource(bookTitle);
-                entity.setEmbedding(embedding);
-                kbRepository.save(entity);
+                KnowledgeBaseEntity saved = kbRepository.save(entity);
+                kbRepository.updateEmbedding(saved.getId(), vectorStr);
                 return true;
             } catch (Exception e) {
                 String msg = e.getMessage() != null ? e.getMessage() : "";
