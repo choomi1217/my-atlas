@@ -44,7 +44,7 @@ jobs:
       - name: Run Tests
         run: |
           cd frontend
-          npm test -- --run --coverage
+          npm test -- --run
 
       - name: Build for Production
         run: |
