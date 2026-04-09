@@ -14,7 +14,6 @@ import { test, expect } from '@playwright/test';
                                                                     
     test('should show FAQ view as default entry', async ({ page }) => {
       // FAQ is the default view - wait for FAQ list to load
-      await page.waitForResponse(resp => resp.url().includes('/api/senior/faq') && resp.request().method() === 'GET');                                                                                                                                                                    
    
       // Header should show "Chat" button for switching to chat                                                                                                                                                                                                                           
       await expect(page.getByRole('button', { name: /Chat/ })).toBeVisible();
@@ -45,8 +44,11 @@ import { test, expect } from '@playwright/test';
       await expect(page.locator('textarea')).toBeVisible();
                                                                                                                                                                                                                                                                                           
       // Switch back to FAQ                                         
-      await page.getByRole('button', { name: /FAQ/ }).click();
-      await page.waitForResponse(resp => resp.url().includes('/api/senior/faq') && resp.request().method() === 'GET');                                                                                                                                                                    
+      const faqResponse = page.waitForResponse(
+        resp => resp.url().includes("/api/senior/faq") && resp.request().method() === "GET"
+      );
+      await page.getByRole("button", { name: /FAQ/ }).click();
+      await faqResponse;
       await expect(page.locator('input[type="text"]')).toBeVisible();
     });                                                                                                                                                                                                                                                                                   
                                                                     
