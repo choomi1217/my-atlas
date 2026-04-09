@@ -79,7 +79,7 @@ feature/* → develop (PR) → main (PR)
 | 이슈 | 심각도 | 설명 |
 |------|--------|------|
 | 배포 게이트 없음 | 높음 | E2E 통과 여부와 무관하게 main push 시 바로 배포됨 |
-| Frontend CI 미강제 | 중간 | lint/test 실패해도 빌드 통과 (continue-on-error) |
+| ~~Frontend CI 미강제~~ | ~~중간~~ | ~~lint/test 실패해도 빌드 통과~~ → **v9에서 해결** (ESLint 설정 + continue-on-error 제거) |
 | JaCoCo 미적용 | 중간 | 백엔드 코드 커버리지 측정/강제 안됨 |
 | 프론트엔드 API URL 하드코딩 | 중간 | deploy-frontend에서 EC2 IP 직접 참조 |
 | 롤백 전략 없음 | 중간 | 배포 실패 시 수동 대응만 가능 |
@@ -117,9 +117,34 @@ Mode: npm run dev (Vite dev server)
 - 프로덕션 빌드 스테이지 없음 (실제 배포는 S3 + CloudFront로 별도 수행)
 
 ### 볼륨
-- `pgdata` — PostgreSQL 데이터 영속화
+- `pgdata` (`my-atlas_pgdata`) — PostgreSQL 데이터 영속화 (메인 레포 전용)
 - `./logs` — 백엔드 로그 마운트
 - `./frontend/src` — 프론트엔드 소스 라이브 리로드
+
+### Worktree Docker 운영 규칙 (v10)
+
+**원칙:** DB 인스턴스 1개 (메인), Backend 인스턴스 N개 (메인 + worktree)
+
+```
+[myqaweb-db]  ← 포트 5432, 메인 레포에서만 실행
+     ↑ (host.docker.internal:5432)
+     ├── myqaweb-backend                   (8080, 메인)
+     ├── myqaweb-knowledge-base-backend    (8082)
+     ├── myqaweb-feature-registry-backend  (8081)
+     └── myqaweb-my-senior-backend         (8083)
+```
+
+**시작 순서:**
+1. 메인 레포: `docker compose up -d` (DB + Backend + Frontend)
+2. worktree: `docker compose up -d` (Backend + Frontend만, DB는 메인 사용)
+
+**종료 순서:**
+1. worktree: `docker compose down`
+2. 메인 레포: `docker compose down` (DB 마지막에 종료)
+
+**금지 사항:**
+- worktree에서 DB 컨테이너를 직접 실행하지 않는다
+- `docker compose down -v` 실행 금지 (DB 볼륨 삭제 방지)
 
 ---
 
@@ -315,3 +340,5 @@ Ops 관련 변경 이력을 시간순으로 기록한다. 각 버전 문서는 `
 | 2026-04-07 | [v6.md](v6.md) | 환경 개선 | Git WorkTree Docker 환경 분리. 볼륨 이름 고정, setup-worktree.sh로 .env 심볼릭 링크 + docker-compose.override.yml 자동 생성, 워크트리별 고유 포트 할당 |
 | 2026-04-08 | [v7.md](v7.md) | 환경 개선 | Claude Code 개발 워크플로우 문서화. 4-Agent Pipeline, Git Worktree 전략, 브랜치 동기화, test.fixme() 패턴, Doc-Driven Development, .claude/ 구조 정리 |
 | 2026-04-08 | [v8.md](v8.md) | 환경 개선 | CI/CD 파이프라인 통합 (e2e.yml에 배포 job 통합, deploy-backend/frontend.yml 삭제). Slack 알림 5개→1개 정리. Claude Slack Hook 동적 정보 추가 |
+| 2026-04-09 | [v9.md](v9.md) | 환경 개선 | Frontend ESLint 설정 생성 + CI `continue-on-error` 제거. lint/test 실패 시 CI 차단되도록 품질 게이트 강제 |
+| 2026-04-09 | [v10.md](v10.md) | 환경 개선 | Docker Compose DB 공유 아키텍처 개선. worktree별 DB 컨테이너가 동일 볼륨 공유 → 데이터 손상 문제 해결. override로 독립 볼륨 분리 + host.docker.internal 접속 |

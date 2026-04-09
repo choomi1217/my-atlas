@@ -36,17 +36,15 @@ jobs:
           cd frontend
           npm install
 
-      - name: Run Linter (if configured)
+      - name: Run Linter
         run: |
           cd frontend
-          npm run lint --if-present
-        continue-on-error: true  # TODO: Remove 'continue-on-error' once linting is properly configured
+          npm run lint
 
-      - name: Run Tests (if configured)
+      - name: Run Tests
         run: |
           cd frontend
-          npm test -- --run --coverage
-        continue-on-error: true  # TODO: Remove 'continue-on-error' once tests are properly configured
+          npm test -- --run
 
       - name: Build for Production
         run: |

@@ -66,6 +66,7 @@ export default function TestCaseGroupSelector({
     if (expanded.size === 0 && segments.length > 0) {
       setExpanded(new Set(segments.map((s) => s.id)));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segments]);
 
   // Filtered test cases by search
