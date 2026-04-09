@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Controller tests for KnowledgeBaseController.
+ * Covers CRUD, PDF pipeline, and pin/unpin endpoints.
  */
 @WebMvcTest(KnowledgeBaseController.class)
 @Import(GlobalExceptionHandler.class)
@@ -45,9 +46,9 @@ class KnowledgeBaseControllerTest {
         // Arrange
         List<KnowledgeBaseDto.KbResponse> items = List.of(
                 new KnowledgeBaseDto.KbResponse(1L, "Regression Testing", "Best practices",
-                        "Testing", "regression", null, now, now),
+                        "Testing", "regression", null, 0, null, now, now),
                 new KnowledgeBaseDto.KbResponse(2L, "API Testing", "How to test REST APIs",
-                        "API", "api", null, now, now)
+                        "API", "api", null, 3, null, now, now)
         );
         when(knowledgeBaseService.findAll()).thenReturn(items);
 
@@ -68,7 +69,8 @@ class KnowledgeBaseControllerTest {
     void getById_returnsOk() throws Exception {
         // Arrange
         KnowledgeBaseDto.KbResponse kb = new KnowledgeBaseDto.KbResponse(
-                1L, "Regression Testing", "Best practices", "Testing", "regression", null, now, now);
+                1L, "Regression Testing", "Best practices", "Testing", "regression",
+                null, 0, null, now, now);
         when(knowledgeBaseService.findById(1L)).thenReturn(Optional.of(kb));
 
         // Act & Assert
@@ -99,7 +101,7 @@ class KnowledgeBaseControllerTest {
     void create_returns201() throws Exception {
         // Arrange
         KnowledgeBaseDto.KbResponse created = new KnowledgeBaseDto.KbResponse(
-                1L, "New Article", "Content", "QA", "qa", null, now, now);
+                1L, "New Article", "Content", "QA", "qa", null, 0, null, now, now);
         when(knowledgeBaseService.create(any(KnowledgeBaseDto.KbRequest.class))).thenReturn(created);
 
         // Act & Assert
@@ -150,7 +152,7 @@ class KnowledgeBaseControllerTest {
     void update_returnsOk() throws Exception {
         // Arrange
         KnowledgeBaseDto.KbResponse updated = new KnowledgeBaseDto.KbResponse(
-                1L, "Updated", "Updated Content", "QA", "qa", null, now, now);
+                1L, "Updated", "Updated Content", "QA", "qa", null, 0, null, now, now);
         when(knowledgeBaseService.update(eq(1L), any(KnowledgeBaseDto.KbRequest.class))).thenReturn(updated);
 
         // Act & Assert
@@ -292,5 +294,109 @@ class KnowledgeBaseControllerTest {
                 .andExpect(jsonPath("$.message").value("Book and all chunks deleted"));
 
         verify(pdfPipelineService).deleteBook("Test Book");
+    }
+
+    // --- PATCH /api/kb/{id}/pin ---
+
+    @Test
+    void pin_returnsOkOnSuccess() throws Exception {
+        // Arrange
+        doNothing().when(knowledgeBaseService).pinKbEntry(1L);
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/kb/1/pin"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Entry pinned"));
+
+        verify(knowledgeBaseService).pinKbEntry(1L);
+    }
+
+    @Test
+    void pin_returnsErrorWhenNotFound() throws Exception {
+        // Arrange — IllegalArgumentException handled by GlobalExceptionHandler as 400
+        doThrow(new IllegalArgumentException("Knowledge Base entry not found: 99"))
+                .when(knowledgeBaseService).pinKbEntry(99L);
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/kb/99/pin"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Knowledge Base entry not found: 99"));
+
+        verify(knowledgeBaseService).pinKbEntry(99L);
+    }
+
+    @Test
+    void pin_returnsErrorWhenAlreadyPinned() throws Exception {
+        // Arrange — IllegalStateException handled by generic Exception handler as 500
+        doThrow(new IllegalStateException("Entry is already pinned: 1"))
+                .when(knowledgeBaseService).pinKbEntry(1L);
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/kb/1/pin"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(knowledgeBaseService).pinKbEntry(1L);
+    }
+
+    @Test
+    void pin_returnsErrorWhenMaxLimitReached() throws Exception {
+        // Arrange — IllegalStateException falls to generic handler
+        doThrow(new IllegalStateException("Maximum 15 pinned entries reached"))
+                .when(knowledgeBaseService).pinKbEntry(1L);
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/kb/1/pin"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(knowledgeBaseService).pinKbEntry(1L);
+    }
+
+    // --- PATCH /api/kb/{id}/unpin ---
+
+    @Test
+    void unpin_returnsOkOnSuccess() throws Exception {
+        // Arrange
+        doNothing().when(knowledgeBaseService).unpinKbEntry(1L);
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/kb/1/unpin"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Entry unpinned"));
+
+        verify(knowledgeBaseService).unpinKbEntry(1L);
+    }
+
+    @Test
+    void unpin_returnsErrorWhenNotFound() throws Exception {
+        // Arrange
+        doThrow(new IllegalArgumentException("Knowledge Base entry not found: 99"))
+                .when(knowledgeBaseService).unpinKbEntry(99L);
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/kb/99/unpin"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Knowledge Base entry not found: 99"));
+
+        verify(knowledgeBaseService).unpinKbEntry(99L);
+    }
+
+    @Test
+    void unpin_returnsErrorWhenNotPinned() throws Exception {
+        // Arrange — IllegalStateException falls to generic handler
+        doThrow(new IllegalStateException("Entry is not pinned: 1"))
+                .when(knowledgeBaseService).unpinKbEntry(1L);
+
+        // Act & Assert
+        mockMvc.perform(patch("/api/kb/1/unpin"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(knowledgeBaseService).unpinKbEntry(1L);
     }
 }

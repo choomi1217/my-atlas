@@ -25,6 +25,8 @@ public class KnowledgeBaseDto {
             String category,
             String tags,
             String source,
+            int hitCount,
+            LocalDateTime pinnedAt,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {}

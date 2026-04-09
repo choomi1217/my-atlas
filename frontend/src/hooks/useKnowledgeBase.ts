@@ -63,6 +63,22 @@ export const useKnowledgeBase = () => {
     setKbItems((prev) => prev.filter((k) => k.source !== source));
   }, []);
 
+  const pinKbItem = useCallback(async (id: number) => {
+    await kbApi.pin(id);
+    setKbItems((prev) =>
+      prev.map((k) =>
+        k.id === id ? { ...k, pinnedAt: new Date().toISOString() } : k
+      )
+    );
+  }, []);
+
+  const unpinKbItem = useCallback(async (id: number) => {
+    await kbApi.unpin(id);
+    setKbItems((prev) =>
+      prev.map((k) => (k.id === id ? { ...k, pinnedAt: null } : k))
+    );
+  }, []);
+
   return {
     kbItems,
     filteredItems,
@@ -77,5 +93,7 @@ export const useKnowledgeBase = () => {
     updateKbItem,
     deleteKbItem,
     deleteBook,
+    pinKbItem,
+    unpinKbItem,
   };
 };

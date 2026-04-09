@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '@/types/features';
-import { FaqContext, FaqItem, FaqRequest, KbItem, KbRequest, PdfUploadJob } from '@/types/senior';
+import { FaqContext, KbItem, KbRequest, PdfUploadJob } from '@/types/senior';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
@@ -66,39 +66,13 @@ export const chatApi = {
 };
 
 /**
- * FAQ API endpoints.
+ * Curated FAQ API — returns KB-based curated entries.
  */
 export const faqApi = {
-  getAll: async (): Promise<FaqItem[]> => {
+  getAll: async (): Promise<KbItem[]> => {
     const response =
-      await apiClient.get<ApiResponse<FaqItem[]>>('/api/senior/faq');
+      await apiClient.get<ApiResponse<KbItem[]>>('/api/senior/faq');
     return response.data.data;
-  },
-
-  getById: async (id: number): Promise<FaqItem> => {
-    const response =
-      await apiClient.get<ApiResponse<FaqItem>>(`/api/senior/faq/${id}`);
-    return response.data.data;
-  },
-
-  create: async (request: FaqRequest): Promise<FaqItem> => {
-    const response = await apiClient.post<ApiResponse<FaqItem>>(
-      '/api/senior/faq',
-      request
-    );
-    return response.data.data;
-  },
-
-  update: async (id: number, request: FaqRequest): Promise<FaqItem> => {
-    const response = await apiClient.put<ApiResponse<FaqItem>>(
-      `/api/senior/faq/${id}`,
-      request
-    );
-    return response.data.data;
-  },
-
-  delete: async (id: number): Promise<void> => {
-    await apiClient.delete(`/api/senior/faq/${id}`);
   },
 };
 
@@ -165,6 +139,14 @@ export const kbApi = {
 
   deleteBook: async (source: string): Promise<void> => {
     await apiClient.delete(`/api/kb/books/${encodeURIComponent(source)}`);
+  },
+
+  pin: async (id: number): Promise<void> => {
+    await apiClient.patch(`/api/kb/${id}/pin`);
+  },
+
+  unpin: async (id: number): Promise<void> => {
+    await apiClient.patch(`/api/kb/${id}/unpin`);
   },
 
   uploadImage: async (file: File): Promise<string> => {

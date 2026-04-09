@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSeniorChat } from '@/hooks/useSeniorChat';
-import { FaqItem } from '@/types/senior';
+import { KbItem } from '@/types/senior';
 import ChatView from '@/components/senior/ChatView';
 import FaqView from '@/components/senior/FaqView';
 
@@ -11,8 +11,8 @@ export default function SeniorPage() {
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const chat = useSeniorChat();
 
-  const handleSendToChat = useCallback((faq: FaqItem) => {
-    chat.setFaqContext(faq);
+  const handleSendToChat = useCallback((item: KbItem) => {
+    chat.setFaqContext(item);
     setActiveView('chat');
   }, [chat]);
 

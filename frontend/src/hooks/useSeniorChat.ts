@@ -1,12 +1,12 @@
 import { useState, useCallback, useRef } from 'react';
-import { ChatMessage, FaqContext, FaqItem } from '@/types/senior';
+import { ChatMessage, FaqContext, KbItem } from '@/types/senior';
 import { chatApi } from '@/api/senior';
 
 export const useSeniorChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [faqContext, setFaqContext] = useState<FaqItem | null>(null);
+  const [faqContext, setFaqContext] = useState<KbItem | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback((text: string) => {

@@ -192,7 +192,7 @@ describe('useSeniorChat', () => {
 
     const { result } = renderHook(() => useSeniorChat());
 
-    const faq = { id: 1, title: 'Login FAQ', content: 'How to test login', tags: null, createdAt: '', updatedAt: '' };
+    const faq = { id: 1, title: 'Login FAQ', content: 'How to test login', category: null, tags: null, source: null, hitCount: 0, pinnedAt: null, createdAt: '', updatedAt: '' };
 
     act(() => {
       result.current.setFaqContext(faq);

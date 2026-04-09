@@ -47,6 +47,8 @@ export interface KbItem {
   category: string | null;
   tags: string | null;
   source: string | null;
+  hitCount: number;
+  pinnedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,53 +1,28 @@
 import { useState, useMemo } from 'react';
-import { useFaq } from '@/hooks/useFaq';
-import { FaqItem } from '@/types/senior';
+import { useCuratedFaq } from '@/hooks/useCuratedFaq';
+import { KbItem } from '@/types/senior';
 import FaqCard from './FaqCard';
-import FaqFormModal from './FaqFormModal';
 
 interface FaqViewProps {
-  onSendToChat: (faq: FaqItem) => void;
+  onSendToChat: (item: KbItem) => void;
   onGoToChat: () => void;
 }
 
 export default function FaqView({ onSendToChat, onGoToChat }: FaqViewProps) {
-  const { faqs, isLoading, error, createFaq, updateFaq, deleteFaq } = useFaq();
+  const { faqs, isLoading, error } = useCuratedFaq();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editItem, setEditItem] = useState<FaqItem | null>(null);
 
   // Client-side filtering on title + content + tags
   const filteredFaqs = useMemo(() => {
     if (!searchQuery.trim()) return faqs;
     const query = searchQuery.toLowerCase();
     return faqs.filter(
-      (faq) =>
-        faq.title.toLowerCase().includes(query) ||
-        faq.content.toLowerCase().includes(query) ||
-        (faq.tags && faq.tags.toLowerCase().includes(query))
+      (item) =>
+        item.title.toLowerCase().includes(query) ||
+        item.content.toLowerCase().includes(query) ||
+        (item.tags && item.tags.toLowerCase().includes(query))
     );
   }, [faqs, searchQuery]);
-
-  const handleCreate = () => {
-    setEditItem(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEdit = (faq: FaqItem) => {
-    setEditItem(faq);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    await deleteFaq(id);
-  };
-
-  const handleSubmit = async (request: { title: string; content: string; tags?: string }) => {
-    if (editItem) {
-      await updateFaq(editItem.id, request);
-    } else {
-      await createFaq(request);
-    }
-  };
 
   if (isLoading) {
     return <div className="text-gray-400 text-sm py-8 text-center">Loading FAQs...</div>;
@@ -59,9 +34,9 @@ export default function FaqView({ onSendToChat, onGoToChat }: FaqViewProps) {
 
   return (
     <div>
-      {/* Search bar + Add button */}
-      <div className="flex gap-2 mb-4">
-        <div className="flex-1 relative">
+      {/* Search bar */}
+      <div className="mb-4">
+        <div className="relative">
           <input
             type="text"
             value={searchQuery}
@@ -84,13 +59,6 @@ export default function FaqView({ onSendToChat, onGoToChat }: FaqViewProps) {
             />
           </svg>
         </div>
-        <button
-          onClick={handleCreate}
-          className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg
-                     hover:bg-indigo-700 transition-colors whitespace-nowrap"
-        >
-          + 추가
-        </button>
       </div>
 
       {/* FAQ card list */}
@@ -108,29 +76,20 @@ export default function FaqView({ onSendToChat, onGoToChat }: FaqViewProps) {
               </button>
             </>
           ) : (
-            <p>No FAQs yet. Create your first one!</p>
+            <p>KB에 고정된 항목이나 검색 빈도가 높은 항목이 여기에 표시됩니다.</p>
           )}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredFaqs.map((faq) => (
+          {filteredFaqs.map((item) => (
             <FaqCard
-              key={faq.id}
-              faq={faq}
+              key={item.id}
+              item={item}
               onSendToChat={onSendToChat}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
             />
           ))}
         </div>
       )}
-
-      <FaqFormModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleSubmit}
-        editItem={editItem}
-      />
     </div>
   );
 }
