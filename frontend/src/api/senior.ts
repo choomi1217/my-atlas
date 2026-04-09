@@ -2,8 +2,8 @@ import apiClient from './client';
 import { ApiResponse } from '@/types/features';
 import { FaqContext, KbItem, KbRequest, PdfUploadJob } from '@/types/senior';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// 상대 경로 사용 → Vite proxy 경유 (worktree별 포트 자동 대응)
+const API_BASE_URL = '';
 
 /**
  * Senior Chat API — uses fetch for SSE streaming (axios doesn't support streaming).
