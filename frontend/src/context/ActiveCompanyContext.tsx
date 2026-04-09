@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, ReactNode, useState, useCallback } from 'react';
 import { Company } from '@/types/features';
 

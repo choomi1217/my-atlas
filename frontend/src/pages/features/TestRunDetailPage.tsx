@@ -91,6 +91,7 @@ export default function TestRunDetailPage() {
     });
 
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testRun, allTestCases, segmentMap]);
 
   const enterEditMode = () => {
