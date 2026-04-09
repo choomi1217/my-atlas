@@ -176,10 +176,10 @@ test.describe('Knowledge Base UI E2E', () => {
     await expect(page.locator('h1.text-3xl')).toBeVisible();
   });
 
-  // --- Card preview ---
+  // --- Card content ---
 
-  test('should show truncated plain text preview on cards (not raw markdown)', async ({ page }) => {
-    // Ensure we have a KB entry with markdown content
+  test('should not show content preview or edit/delete buttons on cards', async ({ page }) => {
+    // Ensure we have a KB entry
     if (!createdKbId) {
       const resp = await apiRequest.post('/api/kb', {
         data: {
@@ -202,11 +202,13 @@ test.describe('Knowledge Base UI E2E', () => {
     const card = page.locator('.cursor-pointer').filter({ hasText: /E2E/ }).first();
     await expect(card).toBeVisible();
 
-    // The card preview text should NOT contain raw markdown syntax like ## or **
+    // Card should NOT have content preview text
     const cardText = await card.innerText();
-    // Should not have markdown heading markers
-    expect(cardText).not.toContain('## ');
-    // Should not have bold markers
-    expect(cardText).not.toContain('**');
+    expect(cardText).not.toContain('This is a heading');
+    expect(cardText).not.toContain('bold');
+
+    // Card should NOT have Edit/Delete buttons
+    await expect(card.locator('text=Edit')).not.toBeVisible();
+    await expect(card.locator('text=Delete')).not.toBeVisible();
   });
 });
