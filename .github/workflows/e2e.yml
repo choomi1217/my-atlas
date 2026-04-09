@@ -1,4 +1,4 @@
-name: E2E Tests
+name: E2E Tests & Deploy
 
 on:
   push:
@@ -160,7 +160,7 @@ jobs:
     needs: [api-e2e, ui-e2e]
     if: |
       github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      github.ref == 'refs/heads/main'
 
     steps:
       - name: Check AWS credentials available
@@ -175,33 +175,121 @@ jobs:
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
-      - uses: actions/checkout@v4
-        if: steps.check-aws.outputs.skip != 'true'
+      - name: E2E passed — ready to deploy
+        run: echo "All E2E tests passed. Proceeding to deployment..."
 
-      - name: Configure AWS Credentials
-        if: steps.check-aws.outputs.skip != 'true'
+    outputs:
+      skip: ${{ steps.check-aws.outputs.skip }}
+
+  deploy-backend:
+    name: Deploy Backend to EC2
+    runs-on: ubuntu-latest
+    needs: deploy-gate
+    if: needs.deploy-gate.outputs.skip != 'true'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ec2-user/my-atlas
+            git pull origin main
+            docker compose up -d --build backend
+            echo "Waiting for backend to start..."
+            sleep 15
+            curl -f http://localhost:8080/actuator/health || exit 1
+            echo "Backend deployed successfully!"
+
+  deploy-frontend:
+    name: Deploy Frontend to S3/CloudFront
+    runs-on: ubuntu-latest
+    needs: deploy-gate
+    if: needs.deploy-gate.outputs.skip != 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build for production
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_API_BASE_URL: http://3.34.154.147:8080
+
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ap-northeast-2
 
-      - name: Check E2E tests passed
-        if: steps.check-aws.outputs.skip != 'true'
-        run: |
-          echo "All E2E tests passed successfully!"
-          echo "Ready for AWS deployment..."
-          # TODO: Add actual AWS deployment commands here
-          # Examples:
-          # aws ecs update-service --cluster myatlas-cluster --service myatlas-backend --force-new-deployment
-          # aws ecs update-service --cluster myatlas-cluster --service myatlas-frontend --force-new-deployment
+      - name: Deploy to S3
+        run: aws s3 sync frontend/dist/ s3://my-atlas-frontend/ --delete
+
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id EVMWQ4ZH85AXV --paths "/*"
 
   notify-slack:
     name: Slack Notification
     runs-on: ubuntu-latest
-    needs: [api-e2e, ui-e2e]
+    needs: [api-e2e, ui-e2e, deploy-backend, deploy-frontend]
     if: ${{ always() }}
     steps:
+      - name: Determine results
+        id: results
+        run: |
+          # E2E results
+          if [ "${{ needs.api-e2e.result }}" = "success" ] && [ "${{ needs.ui-e2e.result }}" = "success" ]; then
+            echo "e2e=passed" >> $GITHUB_OUTPUT
+          else
+            echo "e2e=failed" >> $GITHUB_OUTPUT
+          fi
+          # Deploy results
+          if [ "${{ needs.deploy-backend.result }}" = "skipped" ]; then
+            echo "deploy=skipped" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.deploy-backend.result }}" = "success" ] && [ "${{ needs.deploy-frontend.result }}" = "success" ]; then
+            echo "deploy=success" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.deploy-backend.result }}" = "failure" ] || [ "${{ needs.deploy-frontend.result }}" = "failure" ]; then
+            echo "deploy=failed" >> $GITHUB_OUTPUT
+          else
+            echo "deploy=skipped" >> $GITHUB_OUTPUT
+          fi
+          # Overall
+          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ]; then
+            echo "icon=❌" >> $GITHUB_OUTPUT
+            echo "status=Failed" >> $GITHUB_OUTPUT
+          else
+            echo "icon=✅" >> $GITHUB_OUTPUT
+            echo "status=Passed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build deploy status text
+        id: deploy-text
+        run: |
+          if [ "${{ steps.results.outputs.deploy }}" = "skipped" ]; then
+            echo "text=_(develop — deploy skipped)_" >> $GITHUB_OUTPUT
+          elif [ "${{ steps.results.outputs.deploy }}" = "success" ]; then
+            echo "text=🚀 Backend + Frontend 배포 완료" >> $GITHUB_OUTPUT
+          else
+            echo "text=⚠️ 배포 실패" >> $GITHUB_OUTPUT
+          fi
+
       - name: Notify Slack
         uses: slackapi/slack-github-action@v2.0.0
         with:
@@ -209,19 +297,19 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "${{ contains(needs.*.result, 'failure') && '❌' || '✅' }} *${{ github.workflow }}* ${{ contains(needs.*.result, 'failure') && 'failed' || 'passed' }} on ${{ github.ref_name }}",
+              "text": "${{ steps.results.outputs.icon }} *E2E Tests & Deploy* ${{ steps.results.outputs.status }} on ${{ github.ref_name }}",
               "blocks": [
                 {
                   "type": "header",
-                  "text": { "type": "plain_text", "text": "${{ contains(needs.*.result, 'failure') && '❌' || '✅' }} ${{ github.workflow }} ${{ contains(needs.*.result, 'failure') && 'Failed' || 'Passed' }}" }
+                  "text": { "type": "plain_text", "text": "${{ steps.results.outputs.icon }} E2E Tests & Deploy — ${{ steps.results.outputs.status }}" }
                 },
                 {
                   "type": "section",
                   "fields": [
-                    { "type": "mrkdwn", "text": "*Repository:*\n${{ github.repository }}" },
                     { "type": "mrkdwn", "text": "*Branch:*\n${{ github.ref_name }}" },
                     { "type": "mrkdwn", "text": "*Commit:*\n${{ github.event.head_commit.message }}" },
-                    { "type": "mrkdwn", "text": "*Author:*\n${{ github.actor }}" }
+                    { "type": "mrkdwn", "text": "*E2E:*\n${{ steps.results.outputs.e2e == 'passed' && '✅ Passed' || '❌ Failed' }}" },
+                    { "type": "mrkdwn", "text": "*Deploy:*\n${{ steps.deploy-text.outputs.text }}" }
                   ]
                 },
                 {
