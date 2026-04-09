@@ -1,13 +1,13 @@
 package com.myqaweb.senior;
 
+import com.myqaweb.knowledgebase.KnowledgeBaseDto;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Service interface for My Senior feature.
- * Handles AI chat with RAG pipeline and FAQ CRUD operations.
+ * Handles AI chat with RAG pipeline and curated FAQ view.
  */
 public interface SeniorService {
 
@@ -20,41 +20,10 @@ public interface SeniorService {
     SseEmitter chat(ChatDto.ChatRequest request);
 
     /**
-     * Retrieves all FAQ entries.
+     * Returns curated FAQ list from Knowledge Base.
+     * Combines pinned entries (up to 15) and top hit entries (up to 5).
      *
-     * @return list of all FAQ responses
+     * @return curated list of KB responses (max 20)
      */
-    List<FaqDto.FaqResponse> findAllFaqs();
-
-    /**
-     * Retrieves a single FAQ by ID.
-     *
-     * @param id the FAQ ID
-     * @return optional containing the FAQ response if found
-     */
-    Optional<FaqDto.FaqResponse> findFaqById(Long id);
-
-    /**
-     * Creates a new FAQ entry with embedding generation.
-     *
-     * @param request the FAQ creation request
-     * @return the created FAQ response
-     */
-    FaqDto.FaqResponse createFaq(FaqDto.FaqRequest request);
-
-    /**
-     * Updates an existing FAQ entry with embedding regeneration.
-     *
-     * @param id      the FAQ ID
-     * @param request the FAQ update request
-     * @return the updated FAQ response
-     */
-    FaqDto.FaqResponse updateFaq(Long id, FaqDto.FaqRequest request);
-
-    /**
-     * Deletes a FAQ entry.
-     *
-     * @param id the FAQ ID
-     */
-    void deleteFaq(Long id);
+    List<KnowledgeBaseDto.KbResponse> getCuratedFaqs();
 }

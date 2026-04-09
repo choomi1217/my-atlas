@@ -52,4 +52,26 @@ public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBaseEnti
     @Query(value = "UPDATE knowledge_base SET embedding = cast(:embedding as vector) WHERE id = :id",
             nativeQuery = true)
     void updateEmbedding(@Param("id") Long id, @Param("embedding") String embedding);
+
+    // --- 큐레이션 FAQ 관련 쿼리 ---
+
+    @Query(value = "SELECT * FROM knowledge_base WHERE pinned_at IS NOT NULL "
+            + "ORDER BY pinned_at ASC LIMIT 15",
+            nativeQuery = true)
+    List<KnowledgeBaseEntity> findPinned();
+
+    @Query(value = "SELECT * FROM knowledge_base ORDER BY hit_count DESC LIMIT :limit",
+            nativeQuery = true)
+    List<KnowledgeBaseEntity> findTopByHitCount(@Param("limit") int limit);
+
+    @Modifying
+    @Query(value = "UPDATE knowledge_base SET hit_count = hit_count + 1 WHERE id = :id",
+            nativeQuery = true)
+    void incrementHitCount(@Param("id") Long id);
+
+    @Modifying
+    @Query("UPDATE KnowledgeBaseEntity k SET k.pinnedAt = :pinnedAt WHERE k.id = :id")
+    void updatePinnedAt(@Param("id") Long id, @Param("pinnedAt") java.time.LocalDateTime pinnedAt);
+
+    long countByPinnedAtIsNotNull();
 }

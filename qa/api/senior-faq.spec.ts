@@ -13,10 +13,9 @@ test.afterAll(async () => {
   await request.dispose();
 });
 
-test.describe('Senior FAQ API E2E', () => {
-  let faqId: number;
+test.describe('Senior FAQ API E2E (Curated KB View)', () => {
 
-  test('GET /api/senior/faq - returns list', async () => {
+  test('GET /api/senior/faq - returns curated KB list', async () => {
     const response = await request.get('/api/senior/faq');
     expect(response.status()).toBe(200);
     const body = await response.json() as any;
@@ -24,75 +23,23 @@ test.describe('Senior FAQ API E2E', () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
-  test('POST /api/senior/faq - create FAQ', async () => {
-    const response = await request.post('/api/senior/faq', {
-      data: {
-        title: 'E2E Test FAQ',
-        content: 'This is an E2E test FAQ entry.',
-        tags: 'e2e,test',
-      },
-    });
-    expect(response.status()).toBe(201);
-    const body = await response.json() as any;
-    expect(body.success).toBe(true);
-    expect(body.data.title).toBe('E2E Test FAQ');
-    expect(body.data.content).toBe('This is an E2E test FAQ entry.');
-    expect(body.data.tags).toBe('e2e,test');
-    faqId = body.data.id;
-  });
-
-  test('GET /api/senior/faq/{id} - retrieve created FAQ', async () => {
-    const response = await request.get(`/api/senior/faq/${faqId}`);
+  test('GET /api/senior/faq - response includes KB fields', async () => {
+    const response = await request.get('/api/senior/faq');
     expect(response.status()).toBe(200);
     const body = await response.json() as any;
     expect(body.success).toBe(true);
-    expect(body.data.id).toBe(faqId);
-    expect(body.data.title).toBe('E2E Test FAQ');
-  });
+    expect(Array.isArray(body.data)).toBe(true);
 
-  test('PUT /api/senior/faq/{id} - update FAQ', async () => {
-    const response = await request.put(`/api/senior/faq/${faqId}`, {
-      data: {
-        title: 'E2E Updated FAQ',
-        content: 'Updated content for E2E test.',
-        tags: 'e2e,updated',
-      },
-    });
-    expect(response.status()).toBe(200);
-    const body = await response.json() as any;
-    expect(body.success).toBe(true);
-    expect(body.data.title).toBe('E2E Updated FAQ');
-  });
-
-  test('POST /api/senior/faq - validation: blank title returns 400', async () => {
-    const response = await request.post('/api/senior/faq', {
-      data: { title: '', content: 'Content' },
-    });
-    expect(response.status()).toBe(400);
-    const body = await response.json() as any;
-    expect(body.success).toBe(false);
-  });
-
-  test('POST /api/senior/faq - validation: blank content returns 400', async () => {
-    const response = await request.post('/api/senior/faq', {
-      data: { title: 'Valid Title', content: '' },
-    });
-    expect(response.status()).toBe(400);
-    const body = await response.json() as any;
-    expect(body.success).toBe(false);
-  });
-
-  test('DELETE /api/senior/faq/{id} - delete FAQ', async () => {
-    const response = await request.delete(`/api/senior/faq/${faqId}`);
-    expect(response.status()).toBe(200);
-    const body = await response.json() as any;
-    expect(body.success).toBe(true);
-  });
-
-  test('GET /api/senior/faq/{id} - deleted FAQ returns 404', async () => {
-    const response = await request.get(`/api/senior/faq/${faqId}`);
-    expect(response.status()).toBe(404);  // GET은 실제로 404 반환 (리소스 미존재)
-    const body = await response.json() as any;
-    expect(body.success).toBe(false);
+    // If there are entries, verify they have the KB-specific fields
+    if (body.data.length > 0) {
+      const entry = body.data[0];
+      expect(entry).toHaveProperty('id');
+      expect(entry).toHaveProperty('title');
+      expect(entry).toHaveProperty('content');
+      expect(entry).toHaveProperty('hitCount');
+      expect(entry).toHaveProperty('pinnedAt');
+      // hitCount should be a number
+      expect(typeof entry.hitCount).toBe('number');
+    }
   });
 });

@@ -17,4 +17,10 @@ public interface KnowledgeBaseService {
     KnowledgeBaseDto.KbResponse update(Long id, KnowledgeBaseDto.KbRequest request);
 
     void delete(Long id);
+
+    void pinKbEntry(Long id);
+
+    void unpinKbEntry(Long id);
+
+    List<KnowledgeBaseDto.KbResponse> getCuratedFaqs();
 }
