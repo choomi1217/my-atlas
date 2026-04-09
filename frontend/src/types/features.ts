@@ -135,6 +135,14 @@ export enum RunResultStatus {
 }
 
 /**
+ * Test case summary (lightweight, used in TestRun detail).
+ */
+export interface TestCaseSummary {
+  id: number;
+  title: string;
+}
+
+/**
  * Test run interface.
  */
 export interface TestRun {
@@ -143,6 +151,7 @@ export interface TestRun {
   name: string;
   description?: string;
   testCaseCount: number;
+  testCases?: TestCaseSummary[];
   createdAt: string;
   updatedAt: string;
 }
