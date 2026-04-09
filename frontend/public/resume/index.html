@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>조영미 — QA Engineer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #faf9ff;
+      --surface2: #f3f0ff;
+      --border: #e4dff7;
+      --text: #1a1523;
+      --text2: #4a4458;
+      --text3: #9d8fbf;
+      --accent: #8B5CF6;
+      --accent-light: #f0ebff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.7; }
+    .page { max-width: 900px; margin: 0 auto; padding: 4rem 2rem 6rem; }
+
+    /* ── HEADER ── */
+    .header { margin-bottom: 0; padding-bottom: 2.5rem; border-bottom: 2px solid var(--accent); }
+
+    /* ── TABS ── */
+    .tab-bar { display: flex; gap: 0; margin-bottom: 3rem; }
+    .tab { flex: 1; text-align: center; padding: 14px 0; font-size: 15px; font-weight: 500; color: var(--text3); background: var(--surface); border: 1px solid var(--border); border-top: none; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+    .tab:first-child { border-radius: 0 0 0 10px; }
+    .tab:last-child { border-radius: 0 0 10px 0; }
+    .tab:hover { color: var(--text2); background: var(--surface2); }
+    .tab.active { color: var(--accent); background: var(--bg); border-bottom-color: transparent; font-weight: 700; position: relative; }
+    .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--accent); }
+    .name { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 14px; }
+    .name-en { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 400; color: var(--text3); margin-left: 12px; }
+    .header-row { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1.5rem; }
+    .role-badge { display: inline-block; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-light); padding: 6px 18px; border-radius: 999px; margin-bottom: 10px; }
+    .header-meta { display: flex; gap: 20px; flex-wrap: wrap; }
+    .header-meta span { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--text3); }
+    .career-box { text-align: right; }
+    .career-num { font-family: 'DM Mono', monospace; font-size: 32px; font-weight: 500; line-height: 1; }
+    .career-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+    /* ── SECTION ── */
+    .section { margin-bottom: 3.5rem; }
+    .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 2rem; }
+    .section-title { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text); white-space: nowrap; }
+    .section-line { flex: 1; height: 1px; background: var(--border); }
+
+    /* ── 2-COLUMN LAYOUT ── */
+    .exp-row {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 0 2.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .exp-left {
+      padding-top: 2px;
+    }
+
+    .company-name {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+
+    .company-name-dot {
+      color: var(--accent);
+    }
+
+    .company-role {
+      font-size: 15px;
+      color: var(--text2);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    .company-period {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      color: var(--text3);
+    }
+
+    .exp-right {}
+
+    /* ── TIMELINE ── */
+    .timeline { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px 0; margin-bottom: 12px; }
+    .timeline-row { display: flex; gap: 14px; align-items: flex-start; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+    .timeline-row:last-child { border-bottom: none; }
+    .t-period { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-light); padding: 5px 12px; border-radius: 5px; white-space: nowrap; flex-shrink: 0; }
+    .t-desc { font-size: 13px; color: var(--text2); line-height: 1.7; padding-top: 2px; }
+
+    /* ── PROJECT CARD ── */
+    .project-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; margin-bottom: 12px; }
+    .project-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; letter-spacing: -0.01em; }
+    .bullet-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+    .bullet { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); margin-top: 10px; flex-shrink: 0; }
+    .bullet-text { font-size: 15px; color: var(--text2); line-height: 1.75; }
+    .result-badge { display: inline-block; font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 5px; margin-top: 12px; }
+    .badge-green { color: #5b21b6; background: #ede9fe; }
+    .badge-amber { color: #6b3d00; background: #fdefd8; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .tag { font-family: 'DM Mono', monospace; font-size: 13px; padding: 5px 13px; border-radius: 4px; }
+    .tag-blue { color: var(--accent); background: var(--accent-light); }
+    .tag-gray { color: var(--text2); background: var(--surface2); }
+    .tag-green { color: #5b21b6; background: #ede9fe; }
+
+    /* ── SIDE PROJECT ── */
+    .project-accent { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 0 0 12px 12px; padding: 22px 24px; }
+    .project-accent-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.01em; }
+    .project-accent-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-bottom: 18px; }
+    .sub-label { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin: 18px 0 10px; }
+    .test-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+    .test-stat { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; color: #5b21b6; background: #ede9fe; padding: 4px 10px; border-radius: 4px; }
+
+    /* ── SKILLS ── */
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .skill-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+    .skill-category { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 10px; }
+    .skill-items { font-size: 13px; color: var(--text2); line-height: 1.8; }
+
+    /* ── SKILLS TABLE ── */
+    .skills-table { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .skills-row { display: flex; align-items: flex-start; gap: 2rem; padding: 18px 24px; border-bottom: 1px solid var(--border); }
+    .skills-label { font-size: 13px; font-weight: 700; color: var(--accent); min-width: 160px; flex-shrink: 0; padding-top: 3px; }
+    .skills-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .skill-pill { font-size: 14px; color: var(--text2); background: var(--bg); border: 1px solid var(--border); padding: 6px 16px; border-radius: 999px; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
+    .footer { text-align: center; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); letter-spacing: 0.04em; }
+
+    @media (max-width: 680px) {
+      .exp-row { grid-template-columns: 1fr; }
+      .exp-left { margin-bottom: 1rem; }
+      .page { padding: 2.5rem 1.25rem 4rem; }
+      .header-row { flex-direction: column; align-items: flex-start; }
+      .career-box { text-align: left; }
+      .name { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="name">조영미</div>
+    <div class="header-row">
+      <div>
+        <div class="role-badge">QA Engineer</div>
+        <div class="header-meta">
+          <span><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="94e3fcf0e1f0f5f8a5a6a5a3d4faf5e2f1e6baf7fbf9">[email&#160;protected]</a></span>
+          
+        </div>
+      </div>
+      <div class="career-box">
+        <div class="career-num">4Y 4M</div>
+        <div class="career-sub">개발 3년 · QA 1년</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <a class="tab" href="intro.html">자기소개서</a>
+    <a class="tab active" href="resume.html">경력기술서</a>
+  </div>
+
+  <!-- QA 경력 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">QA Experience</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="exp-row">
+      <!-- 좌측: 회사 정보 -->
+      <div class="exp-left">
+        <div class="company-name">Studio XID<span class="company-name-dot">.</span></div>
+        <div class="company-role">Test Engineer</div>
+        <div class="company-period">2025.03 — 2026.03</div>
+      </div>
+
+      <!-- 우측: 프로젝트 목록 -->
+      <div class="exp-right">
+
+        <!-- 타임라인 -->
+        <div class="timeline">
+          <div class="timeline-row">
+            <span class="t-period">2025.03 — 2025.10</span>
+            <span class="t-desc">ProtoPie Cloud QA</span>
+          </div>
+          <div class="timeline-row">
+            <span class="t-period">2025.11 — 2026.03</span>
+            <span class="t-desc">User Testing QA</span>
+          </div>
+        </div>
+
+        <!-- KPI 카드 -->
+        <div class="project-card">
+          <div class="project-title">User Testing — 소켓 안정성 검증</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Moderator / Participant / Observer / Mobile(Android·iOS) / Windows 등 8명 동시 참가 시나리오에서 소켓 연결 안정성 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Chrome DevTools Throttling, 실제 네트워크 차단, 모바일 앱 백그라운드 전환으로 네트워크 불안정 환경 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">iOS / Android 백그라운드 전환 후 재접속 정상 여부, Participant 이탈 후 10분 세션 유지 및 자동 종료, 10분 내 재접속 시 세션 복구 테스트</span></div>
+          <div class="tags">
+            <span class="tag tag-blue">WebSocket Test</span><span class="tag tag-gray">Android · iOS</span><span class="tag tag-gray">네트워크 불안정</span><span class="tag tag-gray">세션 관리</span>
+          </div>
+        </div>
+
+        <!-- 프로젝트 카드들 -->
+        <div class="project-card">
+          <div class="project-title">AI 응답 검증 자동화</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Studio AI 채팅 기능 출시 전, 600개 이상의 질의에 대한 응답 품질 전수 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">엑셀 내용을 스크립트로 자동으로 응답 수집</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">수집한 응답을 <strong>질문 | AI 응답 | 기대 응답 | Claude 판단 점수</strong> 형식의 CSV로 가공, Claude에 채점 기준을 Prompt로 정의하여 응답 품질 자동 평가</span></div>
+          <span class="result-badge badge-green">예상 테스트 완료 일주일  →  하루로 단축 </span>
+          <div class="tags">
+            <span class="tag tag-blue">JavaScript</span><span class="tag tag-blue">Prompt Engineering</span><span class="tag tag-gray">CSV</span><span class="tag tag-gray">Claude.ai</span>
+          </div>
+        </div>
+
+        <div class="project-card">
+          <div class="project-title">API 스크립트 자동화</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">네트워크 요청·JSON 응답 구조 분석, 팀의 반복 작업을 API 스크립트로 해결</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">페이지네이션 등 대량 데이터 필요 시 API 반복 호출로 테스트 데이터 자동 생성</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">다수 유저 팀 이동 등 운영팀이 수동 처리 불가한 작업을 스크립트로 대체 처리</span></div>
+          <div class="tags">
+            <span class="tag tag-blue">JavaScript</span><span class="tag tag-blue">API 자동화</span><span class="tag tag-blue">DevTools</span>
+          </div>
+        </div>
+
+        <div class="project-card">
+          <div class="project-title">reCAPTCHA v2 QA</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Email Abusing 대응 reCAPTCHA v2 도입, 자동화 도구로 CAPTCHA 테스트</span></div>
+          <div class="tags">
+            <span class="tag tag-blue">Playwright</span><span class="tag tag-gray">보안 QA</span>
+          </div>
+        </div>
+
+        <div class="project-card">
+          <div class="project-title">Test Case 설계</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">경계값 테스트 — 경계 이하·경계·경계 초과 케이스로 파일 용량 제한(1GB) 검증</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">상태 전이 조합 전수 검증</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">권한(역할·플랜·멤버십)에 따른 기능 접근 시나리오 설계</span></div>
+          <div class="tags">
+            <span class="tag tag-gray">경계값 분석</span><span class="tag tag-gray">상태 전이 테스트</span><span class="tag tag-gray">권한 기반 테스트</span>
+          </div>
+        </div>
+
+        <div class="project-card">
+          <div class="project-title">QA Sprint 설계 및 운영</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">개발팀 Sprint 주기에 맞춰 QA팀 Sprint 보드 설계 및 운영</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">테스트 일정, 워크플로우, Jira Automation 구성</span></div>
+          <div class="tags">
+            <span class="tag tag-blue">Jira</span><span class="tag tag-gray">Sprint Board</span><span class="tag tag-gray">Jira Automation</span><span class="tag tag-gray">TestRail</span>
+          </div>
+        </div>
+        <div class="project-card">
+          <div class="project-title">Playwright Test Architecture Design</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Account, Membership, Role, Plan을 관리하는 테스트 환경 설계</span></div>
+          <div class="tags">
+            <span class="tag tag-blue">Playwright</span><span class="tag tag-blue">JSON Manifest</span><span class="tag tag-gray">GitHub Actions</span><span class="tag tag-gray">AWS</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 개발 경력 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Development Experience</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="exp-row">
+      <div class="exp-left">
+        <div class="company-name">NFLUX<span class="company-name-dot">.</span></div>
+        <div class="company-role">Java 백엔드 개발자</div>
+        <div class="company-period">2024.01 — 2024.10</div>
+      </div>
+      <div class="exp-right">
+        <div class="project-card">
+          <div class="project-title">부산교통공사 지하철 관리 시스템</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">DB 중복 적재 버그를 Scheduler Lock으로 해결</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">JPA N+1 문제 진단 및 QueryDSL 개선 — 성능 이슈 탐지 경험</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">테스트 서버(WAS 1대) vs 운영 서버(WAS 2대) 환경 차이 문제 해결</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"> CI/CD, Slack 알림 봇 구축</span></div>
+          <div class="tags">
+            <span class="tag tag-gray">Java</span><span class="tag tag-gray">Spring Boot</span><span class="tag tag-gray">PostgreSQL</span><span class="tag tag-gray">Kafka</span><span class="tag tag-gray">ElasticSearch</span><span class="tag tag-gray">Docker</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="exp-row" style="margin-bottom:0;">
+      <div class="exp-left">
+        <div class="company-name">도로명주소단<span class="company-name-dot">.</span></div>
+        <div class="company-role">Java 백엔드 개발자</div>
+        <div class="company-period">2020.12 — 2023.03</div>
+      </div>
+      <div class="exp-right">
+        <div class="project-card">
+          <div class="project-title">GIS 기반 도로명주소 웹 애플리케이션</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Test Code(JUnit + Mockito) 사용 — 테스트 자동화 필요성을 직접 경험하고 주도한 계기</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Apache Solr API, GeoServer, Spring Scheduler 등 다양한 기술 스택 실무 경험</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">지도 이미지 재생성 백오피스 — 알고리즘 설계부터 구현까지 단독 수행</span></div>
+          <div class="tags">
+            <span class="tag tag-gray">Java</span><span class="tag tag-gray">Spring Framework</span><span class="tag tag-gray">PostgreSQL</span><span class="tag tag-gray">Oracle</span><span class="tag tag-gray">Apache Solr</span><span class="tag tag-gray">GeoServer</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 개인 프로젝트 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Side Project</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="exp-row">
+      <div class="exp-left">
+        <div class="company-name">my-atlas<span class="company-name-dot">.</span></div>
+        <div class="company-role">개인 프로젝트</div>
+        <div class="company-period">2026.02 — 현재</div>
+      </div>
+
+      <div class="exp-right">
+        <div class="project-accent">
+          <div class="project-accent-title">QA 지식 관리 & AI 테스트 자동화 웹 애플리케이션</div>
+          <div class="project-accent-sub">github.com/choomi1217/my-atlas</div>
+
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">QA 업무 효율화를 위해 직접 설계·개발 중인 풀스택 웹 서비스. <br/> Spring Boot + React + PostgreSQL(pgvector) 기반</span></div>
+
+          <div class="sub-label">구현 완료 기능</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>My Senior (AI QA 챗봇)</strong> — 사용자 질문을 임베딩하여 pgvector 코사인 유사도 검색으로 관련 QA 지식을 컨텍스트로 주입, Claude API로 SSE 스트리밍 답변 생성. RAG 파이프라인 완성</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Company Feature (TC 관리)</strong> — Company → Product → TestCase 3단계 드릴다운, Segment 기반 계층형 경로 관리, AI가 Feature 설명 기반으로 테스트 케이스 초안 자동 생성</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Knowledge Base (진행 중)</strong> — PDF 도서 업로드 시 자동 청킹·임베딩 파이프라인 구현, @Async self-invocation 버그 직접 분석·해결, Rate Limit 대응 retry 로직 추가</span></div>
+
+          <div class="sub-label">테스트 커버리지</div>
+          <div class="test-stats">
+            <span class="test-stat">Backend Unit 161개 통과</span>
+            <span class="test-stat">Frontend Unit 33개 통과</span>
+            <span class="test-stat">E2E Playwright 60개 통과</span>
+            <span class="test-stat">Testcontainers pgvector Integration Test</span>
+          </div>
+
+          <div class="tags" style="margin-top:18px; padding-top:18px; border-top:1px solid var(--border);">
+            <span class="tag tag-blue">Spring Boot 3</span><span class="tag tag-blue">Java 21</span><span class="tag tag-blue">Spring AI</span><span class="tag tag-blue">React + TypeScript</span><span class="tag tag-blue">pgvector</span><span class="tag tag-green">Playwright</span><span class="tag tag-green">Testcontainers</span><span class="tag tag-gray">Docker Compose</span><span class="tag tag-gray">Claude API</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 기술 스택 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Skills</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="skills-table">
+      <div class="skills-row">
+        <div class="skills-label">Test Automation</div>
+        <div class="skills-tags">
+          <span class="skill-pill">Playwright</span>
+          <span class="skill-pill">Testcontainers</span>
+          <span class="skill-pill">JUnit</span>
+          <span class="skill-pill">Mockito</span>
+        </div>
+      </div>
+      <div class="skills-row">
+        <div class="skills-label">AI / Tools</div>
+        <div class="skills-tags">
+          <span class="skill-pill">Jira</span>
+          <span class="skill-pill">TestRail</span>
+          <span class="skill-pill">Claude.ai</span>
+          <span class="skill-pill">Prompt Engineering</span>
+          <span class="skill-pill">RAG</span>
+        </div>
+      </div>
+      <div class="skills-row">
+        <div class="skills-label">Languages</div>
+        <div class="skills-tags">
+          <span class="skill-pill">Java</span>
+          <span class="skill-pill">SQL / SQLD</span>
+        </div>
+      </div>
+      <div class="skills-row">
+        <div class="skills-label">Frameworks</div>
+        <div class="skills-tags">
+          <span class="skill-pill">Spring Boot</span>
+          <span class="skill-pill">Spring AI</span>
+        </div>
+      </div>
+      <div class="skills-row" style="border-bottom:none;">
+        <div class="skills-label">Infrastructure</div>
+        <div class="skills-tags">
+          <span class="skill-pill">AWS</span>
+          <span class="skill-pill">Docker</span>
+          <span class="skill-pill">Jenkins</span>
+          <span class="skill-pill">GitHub Actions</span>
+          <span class="skill-pill">PostgreSQL</span>
+          <span class="skill-pill">Oracle</span>
+          <span class="skill-pill">Terraform</span>
+          <span class="skill-pill">Linux</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">choomi1217@gmail.com</div>
+</div>
+</body>
+</html>
