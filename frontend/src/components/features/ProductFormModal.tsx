@@ -1,29 +1,37 @@
 import { useState, useEffect } from 'react';
-import { Platform } from '@/types/features';
+import { Platform, Product } from '@/types/features';
 
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: { name: string; platform: Platform; description: string }) => Promise<void>;
+  initialData?: Product | null;
 }
 
 export default function ProductFormModal({
   isOpen,
   onClose,
   onSubmit,
+  initialData,
 }: ProductFormModalProps) {
   const [name, setName] = useState('');
   const [platform, setPlatform] = useState<Platform>(Platform.WEB);
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isEdit = !!initialData;
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && initialData) {
+      setName(initialData.name);
+      setPlatform(initialData.platform);
+      setDescription(initialData.description || '');
+    } else if (isOpen) {
       setName('');
       setPlatform(Platform.WEB);
       setDescription('');
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
@@ -44,7 +52,7 @@ export default function ProductFormModal({
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800">
-              Add Product
+              {isEdit ? 'Edit Product' : 'Add Product'}
             </h3>
           </div>
           <div className="px-6 py-4 space-y-4">
@@ -109,7 +117,9 @@ export default function ProductFormModal({
               className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md
                          hover:bg-indigo-700 disabled:opacity-50"
             >
-              {isSubmitting ? 'Creating...' : 'Create'}
+              {isSubmitting
+                ? isEdit ? 'Saving...' : 'Creating...'
+                : isEdit ? 'Save' : 'Create'}
             </button>
           </div>
         </form>

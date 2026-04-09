@@ -34,8 +34,17 @@ public class TestCaseDto {
         Priority priority,
         TestType testType,
         TestStatus status,
+        List<TestCaseImageResponse> images,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
+    ) {}
+
+    public record TestCaseImageResponse(
+        Long id,
+        String filename,
+        String originalName,
+        Integer orderIndex,
+        String url
     ) {}
 
     public record GenerateDraftRequest(

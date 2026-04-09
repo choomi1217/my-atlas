@@ -22,6 +22,7 @@ public class TestCaseServiceImpl implements TestCaseService {
     private final TestCaseRepository testCaseRepository;
     private final ProductRepository productRepository;
     private final SegmentRepository segmentRepository;
+    private final TestCaseImageRepository testCaseImageRepository;
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
 
@@ -163,6 +164,18 @@ public class TestCaseServiceImpl implements TestCaseService {
     }
 
     private TestCaseDto.TestCaseResponse toResponse(TestCaseEntity entity) {
+        List<TestCaseDto.TestCaseImageResponse> images =
+                testCaseImageRepository.findAllByTestCaseIdOrderByOrderIndex(entity.getId())
+                        .stream()
+                        .map(img -> new TestCaseDto.TestCaseImageResponse(
+                                img.getId(),
+                                img.getFilename(),
+                                img.getOriginalName(),
+                                img.getOrderIndex(),
+                                "/api/feature-images/" + img.getFilename()
+                        ))
+                        .toList();
+
         return new TestCaseDto.TestCaseResponse(
                 entity.getId(),
                 entity.getProduct().getId(),
@@ -176,6 +189,7 @@ public class TestCaseServiceImpl implements TestCaseService {
                 entity.getPriority(),
                 entity.getTestType(),
                 entity.getStatus(),
+                images,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

@@ -27,6 +27,10 @@ export default function VersionDetailPage() {
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isPhaseModalOpen, setIsPhaseModalOpen] = useState(false);
   const [copiedFromName, setCopiedFromName] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editReleaseDate, setEditReleaseDate] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -117,6 +121,30 @@ export default function VersionDetailPage() {
     }
   };
 
+  const handleStartEdit = () => {
+    if (!version) return;
+    setEditName(version.name);
+    setEditDescription(version.description || '');
+    setEditReleaseDate(version.releaseDate || '');
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!version || !editName.trim()) return;
+    try {
+      const updated = await versionApi.update(
+        version.id,
+        editName.trim(),
+        editDescription.trim() || undefined,
+        editReleaseDate || undefined
+      );
+      setVersion(updated);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Failed to update version:', err);
+    }
+  };
+
   const handleDeleteVersion = async () => {
     if (!confirm('이 버전을 삭제하시겠습니까?')) return;
     if (!version) return;
@@ -168,6 +196,12 @@ export default function VersionDetailPage() {
 
           <div className="flex gap-2">
             <button
+              onClick={handleStartEdit}
+              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Edit
+            </button>
+            <button
               onClick={() => setIsCopyModalOpen(true)}
               className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50"
             >
@@ -199,32 +233,80 @@ export default function VersionDetailPage() {
         </div>
       )}
 
-      {/* Version Info */}
+      {/* Version Info (editable) */}
       <div className="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-gray-600">릴리스 예정일</p>
-            <p className="text-sm font-semibold text-gray-800">
-              {version.releaseDate
-                ? new Date(version.releaseDate).toLocaleDateString()
-                : '미정'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-600">복사 출처</p>
-            <p className="text-sm font-semibold text-gray-800">
-              {version.copiedFrom
-                ? copiedFromName || `ID: ${version.copiedFrom}`
-                : '신규'}
-            </p>
-          </div>
-          {version.description && (
-            <div className="col-span-2">
-              <p className="text-xs text-gray-600">설명</p>
-              <p className="text-sm text-gray-800">{version.description}</p>
+        {isEditing ? (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
-          )}
-        </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Description</label>
+              <input
+                type="text"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Description (optional)"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Release Date</label>
+              <input
+                type="date"
+                value={editReleaseDate}
+                onChange={(e) => setEditReleaseDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveEdit}
+                disabled={!editName.trim()}
+                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-gray-600">릴리스 예정일</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {version.releaseDate
+                  ? new Date(version.releaseDate).toLocaleDateString()
+                  : '미정'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-600">복사 출처</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {version.copiedFrom
+                  ? copiedFromName || `ID: ${version.copiedFrom}`
+                  : '신규'}
+              </p>
+            </div>
+            {version.description && (
+              <div className="col-span-2">
+                <p className="text-xs text-gray-600">설명</p>
+                <p className="text-sm text-gray-800">{version.description}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Overall Progress */}

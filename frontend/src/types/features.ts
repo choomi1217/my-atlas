@@ -15,6 +15,7 @@ export interface Company {
   id: number;
   name: string;
   isActive: boolean;
+  productCount: number;
   createdAt: string;
 }
 
@@ -80,6 +81,17 @@ export enum TestCaseStatus {
 /**
  * Test case interface.
  */
+/**
+ * Test case image interface.
+ */
+export interface TestCaseImage {
+  id: number;
+  filename: string;
+  originalName: string;
+  orderIndex: number;
+  url: string;
+}
+
 export interface TestCase {
   id: number;
   productId: number;
@@ -93,6 +105,7 @@ export interface TestCase {
   priority: TestCasePriority;
   testType: TestCaseType;
   status: TestCaseStatus;
+  images?: TestCaseImage[];
   createdAt: string;
   updatedAt: string;
 }
@@ -199,4 +212,19 @@ export interface Version {
   warningMessage?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Test result comment interface (threaded).
+ */
+export interface TestResultComment {
+  id: number;
+  testResultId: number;
+  parentId: number | null;
+  author: string | null;
+  content: string;
+  imageUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+  children: TestResultComment[];
 }

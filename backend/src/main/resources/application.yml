@@ -58,10 +58,12 @@ logging:
     root: INFO
     com.myqaweb: DEBUG
 
-# Feature embedding configuration
+# Feature configuration
 feature:
   embedding:
     enabled: ${FEATURE_EMBEDDING_ENABLED:false}
+  image:
+    upload-dir: ${FEATURE_IMAGE_UPLOAD_DIR:feature-images}
 
 # KB image upload
 kb:

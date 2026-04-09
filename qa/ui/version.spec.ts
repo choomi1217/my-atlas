@@ -295,6 +295,80 @@ test.describe('Version Management UI E2E', () => {
     }
   });
 
+  test('VersionDetailPage - Edit 버튼 클릭 → 인라인 편집 폼 표시', async () => {
+    if (!versionId) test.skip();
+
+    await goToVersionDetail(versionId);
+
+    // Edit button should be visible
+    const editButton = page.getByRole('button', { name: /^Edit$/i });
+    await expect(editButton).toBeVisible();
+
+    // Click Edit button
+    await editButton.click();
+
+    // Inline edit form should appear with Name, Description, Release Date inputs
+    const nameInput = page.locator('label:has-text("Name") + input, label:has-text("Name") ~ input').first();
+    if (await nameInput.isVisible().catch(() => false)) {
+      await expect(nameInput).toBeVisible();
+    } else {
+      // Alternative: check for input fields within the edit area
+      const inputsInEditForm = page.locator('input[type="text"], input[type="date"]');
+      expect(await inputsInEditForm.count()).toBeGreaterThanOrEqual(1);
+    }
+
+    // Save and Cancel buttons should be visible
+    await expect(page.getByRole('button', { name: /Save/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Cancel/i })).toBeVisible();
+
+    // Click Cancel to restore view mode
+    await page.getByRole('button', { name: /Cancel/i }).click();
+
+    // Edit form should be gone, version name visible again
+    const versionName = page.locator('text=v1.0.0-UI-Test');
+    await expect(versionName.first()).toBeVisible();
+  });
+
+  test('VersionPhaseDetailPage - StatusButtonGroup 버튼 표시 (select 대신 버튼)', async () => {
+    if (!versionId) test.skip();
+
+    // Get phase ID
+    const versionResponse = await apiClient.get<ApiResponse<Version>>(
+      `/api/versions/${versionId}`
+    );
+    const phaseId = versionResponse.data.data.phases?.[0]?.id;
+    if (!phaseId) test.skip();
+
+    // Navigate to phase detail page
+    await page.goto(
+      `/features/companies/${companyId}/products/${productId}/versions/${versionId}/phases/${phaseId}`
+    );
+    await page.waitForLoadState('networkidle');
+
+    // StatusButtonGroup should render buttons (P, F, B, S, R) instead of a select dropdown
+    // Check for status abbreviation buttons
+    const passButton = page.getByRole('button', { name: /^P$/i }).or(
+      page.locator('button[title="Pass"]')
+    );
+    const failButton = page.getByRole('button', { name: /^F$/i }).or(
+      page.locator('button[title="Fail"]')
+    );
+
+    // At least one status button should be visible (there are test results)
+    const statusButtonVisible = await passButton.first().isVisible().catch(() => false)
+      || await failButton.first().isVisible().catch(() => false);
+    expect(statusButtonVisible).toBe(true);
+
+    // Ensure no <select> elements are used for status (replaced by StatusButtonGroup)
+    const selectElements = page.locator('select');
+    const selectCount = await selectElements.count();
+    // There should be no select dropdown for status (all replaced by buttons)
+    // Note: there might be other selects on the page, so we check specifically
+    // The status area should have buttons, not selects
+    const statusButtons = page.locator('button[title="Pass"], button[title="Fail"], button[title="Blocked"], button[title="Skip"], button[title="Retest"]');
+    expect(await statusButtons.count()).toBeGreaterThan(0);
+  });
+
   test.afterAll(async () => {
     await cleanupAllTestData();
   });

@@ -64,10 +64,10 @@ export class FeaturesPage {
   }
 
   /**
-   * Click the "+" Add New card to open Add Company modal
+   * Click the "+ New Company" button to open Add Company modal
    */
   async openAddCompanyModal() {
-    await this.page.locator('text=Add New').first().click();
+    await this.page.getByRole('button', { name: /New Company/i }).click();
   }
 
   /**

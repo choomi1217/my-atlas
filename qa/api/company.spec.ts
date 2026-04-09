@@ -124,3 +124,98 @@ test.describe('Company API E2E', () => {
     }
   });
 });
+
+test.describe('Company API v12 - Update, Deactivate, productCount', () => {
+  let companyId: number;
+
+  test('POST /api/companies - create company for v12 tests', async () => {
+    const response = await request.post('/api/companies', {
+      data: { name: 'E2E v12 Company' },
+    });
+    expect(response.status()).toBe(201);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    companyId = body.data.id;
+  });
+
+  test('PUT /api/companies/{id} - updates company name', async () => {
+    const response = await request.put(`/api/companies/${companyId}`, {
+      data: { name: 'E2E v12 Company Renamed' },
+    });
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.name).toBe('E2E v12 Company Renamed');
+    expect(body.data.id).toBe(companyId);
+  });
+
+  test('PUT /api/companies/{id} - blank name returns 400', async () => {
+    const response = await request.put(`/api/companies/${companyId}`, {
+      data: { name: '' },
+    });
+    expect(response.status()).toBe(400);
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+  });
+
+  test('GET /api/companies - response includes productCount field', async () => {
+    const response = await request.get('/api/companies');
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    const company = body.data.find((c: any) => c.id === companyId);
+    expect(company).toBeDefined();
+    expect(company.productCount).toBeDefined();
+    expect(typeof company.productCount).toBe('number');
+    // No products yet, so productCount should be 0
+    expect(company.productCount).toBe(0);
+  });
+
+  test('GET /api/companies - productCount reflects created products', async () => {
+    // Create a product under this company
+    const productResponse = await request.post('/api/products', {
+      data: {
+        companyId,
+        name: 'E2E v12 Product',
+        platform: 'WEB',
+        description: 'Test product for productCount',
+      },
+    });
+    expect(productResponse.status()).toBe(201);
+
+    // Verify productCount is now 1
+    const response = await request.get('/api/companies');
+    const body = await response.json() as any;
+    const company = body.data.find((c: any) => c.id === companyId);
+    expect(company.productCount).toBe(1);
+  });
+
+  test('PATCH /api/companies/{id}/activate - activate before deactivate test', async () => {
+    const response = await request.patch(`/api/companies/${companyId}/activate`);
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.data.isActive).toBe(true);
+  });
+
+  test('PATCH /api/companies/{id}/deactivate - deactivates company', async () => {
+    const response = await request.patch(`/api/companies/${companyId}/deactivate`);
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.isActive).toBe(false);
+    expect(body.data.id).toBe(companyId);
+  });
+
+  test('PATCH /api/companies/{id}/deactivate - already inactive company still returns 200', async () => {
+    // Deactivate again — should succeed or at least not error
+    const response = await request.patch(`/api/companies/${companyId}/deactivate`);
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.data.isActive).toBe(false);
+  });
+
+  test.afterAll(async () => {
+    if (companyId) {
+      await request.delete(`/api/companies/${companyId}`).catch(() => {});
+    }
+  });
+});

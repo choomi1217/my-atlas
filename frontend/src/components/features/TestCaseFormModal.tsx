@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   TestCase,
+  TestCaseImage,
   TestStep,
   TestCasePriority,
   TestCaseType,
   TestCaseStatus,
 } from '@/types/features';
+import { featureImageApi, testCaseImageApi } from '@/api/features';
 
 interface TestCaseFormData {
   title: string;
@@ -48,6 +50,11 @@ export default function TestCaseFormModal({
 }: TestCaseFormModalProps) {
   const [form, setForm] = useState<TestCaseFormData>(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [images, setImages] = useState<TestCaseImage[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [hoveredImage, setHoveredImage] = useState<TestCaseImage | null>(null);
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
+  const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (initialData) {
@@ -65,10 +72,46 @@ export default function TestCaseFormModal({
             : [{ order: 1, action: '', expected: '' }],
         expectedResult: initialData.expectedResult || '',
       });
+      setImages(initialData.images || []);
     } else {
       setForm(emptyForm);
+      setImages([]);
     }
   }, [initialData, isOpen]);
+
+  const handleImageUpload = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0 || !initialData?.id) return;
+    setUploadingImage(true);
+    try {
+      for (const file of Array.from(files)) {
+        const uploaded = await featureImageApi.upload(file);
+        const linked = await testCaseImageApi.addImage(
+          initialData.id,
+          uploaded.filename,
+          uploaded.originalName
+        );
+        setImages((prev) => [...prev, linked]);
+      }
+    } finally {
+      setUploadingImage(false);
+    }
+  }, [initialData?.id]);
+
+  const handleRemoveImage = useCallback(async (imageId: number) => {
+    if (!initialData?.id) return;
+    await testCaseImageApi.removeImage(initialData.id, imageId);
+    setImages((prev) => prev.filter((img) => img.id !== imageId));
+  }, [initialData?.id]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    handleImageUpload(e.dataTransfer.files);
+  }, [handleImageUpload]);
+
+  const handleImageHover = (img: TestCaseImage, e: React.MouseEvent) => {
+    setHoveredImage(img);
+    setHoverPos({ x: e.clientX, y: e.clientY });
+  };
 
   if (!isOpen) return null;
 
@@ -241,6 +284,74 @@ export default function TestCaseFormModal({
                            focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
               />
             </div>
+
+            {/* Images (only shown in edit mode) */}
+            {isEdit && initialData?.id && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Images
+                </label>
+                <div
+                  ref={dropRef}
+                  onDrop={handleDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  className="bg-gray-50 p-3 rounded border border-dashed border-gray-300 text-center"
+                >
+                  {images.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2 justify-start">
+                      {images.map((img) => (
+                        <div
+                          key={img.id}
+                          className="relative group flex items-center gap-1 bg-white border rounded px-2 py-1"
+                          onMouseEnter={(e) => handleImageHover(img, e)}
+                          onMouseLeave={() => setHoveredImage(null)}
+                        >
+                          <span className="text-xs font-mono text-indigo-600">
+                            image #{img.orderIndex}
+                          </span>
+                          <span className="text-xs text-gray-400 truncate max-w-[100px]">
+                            {img.originalName}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(img.id)}
+                            className="text-gray-300 hover:text-red-500 text-xs ml-1"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className="cursor-pointer text-sm text-gray-500 hover:text-indigo-600">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e.target.files)}
+                    />
+                    {uploadingImage
+                      ? 'Uploading...'
+                      : 'Drop images here or click to attach'}
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Image hover preview */}
+            {hoveredImage && (
+              <div
+                className="fixed z-[100] pointer-events-none"
+                style={{ left: hoverPos.x + 16, top: hoverPos.y - 100 }}
+              >
+                <img
+                  src={hoveredImage.url}
+                  alt={hoveredImage.originalName}
+                  className="max-w-sm max-h-64 rounded shadow-lg border"
+                />
+              </div>
+            )}
 
             {/* Steps */}
             <div>

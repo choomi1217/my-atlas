@@ -17,6 +17,7 @@ export default function ProductListPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editTarget, setEditTarget] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
@@ -65,6 +66,21 @@ export default function ProductListPage() {
       data.description
     );
     setProducts([...products, product]);
+  };
+
+  const handleEditProduct = async (data: {
+    name: string;
+    platform: Platform;
+    description: string;
+  }) => {
+    if (!editTarget) return;
+    const updated = await productApi.update(
+      editTarget.id,
+      data.name,
+      data.platform,
+      data.description
+    );
+    setProducts(products.map((p) => (p.id === updated.id ? updated : p)));
   };
 
   const handleSelectProduct = (product: Product) => {
@@ -181,15 +197,26 @@ export default function ProductListPage() {
                   >
                     Versions
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget({ id: product.id, name: product.name });
-                    }}
-                    className="w-full px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded transition"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditTarget(product);
+                      }}
+                      className="flex-1 px-3 py-1 text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 rounded transition"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget({ id: product.id, name: product.name });
+                      }}
+                      className="flex-1 px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded transition"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -214,6 +241,14 @@ export default function ProductListPage() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddProduct}
+      />
+
+      {/* Edit Product Modal */}
+      <ProductFormModal
+        isOpen={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        onSubmit={handleEditProduct}
+        initialData={editTarget}
       />
 
       {/* Delete Confirm Dialog */}

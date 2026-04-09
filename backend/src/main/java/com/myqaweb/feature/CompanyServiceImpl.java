@@ -15,6 +15,7 @@ import java.util.Optional;
 @Transactional
 public class CompanyServiceImpl implements CompanyService {
     private final CompanyRepository companyRepository;
+    private final ProductRepository productRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -58,15 +59,35 @@ public class CompanyServiceImpl implements CompanyService {
     }
 
     @Override
+    public CompanyDto.CompanyResponse update(Long id, CompanyDto.CompanyRequest request) {
+        CompanyEntity entity = companyRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found: " + id));
+        entity.setName(request.name());
+        CompanyEntity updated = companyRepository.save(entity);
+        return toResponse(updated);
+    }
+
+    @Override
+    public CompanyDto.CompanyResponse deactivate(Long id) {
+        CompanyEntity entity = companyRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found: " + id));
+        entity.setIsActive(false);
+        CompanyEntity updated = companyRepository.save(entity);
+        return toResponse(updated);
+    }
+
+    @Override
     public void delete(Long id) {
         companyRepository.deleteById(id);
     }
 
     private CompanyDto.CompanyResponse toResponse(CompanyEntity entity) {
+        int productCount = productRepository.countByCompanyId(entity.getId());
         return new CompanyDto.CompanyResponse(
                 entity.getId(),
                 entity.getName(),
                 entity.getIsActive(),
+                productCount,
                 entity.getCreatedAt()
         );
     }

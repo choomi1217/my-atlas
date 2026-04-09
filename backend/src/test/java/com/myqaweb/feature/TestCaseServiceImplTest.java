@@ -28,6 +28,9 @@ class TestCaseServiceImplTest {
     private SegmentRepository segmentRepository;
 
     @Mock
+    private TestCaseImageRepository testCaseImageRepository;
+
+    @Mock
     private ChatClient chatClient;
 
     private TestCaseServiceImpl testCaseService;
@@ -42,9 +45,14 @@ class TestCaseServiceImplTest {
                 testCaseRepository,
                 productRepository,
                 segmentRepository,
+                testCaseImageRepository,
                 chatClient,
                 new ObjectMapper()
         );
+
+        // Default stub: return empty images for any test case (lenient because not all tests invoke toResponse)
+        lenient().when(testCaseImageRepository.findAllByTestCaseIdOrderByOrderIndex(anyLong()))
+                .thenReturn(List.of());
 
         company = new CompanyEntity(1L, "Test Company", true, LocalDateTime.now());
         product = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", LocalDateTime.now());
