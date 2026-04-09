@@ -87,4 +87,18 @@ public class KnowledgeBaseController {
         pdfPipelineService.deleteBook(source);
         return ResponseEntity.ok(new ApiResponse<>(true, "Book and all chunks deleted", null));
     }
+
+    // --- Pin/Unpin Endpoints ---
+
+    @PatchMapping("/{id}/pin")
+    public ResponseEntity<ApiResponse<Void>> pin(@PathVariable Long id) {
+        knowledgeBaseService.pinKbEntry(id);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Entry pinned", null));
+    }
+
+    @PatchMapping("/{id}/unpin")
+    public ResponseEntity<ApiResponse<Void>> unpin(@PathVariable Long id) {
+        knowledgeBaseService.unpinKbEntry(id);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Entry unpinned", null));
+    }
 }

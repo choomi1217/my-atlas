@@ -3,27 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useKnowledgeBase, SourceFilter } from '@/hooks/useKnowledgeBase';
 import PdfUploadModal from '@/components/kb/PdfUploadModal';
 
-function stripMarkdown(md: string): string {
-  return md
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`[^`]*`/g, ' ')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/(\*{1,3}|_{1,3})/g, '')
-    .replace(/^>\s?/gm, '')
-    .replace(/^[-*+]\s+/gm, '')
-    .replace(/^\d+\.\s+/gm, '')
-    .replace(/---+|===+|\*\*\*+/g, '')
-    .replace(/\n{2,}/g, ' ')
-    .trim();
-}
-
-function truncate(text: string, maxLen: number): string {
-  const stripped = stripMarkdown(text);
-  return stripped.length > maxLen ? stripped.slice(0, maxLen) + '...' : stripped;
-}
-
 const filterTabs: { key: SourceFilter; label: string }[] = [
   { key: 'all', label: '전체' },
   { key: 'manual', label: '직접 작성' },
@@ -41,17 +20,11 @@ export default function KnowledgeBasePage() {
     manualCount,
     pdfCount,
     fetchKbItems,
-    deleteKbItem,
     deleteBook,
   } = useKnowledgeBase();
 
   const navigate = useNavigate();
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
-
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('이 KB 항목을 삭제하시겠습니까?')) return;
-    await deleteKbItem(id);
-  };
 
   const handleDeleteBook = async (source: string) => {
     if (!window.confirm(`"${source}"의 전체 청크를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
@@ -180,10 +153,8 @@ export default function KnowledgeBasePage() {
                 <p className="text-xs text-purple-600 mb-1">source: {item.source}</p>
               )}
 
-              <p className="text-sm text-gray-600 line-clamp-3 mb-3">{truncate(item.content, 150)}</p>
-
               {item.tags && (
-                <div className="flex flex-wrap gap-1 mb-3">
+                <div className="flex flex-wrap gap-1">
                   {item.tags.split(',').map((tag, idx) => (
                     <span
                       key={idx}
@@ -192,24 +163,6 @@ export default function KnowledgeBasePage() {
                       {tag.trim()}
                     </span>
                   ))}
-                </div>
-              )}
-
-              {/* Actions — only for manual items */}
-              {!item.source && (
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate(`/kb/edit/${item.id}`); }}
-                    className="text-xs text-indigo-600 hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                    className="text-xs text-red-500 hover:underline"
-                  >
-                    Delete
-                  </button>
                 </div>
               )}
             </div>

@@ -41,6 +41,12 @@ public class KnowledgeBaseEntity {
     @Type(VectorType.class)
     private float[] embedding;
 
+    @Column(name = "hit_count", nullable = false)
+    private int hitCount = 0;
+
+    @Column(name = "pinned_at")
+    private LocalDateTime pinnedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

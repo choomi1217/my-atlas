@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { TestRun, TestCase } from '@/types/features';
+import { TestCase, Segment } from '@/types/features';
+import TestCaseGroupSelector from '@/components/features/TestCaseGroupSelector';
 
 interface TestRunFormData {
   name: string;
@@ -11,56 +12,50 @@ interface TestRunFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: TestRunFormData) => Promise<void>;
-  initialData?: TestRun | null;
   availableTestCases: TestCase[];
+  segments: Segment[];
 }
-
-const emptyForm: TestRunFormData = {
-  name: '',
-  description: '',
-  testCaseIds: [],
-};
 
 export default function TestRunFormModal({
   isOpen,
   onClose,
   onSubmit,
-  initialData,
   availableTestCases,
+  segments,
 }: TestRunFormModalProps) {
-  const [form, setForm] = useState<TestRunFormData>(emptyForm);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (initialData) {
-      setForm({
-        name: initialData.name,
-        description: initialData.description || '',
-        testCaseIds: [],
-      });
-    } else {
-      setForm(emptyForm);
+    if (isOpen) {
+      setName('');
+      setDescription('');
+      setSelectedIds(new Set());
     }
-  }, [initialData, isOpen]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const isEdit = !!initialData;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      alert('테스트 실행 이름을 입력하세요');
+    if (!name.trim()) {
+      alert('Enter a test run name.');
       return;
     }
-    if (form.testCaseIds.length === 0) {
-      alert('최소 1개 이상의 테스트 케이스를 선택하세요');
+    if (selectedIds.size === 0) {
+      alert('Select at least 1 test case.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await onSubmit(form);
+      await onSubmit({
+        name: name.trim(),
+        description: description.trim(),
+        testCaseIds: Array.from(selectedIds),
+      });
       onClose();
     } catch (error) {
       console.error('Form submission error:', error);
@@ -71,87 +66,47 @@ export default function TestRunFormModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg max-w-lg w-full mx-4 max-h-96 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-lg max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">
-            {isEdit ? '테스트 실행 수정' : '새 테스트 실행'}
+            New Test Run
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                이름 *
+                Name *
               </label>
               <input
                 type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="테스트 실행 이름"
+                placeholder="Test run name"
               />
             </div>
 
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                설명
+                Description
               </label>
               <textarea
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
-                placeholder="설명 (선택사항)"
+                placeholder="Optional description"
               />
             </div>
 
-            {/* Test Cases */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                테스트 케이스 선택 *
-              </label>
-              <div className="border border-gray-300 rounded-lg p-3 max-h-32 overflow-y-auto">
-                {availableTestCases.length === 0 ? (
-                  <p className="text-gray-500 text-sm">
-                    사용 가능한 테스트 케이스가 없습니다
-                  </p>
-                ) : (
-                  availableTestCases.map((tc) => (
-                    <label
-                      key={tc.id}
-                      className="flex items-center gap-2 mb-2 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.testCaseIds.includes(tc.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setForm({
-                              ...form,
-                              testCaseIds: [...form.testCaseIds, tc.id],
-                            });
-                          } else {
-                            setForm({
-                              ...form,
-                              testCaseIds: form.testCaseIds.filter(
-                                (id) => id !== tc.id
-                              ),
-                            });
-                          }
-                        }}
-                        className="w-4 h-4 cursor-pointer"
-                      />
-                      <span className="text-sm text-gray-700">{tc.title}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-              <p className="text-xs text-gray-600 mt-1">
-                선택됨: {form.testCaseIds.length}개
-              </p>
-            </div>
+            {/* Test Case Selection with hierarchy */}
+            <TestCaseGroupSelector
+              segments={segments}
+              testCases={availableTestCases}
+              selectedIds={selectedIds}
+              onChange={setSelectedIds}
+            />
 
             {/* Buttons */}
             <div className="flex gap-3 justify-end pt-4 border-t">
@@ -160,14 +115,14 @@ export default function TestRunFormModal({
                 onClick={onClose}
                 className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
               >
-                취소
+                Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {isSubmitting ? '저장 중...' : '저장'}
+                {isSubmitting ? 'Creating...' : 'Create'}
               </button>
             </div>
           </form>

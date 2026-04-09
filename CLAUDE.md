@@ -444,6 +444,31 @@ cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 
 ---
 
+## Session Summary (Slack 알림)
+
+세션이 종료되면 Stop hook이 `.claude/session-summary.txt`를 읽어 Slack에 전송한다.
+Claude는 **세션 중 의미 있는 작업을 마칠 때마다** 이 파일을 갱신해야 한다.
+
+```bash
+# .claude/session-summary.txt 예시
+CI/CD 파이프라인 통합
+- e2e.yml에 배포 job 추가 (deploy-gate 이후)
+- deploy-backend.yml, deploy-frontend.yml 삭제
+- Slack 알림 5개→1개 정리
+
+Claude Slack Hook 개선
+- scripts/claude-slack-notify.sh 생성
+- .claude/settings.json 변경
+```
+
+**규칙:**
+- 파일 경로: `.claude/session-summary.txt` (프로젝트 루트 기준)
+- 내용: 이번 세션에서 수행한 작업 요약 (한글, 간결하게)
+- 작업이 진행될수록 **덮어쓰기**로 최신 상태 유지
+- Stop hook이 파일을 읽은 후 자동 삭제함
+
+---
+
 ## Critical Rules
 
 ### 데이터베이스 삭제 금지 (CRITICAL)

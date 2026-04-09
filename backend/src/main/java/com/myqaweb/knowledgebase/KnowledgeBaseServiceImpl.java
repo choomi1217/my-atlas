@@ -7,8 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     private static final Logger log = LoggerFactory.getLogger(KnowledgeBaseServiceImpl.class);
+    private static final int MAX_PINNED = 15;
+    private static final int HIT_TOP_K = 5;
 
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final EmbeddingService embeddingService;
@@ -74,6 +76,63 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         knowledgeBaseRepository.deleteById(id);
     }
 
+    @Override
+    public void pinKbEntry(Long id) {
+        KnowledgeBaseEntity entity = knowledgeBaseRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Knowledge Base entry not found: " + id));
+
+        if (entity.getPinnedAt() != null) {
+            throw new IllegalStateException("Entry is already pinned: " + id);
+        }
+
+        long pinnedCount = knowledgeBaseRepository.countByPinnedAtIsNotNull();
+        if (pinnedCount >= MAX_PINNED) {
+            throw new IllegalStateException("Maximum " + MAX_PINNED + " pinned entries reached");
+        }
+
+        knowledgeBaseRepository.updatePinnedAt(id, LocalDateTime.now());
+    }
+
+    @Override
+    public void unpinKbEntry(Long id) {
+        KnowledgeBaseEntity entity = knowledgeBaseRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Knowledge Base entry not found: " + id));
+
+        if (entity.getPinnedAt() == null) {
+            throw new IllegalStateException("Entry is not pinned: " + id);
+        }
+
+        knowledgeBaseRepository.updatePinnedAt(id, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<KnowledgeBaseDto.KbResponse> getCuratedFaqs() {
+        // 1. Pinned entries (up to 15, ordered by pin time)
+        List<KnowledgeBaseEntity> pinned = knowledgeBaseRepository.findPinned();
+        Set<Long> pinnedIds = pinned.stream()
+                .map(KnowledgeBaseEntity::getId)
+                .collect(Collectors.toSet());
+
+        // 2. Top hit entries (fetch extra to account for overlap with pinned)
+        List<KnowledgeBaseEntity> topHits = knowledgeBaseRepository
+                .findTopByHitCount(HIT_TOP_K + pinnedIds.size());
+
+        // 3. Filter out pinned duplicates, take top 5
+        List<KnowledgeBaseEntity> hitOnly = topHits.stream()
+                .filter(kb -> !pinnedIds.contains(kb.getId()))
+                .filter(kb -> kb.getHitCount() > 0)
+                .limit(HIT_TOP_K)
+                .collect(Collectors.toList());
+
+        // 4. Combine: pinned first, then hits
+        List<KnowledgeBaseDto.KbResponse> result = new ArrayList<>();
+        pinned.forEach(kb -> result.add(toResponse(kb)));
+        hitOnly.forEach(kb -> result.add(toResponse(kb)));
+
+        return result;
+    }
+
     private void scheduleEmbeddingGeneration(Long entityId, String title, String content) {
         Thread.startVirtualThread(() -> {
             try {
@@ -109,7 +168,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 .trim();
     }
 
-    private KnowledgeBaseDto.KbResponse toResponse(KnowledgeBaseEntity entity) {
+    KnowledgeBaseDto.KbResponse toResponse(KnowledgeBaseEntity entity) {
         return new KnowledgeBaseDto.KbResponse(
                 entity.getId(),
                 entity.getTitle(),
@@ -117,6 +176,8 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 entity.getCategory(),
                 entity.getTags(),
                 entity.getSource(),
+                entity.getHitCount(),
+                entity.getPinnedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

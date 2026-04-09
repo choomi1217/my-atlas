@@ -2,23 +2,25 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import FaqCard from '../FaqCard';
-import { FaqItem } from '@/types/senior';
+import { KbItem } from '@/types/senior';
 
-const mockFaq: FaqItem = {
+const mockItem: KbItem = {
   id: 1,
   title: 'Login Testing Guide',
   content: 'Step-by-step guide for login testing.',
+  category: 'QA',
   tags: 'auth,login',
+  source: null,
+  hitCount: 5,
+  pinnedAt: null,
   createdAt: '2026-03-26T10:00:00',
   updatedAt: '2026-03-26T10:00:00',
 };
 
 describe('FaqCard', () => {
   const defaultProps = {
-    faq: mockFaq,
+    item: mockItem,
     onSendToChat: vi.fn(),
-    onEdit: vi.fn(),
-    onDelete: vi.fn(),
   };
 
   it('renders title', () => {
@@ -46,46 +48,20 @@ describe('FaqCard', () => {
     expect(screen.getByText('Step-by-step guide for login testing.')).toBeInTheDocument();
   });
 
-  it('shows Edit and Delete buttons when expanded', async () => {
-    const user = userEvent.setup();
-    render(<FaqCard {...defaultProps} />);
-
-    await user.click(screen.getByText('Login Testing Guide'));
-
-    expect(screen.getByText('Edit')).toBeInTheDocument();
-    expect(screen.getByText('Delete')).toBeInTheDocument();
-  });
-
-  it('calls onEdit when Edit clicked', async () => {
-    const user = userEvent.setup();
-    const onEdit = vi.fn();
-    render(<FaqCard {...defaultProps} onEdit={onEdit} />);
-
-    await user.click(screen.getByText('Login Testing Guide'));
-    await user.click(screen.getByText('Edit'));
-
-    expect(onEdit).toHaveBeenCalledWith(mockFaq);
-  });
-
-  it('calls onDelete when Delete clicked', async () => {
-    const user = userEvent.setup();
-    const onDelete = vi.fn();
-    render(<FaqCard {...defaultProps} onDelete={onDelete} />);
-
-    await user.click(screen.getByText('Login Testing Guide'));
-    await user.click(screen.getByText('Delete'));
-
-    expect(onDelete).toHaveBeenCalledWith(1);
+  it('shows Pinned badge when pinned', () => {
+    const pinnedItem = { ...mockItem, pinnedAt: '2026-04-01T00:00:00' };
+    render(<FaqCard item={pinnedItem} onSendToChat={vi.fn()} />);
+    expect(screen.getByText('Pinned')).toBeInTheDocument();
   });
 
   it('calls onSendToChat when chat button clicked', async () => {
     const user = userEvent.setup();
     const onSendToChat = vi.fn();
-    render(<FaqCard {...defaultProps} onSendToChat={onSendToChat} />);
+    render(<FaqCard item={mockItem} onSendToChat={onSendToChat} />);
 
     await user.click(screen.getByText('Login Testing Guide'));
     await user.click(screen.getByText(/Chat에서 더 물어보기/));
 
-    expect(onSendToChat).toHaveBeenCalledWith(mockFaq);
+    expect(onSendToChat).toHaveBeenCalledWith(mockItem);
   });
 });

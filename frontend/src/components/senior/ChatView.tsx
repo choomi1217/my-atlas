@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChatMessage, FaqItem } from '@/types/senior';
+import { ChatMessage, KbItem } from '@/types/senior';
 
 interface ChatViewProps {
   messages: ChatMessage[];
   isStreaming: boolean;
   error: string | null;
-  faqContext: FaqItem | null;
+  faqContext: KbItem | null;
   onSendMessage: (text: string) => void;
   onClearChat: () => void;
   inputRef?: React.RefObject<HTMLTextAreaElement>;

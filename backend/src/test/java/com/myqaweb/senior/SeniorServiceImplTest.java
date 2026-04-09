@@ -4,9 +4,10 @@ import com.myqaweb.common.EmbeddingService;
 import com.myqaweb.convention.ConventionRepository;
 import com.myqaweb.convention.ConventionEntity;
 import com.myqaweb.feature.*;
+import com.myqaweb.knowledgebase.KnowledgeBaseDto;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
-import org.junit.jupiter.api.BeforeEach;
+import com.myqaweb.knowledgebase.KnowledgeBaseService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -24,12 +25,13 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for SeniorServiceImpl — chat (with/without FAQ context) and FAQ CRUD operations.
+ * Unit tests for SeniorServiceImpl — chat (RAG pipeline with KB hit count tracking)
+ * and curated FAQ delegation to KnowledgeBaseService.
  */
 @ExtendWith(MockitoExtension.class)
 class SeniorServiceImplTest {
@@ -41,10 +43,10 @@ class SeniorServiceImplTest {
     private EmbeddingService embeddingService;
 
     @Mock
-    private FaqRepository faqRepository;
+    private KnowledgeBaseRepository knowledgeBaseRepository;
 
     @Mock
-    private KnowledgeBaseRepository knowledgeBaseRepository;
+    private KnowledgeBaseService knowledgeBaseService;
 
     @Mock
     private CompanyRepository companyRepository;
@@ -61,18 +63,9 @@ class SeniorServiceImplTest {
     @InjectMocks
     private SeniorServiceImpl seniorService;
 
-    private FaqEntity faq1;
-    private FaqEntity faq2;
-    private LocalDateTime now;
+    private final LocalDateTime now = LocalDateTime.now();
 
-    @BeforeEach
-    void setUp() {
-        now = LocalDateTime.now();
-        faq1 = new FaqEntity(1L, "Login FAQ", "How to test login", "auth,login", null, now, now);
-        faq2 = new FaqEntity(2L, "API FAQ", "How to test REST APIs", "api,rest", null, now, now);
-    }
-
-    // --- chat ---
+    // --- Helper: set up ChatClient mock chain ---
 
     private void setupChatClientMock() {
         ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
@@ -85,17 +78,22 @@ class SeniorServiceImplTest {
         when(streamSpec.content()).thenReturn(Flux.just("Hello", " World"));
     }
 
-    @Test
-    void chat_withoutFaqContext_returnsSseEmitter() {
-        // Arrange
-        setupChatClientMock();
+    private void setupMinimalRagMocks() {
         when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
         when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
-        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
+    }
+
+    // --- chat ---
+
+    @Test
+    void chat_withoutFaqContext_returnsSseEmitter() {
+        // Arrange
+        setupChatClientMock();
+        setupMinimalRagMocks();
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null);
 
@@ -111,13 +109,7 @@ class SeniorServiceImplTest {
     void chat_withFaqContext_returnsSseEmitter() {
         // Arrange
         setupChatClientMock();
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
-        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
-        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
-        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
-        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
-        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
-        when(conventionRepository.findAll()).thenReturn(List.of());
+        setupMinimalRagMocks();
 
         ChatDto.FaqContext faqContext = new ChatDto.FaqContext("Login FAQ", "How to test login flow");
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("Tell me more about login testing", faqContext);
@@ -143,13 +135,7 @@ class SeniorServiceImplTest {
         when(clientRequest.stream()).thenReturn(streamSpec);
         when(streamSpec.content()).thenReturn(Flux.just("response"));
 
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
-        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
-        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
-        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
-        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
-        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
-        when(conventionRepository.findAll()).thenReturn(List.of());
+        setupMinimalRagMocks();
 
         ChatDto.FaqContext faqContext = new ChatDto.FaqContext("Login FAQ", "Step-by-step login testing");
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", faqContext);
@@ -176,13 +162,7 @@ class SeniorServiceImplTest {
         when(clientRequest.stream()).thenReturn(streamSpec);
         when(streamSpec.content()).thenReturn(Flux.just("response"));
 
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
-        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
-        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
-        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
-        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
-        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
-        when(conventionRepository.findAll()).thenReturn(List.of());
+        setupMinimalRagMocks();
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
 
@@ -191,157 +171,8 @@ class SeniorServiceImplTest {
 
         // Assert — verify the system prompt does NOT contain FAQ context section
         String systemPrompt = systemCaptor.getValue();
-        assertFalse(systemPrompt.contains("FAQ 참고 항목"), "System prompt should NOT contain FAQ context section when faqContext is null");
-    }
-
-    // --- findAllFaqs ---
-
-    @Test
-    void findAllFaqs_returnsAllFaqs() {
-        // Arrange
-        when(faqRepository.findAll()).thenReturn(List.of(faq1, faq2));
-
-        // Act
-        List<FaqDto.FaqResponse> result = seniorService.findAllFaqs();
-
-        // Assert
-        assertEquals(2, result.size());
-        assertEquals("Login FAQ", result.get(0).title());
-        assertEquals("API FAQ", result.get(1).title());
-        verify(faqRepository).findAll();
-    }
-
-    @Test
-    void findAllFaqs_returnsEmptyListWhenNoFaqs() {
-        // Arrange
-        when(faqRepository.findAll()).thenReturn(List.of());
-
-        // Act
-        List<FaqDto.FaqResponse> result = seniorService.findAllFaqs();
-
-        // Assert
-        assertTrue(result.isEmpty());
-        verify(faqRepository).findAll();
-    }
-
-    // --- findFaqById ---
-
-    @Test
-    void findFaqById_returnsFaqWhenExists() {
-        // Arrange
-        when(faqRepository.findById(1L)).thenReturn(Optional.of(faq1));
-
-        // Act
-        Optional<FaqDto.FaqResponse> result = seniorService.findFaqById(1L);
-
-        // Assert
-        assertTrue(result.isPresent());
-        assertEquals("Login FAQ", result.get().title());
-        assertEquals("How to test login", result.get().content());
-        assertEquals("auth,login", result.get().tags());
-        verify(faqRepository).findById(1L);
-    }
-
-    @Test
-    void findFaqById_returnsEmptyWhenNotFound() {
-        // Arrange
-        when(faqRepository.findById(99L)).thenReturn(Optional.empty());
-
-        // Act
-        Optional<FaqDto.FaqResponse> result = seniorService.findFaqById(99L);
-
-        // Assert
-        assertTrue(result.isEmpty());
-        verify(faqRepository).findById(99L);
-    }
-
-    // --- createFaq ---
-
-    @Test
-    void createFaq_savesAndReturnsResponse() {
-        // Arrange
-        FaqDto.FaqRequest request = new FaqDto.FaqRequest("New FAQ", "New content", "tag1");
-        FaqEntity savedEntity = new FaqEntity(3L, "New FAQ", "New content", "tag1", null, now, now);
-        when(faqRepository.save(any(FaqEntity.class))).thenReturn(savedEntity);
-
-        // Act
-        FaqDto.FaqResponse result = seniorService.createFaq(request);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals("New FAQ", result.title());
-        assertEquals("New content", result.content());
-        assertEquals("tag1", result.tags());
-        verify(faqRepository, atLeastOnce()).save(any(FaqEntity.class));
-    }
-
-    // --- updateFaq ---
-
-    @Test
-    void updateFaq_updatesAndReturnsResponse() {
-        // Arrange
-        FaqDto.FaqRequest request = new FaqDto.FaqRequest("Updated Title", "Updated Content", "newtag");
-        FaqEntity existingEntity = new FaqEntity(1L, "Old Title", "Old Content", "oldtag", null, now, now);
-        FaqEntity savedEntity = new FaqEntity(1L, "Updated Title", "Updated Content", "newtag", null, now, now);
-
-        when(faqRepository.findById(1L)).thenReturn(Optional.of(existingEntity));
-        when(faqRepository.save(any(FaqEntity.class))).thenReturn(savedEntity);
-
-        // Act
-        FaqDto.FaqResponse result = seniorService.updateFaq(1L, request);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals("Updated Title", result.title());
-        assertEquals("Updated Content", result.content());
-        verify(faqRepository, atLeastOnce()).findById(1L);
-        verify(faqRepository, atLeastOnce()).save(any(FaqEntity.class));
-    }
-
-    @Test
-    void updateFaq_throwsWhenNotFound() {
-        // Arrange
-        FaqDto.FaqRequest request = new FaqDto.FaqRequest("Title", "Content", null);
-        when(faqRepository.findById(99L)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
-                () -> seniorService.updateFaq(99L, request)
-        );
-        assertTrue(ex.getMessage().contains("FAQ not found"));
-        verify(faqRepository).findById(99L);
-        verify(faqRepository, never()).save(any());
-    }
-
-    // --- deleteFaq ---
-
-    @Test
-    void deleteFaq_deletesWhenExists() {
-        // Arrange
-        when(faqRepository.existsById(1L)).thenReturn(true);
-
-        // Act
-        seniorService.deleteFaq(1L);
-
-        // Assert
-        verify(faqRepository).existsById(1L);
-        verify(faqRepository).deleteById(1L);
-    }
-
-    @Test
-    void deleteFaq_throwsWhenNotFound() {
-        // Arrange
-        when(faqRepository.existsById(99L)).thenReturn(false);
-
-        // Act & Assert
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
-                () -> seniorService.deleteFaq(99L)
-        );
-        assertTrue(ex.getMessage().contains("FAQ not found"));
-        verify(faqRepository).existsById(99L);
-        verify(faqRepository, never()).deleteById(anyLong());
+        assertFalse(systemPrompt.contains("FAQ 참고 항목"),
+                "System prompt should NOT contain FAQ context section when faqContext is null");
     }
 
     // --- RAG Pipeline: Active Company ---
@@ -372,7 +203,6 @@ class SeniorServiceImplTest {
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
         when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
-        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null);
@@ -388,7 +218,7 @@ class SeniorServiceImplTest {
     }
 
     @Test
-    void chat_withKbAndFaqResults_combinesAllSourcesInContext() {
+    void chat_withKbResults_combinesAllSourcesInContext() {
         // Arrange
         ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
         ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
@@ -414,9 +244,6 @@ class SeniorServiceImplTest {
         pdfKb.setContent("Testing patterns from a book.");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfKb));
 
-        FaqEntity faqEntry = new FaqEntity(10L, "My Login Notes", "Check OAuth flow", null, null, now, now);
-        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of(faqEntry));
-
         ConventionEntity conv = new ConventionEntity(1L, "TC", "Test Case", "Testing", now);
         when(conventionRepository.findAll()).thenReturn(List.of(conv));
 
@@ -429,7 +256,6 @@ class SeniorServiceImplTest {
         String systemPrompt = systemCaptor.getValue();
         assertTrue(systemPrompt.contains("Regression Best Practices"), "Should contain manual KB entry");
         assertTrue(systemPrompt.contains("Book Chapter 5"), "Should contain PDF KB entry");
-        assertTrue(systemPrompt.contains("My Login Notes"), "Should contain FAQ entry");
         assertTrue(systemPrompt.contains("TC"), "Should contain convention term");
     }
 
@@ -450,8 +276,6 @@ class SeniorServiceImplTest {
         assertNotNull(result, "Chat should still return SSE emitter even if embedding fails");
         verify(chatClient).prompt();
     }
-
-    // --- Response mapping ---
 
     // --- 2-Stage RAG: KB Manual vs PDF ---
 
@@ -482,7 +306,6 @@ class SeniorServiceImplTest {
         pdfEntry.setContent("Book-derived knowledge");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), eq(2))).thenReturn(List.of(pdfEntry));
 
-        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
@@ -524,7 +347,6 @@ class SeniorServiceImplTest {
         manualEntry.setContent("Only manual content");
         when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of(manualEntry));
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
-        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null);
@@ -560,7 +382,6 @@ class SeniorServiceImplTest {
         pdfEntry.setTitle("PDF Only");
         pdfEntry.setContent("Only PDF content");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfEntry));
-        when(faqRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null);
@@ -574,21 +395,88 @@ class SeniorServiceImplTest {
         assertTrue(systemPrompt.contains("도서 참고"), "Should have PDF section");
     }
 
+    // --- chat: KB hit count tracking ---
+
     @Test
-    void findFaqById_mapsAllFieldsCorrectly() {
+    void chat_incrementsHitCountsForRetrievedKbEntries() {
         // Arrange
-        FaqEntity entity = new FaqEntity(5L, "Title", "Content", "tags", new float[]{0.1f}, now, now);
-        when(faqRepository.findById(5L)).thenReturn(Optional.of(entity));
+        setupChatClientMock();
+        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+
+        KnowledgeBaseEntity manualKb = new KnowledgeBaseEntity();
+        manualKb.setId(10L);
+        manualKb.setTitle("Manual Entry");
+        manualKb.setContent("Content");
+        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of(manualKb));
+
+        KnowledgeBaseEntity pdfKb = new KnowledgeBaseEntity();
+        pdfKb.setId(20L);
+        pdfKb.setTitle("PDF Entry");
+        pdfKb.setContent("PDF Content");
+        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfKb));
+
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
 
         // Act
-        FaqDto.FaqResponse result = seniorService.findFaqById(5L).orElseThrow();
+        seniorService.chat(request);
+
+        // Assert — verify incrementHitCount is called for each retrieved KB entry
+        verify(knowledgeBaseRepository).incrementHitCount(10L);
+        verify(knowledgeBaseRepository).incrementHitCount(20L);
+    }
+
+    @Test
+    void chat_noKbResults_doesNotIncrementHitCounts() {
+        // Arrange
+        setupChatClientMock();
+        setupMinimalRagMocks();
+
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
+
+        // Act
+        seniorService.chat(request);
+
+        // Assert — no hit count increments when no KB results
+        verify(knowledgeBaseRepository, never()).incrementHitCount(anyLong());
+    }
+
+    // --- getCuratedFaqs ---
+
+    @Test
+    void getCuratedFaqs_delegatesToKnowledgeBaseService() {
+        // Arrange
+        List<KnowledgeBaseDto.KbResponse> expectedFaqs = List.of(
+                new KnowledgeBaseDto.KbResponse(1L, "Pinned Entry", "Content", "QA", "qa",
+                        null, 0, now, now, now),
+                new KnowledgeBaseDto.KbResponse(2L, "Top Hit", "Content", "API", "api",
+                        null, 5, null, now, now)
+        );
+        when(knowledgeBaseService.getCuratedFaqs()).thenReturn(expectedFaqs);
+
+        // Act
+        List<KnowledgeBaseDto.KbResponse> result = seniorService.getCuratedFaqs();
 
         // Assert
-        assertEquals(5L, result.id());
-        assertEquals("Title", result.title());
-        assertEquals("Content", result.content());
-        assertEquals("tags", result.tags());
-        assertEquals(now, result.createdAt());
-        assertEquals(now, result.updatedAt());
+        assertEquals(2, result.size());
+        assertEquals("Pinned Entry", result.get(0).title());
+        assertEquals("Top Hit", result.get(1).title());
+        verify(knowledgeBaseService).getCuratedFaqs();
+    }
+
+    @Test
+    void getCuratedFaqs_returnsEmptyListWhenNoCuratedEntries() {
+        // Arrange
+        when(knowledgeBaseService.getCuratedFaqs()).thenReturn(List.of());
+
+        // Act
+        List<KnowledgeBaseDto.KbResponse> result = seniorService.getCuratedFaqs();
+
+        // Assert
+        assertTrue(result.isEmpty());
+        verify(knowledgeBaseService).getCuratedFaqs();
     }
 }
