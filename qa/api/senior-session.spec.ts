@@ -4,8 +4,13 @@ let request: APIRequestContext;
 const API_URL = process.env.API_URL || 'http://localhost:8080';
 
 test.beforeAll(async ({ playwright }) => {
+  // Login to get admin token
+  const loginResp = await (await playwright.request.newContext({ baseURL: API_URL })).post("/api/auth/login", { data: { username: "admin", password: "admin" } });
+  const token = (await loginResp.json() as any).data.token;
+
   request = await playwright.request.newContext({
     baseURL: API_URL,
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
   });
 });
 
@@ -70,7 +75,6 @@ test.describe('Senior Chat Session API E2E', () => {
 
   test('GET deleted session - returns error', async () => {
     const response = await request.get(`/api/senior/sessions/${testSessionId}`);
-    // Should return 400 or 500 since session no longer exists
     expect(response.status()).not.toBe(200);
   });
 
