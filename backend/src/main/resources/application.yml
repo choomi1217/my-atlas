@@ -31,7 +31,7 @@ spring:
       api-key: ${ANTHROPIC_API_KEY:}
       chat:
         options:
-          model: claude-3-5-sonnet-20241022
+          model: claude-haiku-4-5-20251001
           max-tokens: 2048
     openai:
       api-key: ${OPENAI_API_KEY:}
