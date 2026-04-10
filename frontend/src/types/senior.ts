@@ -87,3 +87,34 @@ export interface ConventionItem {
   category: string | null;
   createdAt: string;
 }
+
+/**
+ * Chat session interface.
+ */
+export interface ChatSession {
+  id: number;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Chat session detail with messages.
+ */
+export interface ChatSessionDetail {
+  id: number;
+  title: string | null;
+  messages: ChatSessionMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Persisted chat message from DB.
+ */
+export interface ChatSessionMessage {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}

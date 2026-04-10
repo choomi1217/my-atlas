@@ -44,6 +44,9 @@ class SeniorServiceImplTest {
     @Mock
     private KnowledgeBaseService knowledgeBaseService;
 
+    @Mock
+    private ChatSessionService chatSessionService;
+
     @InjectMocks
     private SeniorServiceImpl seniorService;
 
@@ -77,7 +80,7 @@ class SeniorServiceImplTest {
         setupChatClientMock();
         setupMinimalRagMocks();
 
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null, null);
 
         // Act
         SseEmitter result = seniorService.chat(request);
@@ -94,7 +97,7 @@ class SeniorServiceImplTest {
         setupMinimalRagMocks();
 
         ChatDto.FaqContext faqContext = new ChatDto.FaqContext("Login FAQ", "How to test login flow");
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("Tell me more about login testing", faqContext);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("Tell me more about login testing", faqContext, null);
 
         // Act
         SseEmitter result = seniorService.chat(request);
@@ -120,7 +123,7 @@ class SeniorServiceImplTest {
         setupMinimalRagMocks();
 
         ChatDto.FaqContext faqContext = new ChatDto.FaqContext("Login FAQ", "Step-by-step login testing");
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", faqContext);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", faqContext, null);
 
         // Act
         seniorService.chat(request);
@@ -146,7 +149,7 @@ class SeniorServiceImplTest {
 
         setupMinimalRagMocks();
 
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null, null);
 
         // Act
         seniorService.chat(request);
@@ -185,7 +188,7 @@ class SeniorServiceImplTest {
         pdfKb.setContent("Testing patterns from a book.");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfKb));
 
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null, null);
 
         // Act
         seniorService.chat(request);
@@ -202,7 +205,7 @@ class SeniorServiceImplTest {
         setupChatClientMock();
         when(embeddingService.embed(anyString())).thenThrow(new RuntimeException("OpenAI API unavailable"));
 
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null, null);
 
         // Act — should not throw, graceful degradation
         SseEmitter result = seniorService.chat(request);
@@ -240,7 +243,7 @@ class SeniorServiceImplTest {
         pdfEntry.setContent("Book-derived knowledge");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), eq(2))).thenReturn(List.of(pdfEntry));
 
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null, null);
 
         // Act
         seniorService.chat(request);
@@ -279,7 +282,7 @@ class SeniorServiceImplTest {
         when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of(manualEntry));
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
 
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null, null);
 
         // Act
         seniorService.chat(request);
@@ -312,7 +315,7 @@ class SeniorServiceImplTest {
         pdfEntry.setContent("Only PDF content");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfEntry));
 
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null, null);
 
         // Act
         seniorService.chat(request);
@@ -344,7 +347,7 @@ class SeniorServiceImplTest {
         pdfKb.setContent("PDF Content");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfKb));
 
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null, null);
 
         // Act
         seniorService.chat(request);
@@ -360,7 +363,7 @@ class SeniorServiceImplTest {
         setupChatClientMock();
         setupMinimalRagMocks();
 
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
+        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null, null);
 
         // Act
         seniorService.chat(request);

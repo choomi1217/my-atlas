@@ -7,7 +7,8 @@ public class ChatDto {
     public record ChatRequest(
             @NotBlank(message = "Message is required")
             String message,
-            FaqContext faqContext
+            FaqContext faqContext,
+            Long sessionId
     ) {}
 
     public record FaqContext(String title, String content) {}
