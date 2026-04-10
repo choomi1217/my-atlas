@@ -13,7 +13,9 @@ public class ConventionDto {
             @NotBlank(message = "Definition is required")
             String definition,
 
-            String category
+            String category,
+
+            String imageUrl
     ) {}
 
     public record ConventionResponse(
@@ -21,6 +23,8 @@ public class ConventionDto {
             String term,
             String definition,
             String category,
-            LocalDateTime createdAt
+            String imageUrl,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt
     ) {}
 }

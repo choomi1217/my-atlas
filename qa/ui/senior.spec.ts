@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { loginAsAdminInBrowser } from '../helpers/api-helpers';
                                                                                                                                                                                                                                                                                           
   test.describe('Senior Page', () => {
                                                                                                                                                                                                                                                                                           
     test.beforeEach(async ({ page }) => {                           
+    await loginAsAdminInBrowser(page);
       await page.goto('/senior');
     });
 
@@ -57,6 +59,32 @@ import { test, expect } from '@playwright/test';
     test('should switch between KB Articles and Company Features sub-views', async ({ page }) => {
       // KB feature is not yet implemented in Senior page
       // This test will be enabled when KB integration is added
-      test.skip();                                                                                                                                                                                                                                                                        
+      test.skip();
+    });
+
+    // --- Chat Session Sidebar ---
+
+    test('should show session sidebar in Chat view', async ({ page }) => {
+      await page.getByRole('button', { name: /Chat/ }).click();
+      // Session sidebar should be visible with "새 채팅" button
+      await expect(page.getByRole('button', { name: /새 채팅/ })).toBeVisible();
+    });
+
+    test('should start new chat when clicking 새 채팅', async ({ page }) => {
+      await page.getByRole('button', { name: /Chat/ }).click();
+      await page.getByRole('button', { name: /새 채팅/ }).click();
+      // Chat area should show empty state
+      await expect(page.locator('textarea')).toBeVisible();
+      await expect(page.getByText('Ask your Senior QA any question...')).toBeVisible();
+    });
+
+    // --- Markdown rendering ---
+
+    test('should render chat input and send button in Chat view', async ({ page }) => {
+      await page.getByRole('button', { name: /Chat/ }).click();
+      await expect(page.locator('textarea')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Send' })).toBeVisible();
+      // Send button should be disabled when input is empty
+      await expect(page.getByRole('button', { name: 'Send' })).toBeDisabled();
     });
   });                                                                                                                                                                                                                                                                                     

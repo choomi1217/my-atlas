@@ -3,6 +3,7 @@ package com.myqaweb.convention;
 import com.myqaweb.common.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -24,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(ConventionController.class)
 @Import(GlobalExceptionHandler.class)
+@AutoConfigureMockMvc(addFilters = false)
 class ConventionControllerTest {
 
     @Autowired
@@ -40,8 +42,8 @@ class ConventionControllerTest {
     void list_returnsOk() throws Exception {
         // Arrange
         List<ConventionDto.ConventionResponse> items = List.of(
-                new ConventionDto.ConventionResponse(1L, "TC", "Test Case", "Testing", now),
-                new ConventionDto.ConventionResponse(2L, "QA", "Quality Assurance", "General", now)
+                new ConventionDto.ConventionResponse(1L, "TC", "Test Case", "Testing", "/api/convention-images/tc.png", now, now),
+                new ConventionDto.ConventionResponse(2L, "QA", "Quality Assurance", "General", null, now, null)
         );
         when(conventionService.findAll()).thenReturn(items);
 
@@ -52,7 +54,9 @@ class ConventionControllerTest {
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].term").value("TC"))
-                .andExpect(jsonPath("$.data[1].term").value("QA"));
+                .andExpect(jsonPath("$.data[0].imageUrl").value("/api/convention-images/tc.png"))
+                .andExpect(jsonPath("$.data[1].term").value("QA"))
+                .andExpect(jsonPath("$.data[1].imageUrl").isEmpty());
 
         verify(conventionService).findAll();
     }
@@ -63,7 +67,7 @@ class ConventionControllerTest {
     void getById_returnsOk() throws Exception {
         // Arrange
         ConventionDto.ConventionResponse conv = new ConventionDto.ConventionResponse(
-                1L, "TC", "Test Case", "Testing", now);
+                1L, "TC", "Test Case", "Testing", "/api/convention-images/tc.png", now, now);
         when(conventionService.findById(1L)).thenReturn(Optional.of(conv));
 
         // Act & Assert
@@ -72,7 +76,8 @@ class ConventionControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value(1))
                 .andExpect(jsonPath("$.data.term").value("TC"))
-                .andExpect(jsonPath("$.data.definition").value("Test Case"));
+                .andExpect(jsonPath("$.data.definition").value("Test Case"))
+                .andExpect(jsonPath("$.data.imageUrl").value("/api/convention-images/tc.png"));
 
         verify(conventionService).findById(1L);
     }
@@ -97,7 +102,7 @@ class ConventionControllerTest {
     void create_returns201() throws Exception {
         // Arrange
         ConventionDto.ConventionResponse created = new ConventionDto.ConventionResponse(
-                1L, "BDD", "Behavior Driven Development", "Methodology", now);
+                1L, "BDD", "Behavior Driven Development", "Methodology", null, now, now);
         when(conventionService.create(any(ConventionDto.ConventionRequest.class))).thenReturn(created);
 
         // Act & Assert
@@ -111,6 +116,27 @@ class ConventionControllerTest {
                 .andExpect(jsonPath("$.message").value("Convention created"))
                 .andExpect(jsonPath("$.data.id").value(1))
                 .andExpect(jsonPath("$.data.term").value("BDD"));
+
+        verify(conventionService).create(any(ConventionDto.ConventionRequest.class));
+    }
+
+    @Test
+    void create_withImageUrl_returns201() throws Exception {
+        // Arrange
+        String imageUrl = "/api/convention-images/bdd.png";
+        ConventionDto.ConventionResponse created = new ConventionDto.ConventionResponse(
+                1L, "BDD", "Behavior Driven Development", "Methodology", imageUrl, now, now);
+        when(conventionService.create(any(ConventionDto.ConventionRequest.class))).thenReturn(created);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/conventions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"term": "BDD", "definition": "Behavior Driven Development", "category": "Methodology", "imageUrl": "/api/convention-images/bdd.png"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.imageUrl").value(imageUrl));
 
         verify(conventionService).create(any(ConventionDto.ConventionRequest.class));
     }
@@ -149,7 +175,7 @@ class ConventionControllerTest {
     void update_returnsOk() throws Exception {
         // Arrange
         ConventionDto.ConventionResponse updated = new ConventionDto.ConventionResponse(
-                1L, "TC Updated", "Test Case Updated", "Testing", now);
+                1L, "TC Updated", "Test Case Updated", "Testing", null, now, now);
         when(conventionService.update(eq(1L), any(ConventionDto.ConventionRequest.class))).thenReturn(updated);
 
         // Act & Assert

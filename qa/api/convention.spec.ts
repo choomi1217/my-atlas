@@ -4,12 +4,27 @@ let request: APIRequestContext;
 const API_URL = process.env.API_URL || 'http://localhost:8080';
 
 test.beforeAll(async ({ playwright }) => {
+  // Login to get admin token
+  const loginResp = await (await playwright.request.newContext({ baseURL: API_URL })).post("/api/auth/login", { data: { username: "admin", password: "admin" } });
+  const token = (await loginResp.json() as any).data.token;
+
   request = await playwright.request.newContext({
     baseURL: API_URL,
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
   });
 });
 
 test.afterAll(async () => {
+  // Clean up any E2E conventions left over
+  const response = await request.get('/api/conventions');
+  const body = await response.json() as any;
+  if (body.success && Array.isArray(body.data)) {
+    for (const item of body.data) {
+      if (item.term?.includes('E2E')) {
+        await request.delete(`/api/conventions/${item.id}`).catch(() => {});
+      }
+    }
+  }
   await request.dispose();
 });
 
@@ -83,6 +98,33 @@ test.describe('Convention API E2E', () => {
     expect(body.success).toBe(false);
   });
 
+  test('PUT /api/conventions/{id} - validation: blank term returns 400', async () => {
+    const response = await request.put(`/api/conventions/${conventionId}`, {
+      data: { term: '', definition: 'Updated definition', category: 'QA' },
+    });
+    expect(response.status()).toBe(400);
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+  });
+
+  test('PUT /api/conventions/{id} - validation: blank definition returns 400', async () => {
+    const response = await request.put(`/api/conventions/${conventionId}`, {
+      data: { term: 'E2E-TC-Updated', definition: '', category: 'QA' },
+    });
+    expect(response.status()).toBe(400);
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+  });
+
+  test('PUT /api/conventions/{id} - non-existent convention returns error', async () => {
+    const response = await request.put('/api/conventions/999999', {
+      data: { term: 'E2E-Ghost', definition: 'Does not exist', category: 'QA' },
+    });
+    expect([400, 404]).toContain(response.status());
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+  });
+
   test('DELETE /api/conventions/{id} - delete convention', async () => {
     const response = await request.delete(`/api/conventions/${conventionId}`);
     expect(response.status()).toBe(200);
@@ -95,5 +137,55 @@ test.describe('Convention API E2E', () => {
     expect(response.status()).toBe(404);
     const body = await response.json() as any;
     expect(body.success).toBe(false);
+  });
+
+  test('DELETE /api/conventions/{id} - non-existent convention returns error', async () => {
+    const response = await request.delete('/api/conventions/999999');
+    expect([400, 404]).toContain(response.status());
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+  });
+
+  test('POST /api/conventions - create with imageUrl field', async () => {
+    const response = await request.post('/api/conventions', {
+      data: {
+        term: 'E2E-WithImage',
+        definition: 'Convention with image URL',
+        category: 'Testing',
+        imageUrl: 'http://localhost:8080/api/convention-images/test.png',
+      },
+    });
+    expect(response.status()).toBe(201);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.term).toBe('E2E-WithImage');
+    expect(body.data.imageUrl).toBe('http://localhost:8080/api/convention-images/test.png');
+    // Clean up
+    await request.delete(`/api/conventions/${body.data.id}`).catch(() => {});
+  });
+});
+
+test.describe('Convention Image API E2E', () => {
+  test('POST /api/convention-images - upload image', async () => {
+    // Create a minimal 1x1 PNG in-memory
+    const pngBuffer = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
+      'base64'
+    );
+
+    const response = await request.post('/api/convention-images', {
+      multipart: {
+        file: {
+          name: 'e2e-test-image.png',
+          mimeType: 'image/png',
+          buffer: pngBuffer,
+        },
+      },
+    });
+    expect(response.status()).toBe(201);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.url).toBeTruthy();
+    expect(body.data.url).toContain('convention-images');
   });
 });

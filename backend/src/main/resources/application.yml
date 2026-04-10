@@ -25,6 +25,7 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    ignore-migration-patterns: "*:missing"
 
   ai:
     anthropic:
@@ -43,6 +44,10 @@ spring:
         dimensions: 1536
         distance-type: COSINE_DISTANCE
         initialize-schema: false
+
+jwt:
+  secret: ${JWT_SECRET:my-atlas-default-secret-key-for-development-only-32bytes!!}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
 server:
   port: 8080
@@ -69,3 +74,8 @@ feature:
 kb:
   image:
     upload-dir: ${KB_IMAGE_UPLOAD_DIR:kb-images}
+
+# Convention image upload
+convention:
+  image:
+    upload-dir: ${CONVENTION_IMAGE_UPLOAD_DIR:convention-images}

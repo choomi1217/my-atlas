@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '@/types/features';
-import { FaqContext, KbItem, KbRequest, PdfUploadJob } from '@/types/senior';
+import { ChatSession, ChatSessionDetail, FaqContext, KbItem, KbRequest, PdfUploadJob } from '@/types/senior';
 
 // 상대 경로 사용 → Vite proxy 경유 (worktree별 포트 자동 대응)
 const API_BASE_URL = '';
@@ -12,16 +12,21 @@ export const chatApi = {
   streamChat: (
     message: string,
     onChunk: (text: string) => void,
-    onDone: () => void,
+    onDone: (sessionId?: number) => void,
     onError: (err: Error) => void,
-    faqContext?: FaqContext | null
+    faqContext?: FaqContext | null,
+    sessionId?: number | null
   ): AbortController => {
     const controller = new AbortController();
 
     fetch(`${API_BASE_URL}/api/senior/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, faqContext: faqContext || null }),
+      body: JSON.stringify({
+        message,
+        faqContext: faqContext || null,
+        sessionId: sessionId || null,
+      }),
       signal: controller.signal,
     })
       .then((response) => {
@@ -34,19 +39,29 @@ export const chatApi = {
         }
 
         const decoder = new TextDecoder();
+        let returnedSessionId: number | undefined;
 
         function read() {
           reader!.read().then(({ done, value }) => {
             if (done) {
-              onDone();
+              onDone(returnedSessionId);
               return;
             }
             const text = decoder.decode(value, { stream: true });
-            // Parse SSE format: data:chunk\n\n
+            // Parse SSE format: data:chunk\n\n or event:sessionId\ndata:123\n\n
             const lines = text.split('\n');
+            let currentEvent = '';
             for (const line of lines) {
-              if (line.startsWith('data:')) {
-                onChunk(line.slice(5));
+              if (line.startsWith('event:')) {
+                currentEvent = line.slice(6).trim();
+              } else if (line.startsWith('data:')) {
+                const data = line.slice(5);
+                if (currentEvent === 'sessionId') {
+                  returnedSessionId = parseInt(data, 10);
+                  currentEvent = '';
+                } else {
+                  onChunk(data);
+                }
               }
             }
             read();
@@ -158,5 +173,37 @@ export const kbApi = {
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );
     return response.data.data.url;
+  },
+};
+
+/**
+ * Chat Session API endpoints.
+ */
+export const sessionApi = {
+  getAll: async (): Promise<ChatSession[]> => {
+    const response = await apiClient.get<ApiResponse<ChatSession[]>>('/api/senior/sessions');
+    return response.data.data;
+  },
+
+  getById: async (id: number): Promise<ChatSessionDetail> => {
+    const response = await apiClient.get<ApiResponse<ChatSessionDetail>>(`/api/senior/sessions/${id}`);
+    return response.data.data;
+  },
+
+  create: async (): Promise<ChatSession> => {
+    const response = await apiClient.post<ApiResponse<ChatSession>>('/api/senior/sessions');
+    return response.data.data;
+  },
+
+  updateTitle: async (id: number, title: string): Promise<ChatSession> => {
+    const response = await apiClient.patch<ApiResponse<ChatSession>>(
+      `/api/senior/sessions/${id}`,
+      { title }
+    );
+    return response.data.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/senior/sessions/${id}`);
   },
 };

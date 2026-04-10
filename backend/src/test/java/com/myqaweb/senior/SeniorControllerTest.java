@@ -4,6 +4,7 @@ import com.myqaweb.common.GlobalExceptionHandler;
 import com.myqaweb.knowledgebase.KnowledgeBaseDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -12,9 +13,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import org.springframework.http.MediaType;
 
 /**
  * Controller tests for SeniorController — curated FAQ endpoint (KB-based).
@@ -22,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(SeniorController.class)
 @Import(GlobalExceptionHandler.class)
+@AutoConfigureMockMvc(addFilters = false)
 class SeniorControllerTest {
 
     @Autowired
@@ -29,6 +34,9 @@ class SeniorControllerTest {
 
     @MockBean
     private SeniorService seniorService;
+
+    @MockBean
+    private ChatSessionService chatSessionService;
 
     private final LocalDateTime now = LocalDateTime.of(2026, 3, 23, 10, 0, 0);
 
@@ -98,5 +106,89 @@ class SeniorControllerTest {
                 .andExpect(jsonPath("$.data[0].pinnedAt").exists());
 
         verify(seniorService).getCuratedFaqs();
+    }
+
+    // --- GET /api/senior/sessions ---
+
+    @Test
+    void listSessions_returnsOkWithSessionList() throws Exception {
+        List<ChatSessionDto.SessionResponse> sessions = List.of(
+                new ChatSessionDto.SessionResponse(1L, "Session 1", now, now),
+                new ChatSessionDto.SessionResponse(2L, "Session 2", now, now)
+        );
+        when(chatSessionService.findAllSessions()).thenReturn(sessions);
+
+        mockMvc.perform(get("/api/senior/sessions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].title").value("Session 1"));
+
+        verify(chatSessionService).findAllSessions();
+    }
+
+    // --- GET /api/senior/sessions/{id} ---
+
+    @Test
+    void getSession_returnsSessionWithMessages() throws Exception {
+        ChatSessionDto.SessionDetailResponse detail = new ChatSessionDto.SessionDetailResponse(
+                1L, "Test Session",
+                List.of(
+                        new ChatSessionDto.MessageResponse(1L, "user", "Hello", now),
+                        new ChatSessionDto.MessageResponse(2L, "assistant", "Hi!", now)
+                ),
+                now, now
+        );
+        when(chatSessionService.findSessionById(1L)).thenReturn(detail);
+
+        mockMvc.perform(get("/api/senior/sessions/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("Test Session"))
+                .andExpect(jsonPath("$.data.messages.length()").value(2));
+
+        verify(chatSessionService).findSessionById(1L);
+    }
+
+    // --- POST /api/senior/sessions ---
+
+    @Test
+    void createSession_returnsCreatedSession() throws Exception {
+        ChatSessionDto.SessionResponse newSession = new ChatSessionDto.SessionResponse(1L, null, now, now);
+        when(chatSessionService.createSession()).thenReturn(newSession);
+
+        mockMvc.perform(post("/api/senior/sessions"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.id").value(1));
+
+        verify(chatSessionService).createSession();
+    }
+
+    // --- PATCH /api/senior/sessions/{id} ---
+
+    @Test
+    void updateSessionTitle_returnsUpdatedSession() throws Exception {
+        ChatSessionDto.SessionResponse updated = new ChatSessionDto.SessionResponse(1L, "New Title", now, now);
+        when(chatSessionService.updateSessionTitle(eq(1L), eq("New Title"))).thenReturn(updated);
+
+        mockMvc.perform(patch("/api/senior/sessions/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"New Title\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("New Title"));
+
+        verify(chatSessionService).updateSessionTitle(1L, "New Title");
+    }
+
+    // --- DELETE /api/senior/sessions/{id} ---
+
+    @Test
+    void deleteSession_returnsOk() throws Exception {
+        doNothing().when(chatSessionService).deleteSession(1L);
+
+        mockMvc.perform(delete("/api/senior/sessions/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(chatSessionService).deleteSession(1L);
     }
 }

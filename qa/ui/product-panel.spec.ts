@@ -4,6 +4,7 @@ import {
   createTestCompany,
   createTestProduct,
   cleanupAllTestData,
+  loginAsAdminInBrowser,
 } from '../helpers/api-helpers';
 
 test.describe('Product List Page', () => {
@@ -11,6 +12,7 @@ test.describe('Product List Page', () => {
   let companyId: number;
 
   test.beforeEach(async ({ page }) => {
+    await loginAsAdminInBrowser(page);
     featuresPage = new FeaturesPage(page);
 
     const company = await createTestCompany('E2E Product Page Company');
