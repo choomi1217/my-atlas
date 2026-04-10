@@ -4,7 +4,7 @@
 # 메인 .env를 복사한 뒤, 워크트리별 고유 포트/컨테이너 변수를 추가한다.
 #
 # 사용법:
-#   bash scripts/setup-worktree.sh .claude/worktrees/feature-registry
+#   bash scripts/setup-worktree.sh .claude/worktrees/registry
 
 set -euo pipefail
 

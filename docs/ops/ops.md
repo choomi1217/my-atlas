@@ -130,7 +130,7 @@ Mode: npm run dev (Vite dev server)
      ↑ (host.docker.internal:5432)
      ├── myqaweb-backend                   (8080, 메인)
      ├── myqaweb-knowledge-base-backend    (8082)
-     ├── myqaweb-feature-registry-backend  (8081)
+     ├── myqaweb-registry-backend          (8085)
      └── myqaweb-my-senior-backend         (8083)
 ```
 
