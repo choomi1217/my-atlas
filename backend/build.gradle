@@ -41,6 +41,15 @@ dependencies {
     // pgvector support via JPA + JDBC
     implementation 'com.pgvector:pgvector:0.1.4'
 
+    // Spring Security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    // JWT (jjwt)
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
     // PDF parsing
     implementation 'org.apache.pdfbox:pdfbox:3.0.1'
 

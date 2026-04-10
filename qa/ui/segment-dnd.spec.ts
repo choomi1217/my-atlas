@@ -5,6 +5,7 @@ import {
   createTestProduct,
   createTestSegment,
   cleanupAllTestData,
+  loginAsAdminInBrowser,
 } from '../helpers/api-helpers';
 
 test.describe('Segment Drag and Drop (DnD) E2E', () => {
@@ -17,6 +18,7 @@ test.describe('Segment Drag and Drop (DnD) E2E', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    await loginAsAdminInBrowser(page);
     featuresPage = new FeaturesPage(page);
 
     const company = await createTestCompany('E2E DnD Company');
