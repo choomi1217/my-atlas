@@ -12,11 +12,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "@uiw/react-md-editor": "^4.1.0",
     "axios": "^1.6.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.23.1",
+    "remark-gfm": "^4.0.1",
     "zustand": "^4.5.7"
   },
   "devDependencies": {

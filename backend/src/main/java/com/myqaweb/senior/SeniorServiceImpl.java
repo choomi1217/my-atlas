@@ -34,6 +34,7 @@ public class SeniorServiceImpl implements SeniorService {
     private final EmbeddingService embeddingService;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeBaseService knowledgeBaseService;
+    private final ChatSessionService chatSessionService;
 
     @Override
     public SseEmitter chat(ChatDto.ChatRequest request) {
@@ -44,7 +45,9 @@ public class SeniorServiceImpl implements SeniorService {
         // Build RAG context with optional FAQ context
         String systemPrompt = buildRagContext(userMessage, request.faqContext());
 
-        // Stream Claude response
+        // Stream Claude response, collecting full response for DB persistence
+        StringBuilder fullResponse = new StringBuilder();
+
         Flux<String> stream = chatClient.prompt()
                 .system(systemPrompt)
                 .user(userMessage)
@@ -54,6 +57,7 @@ public class SeniorServiceImpl implements SeniorService {
         stream.subscribe(
                 chunk -> {
                     try {
+                        fullResponse.append(chunk);
                         emitter.send(SseEmitter.event().data(chunk));
                     } catch (IOException e) {
                         log.warn("Failed to send SSE chunk", e);
@@ -64,7 +68,18 @@ public class SeniorServiceImpl implements SeniorService {
                     log.error("Chat streaming error", error);
                     emitter.completeWithError(error);
                 },
-                emitter::complete
+                () -> {
+                    // Save messages to DB after streaming completes
+                    try {
+                        Long sessionId = chatSessionService.saveMessages(
+                                request.sessionId(), userMessage, fullResponse.toString());
+                        // Send sessionId as the final SSE event
+                        emitter.send(SseEmitter.event().name("sessionId").data(sessionId));
+                    } catch (Exception e) {
+                        log.warn("Failed to save chat messages", e);
+                    }
+                    emitter.complete();
+                }
         );
 
         emitter.onTimeout(emitter::complete);
