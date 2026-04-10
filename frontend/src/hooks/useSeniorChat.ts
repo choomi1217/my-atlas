@@ -1,12 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
 import { ChatMessage, FaqContext, KbItem } from '@/types/senior';
-import { chatApi } from '@/api/senior';
+import { chatApi, sessionApi } from '@/api/senior';
 
 export const useSeniorChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [faqContext, setFaqContext] = useState<KbItem | null>(null);
+  const [sessionId, setSessionId] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback((text: string) => {
@@ -55,16 +56,21 @@ export const useSeniorChat = () => {
           )
         );
       },
-      () => {
+      (returnedSessionId) => {
         setIsStreaming(false);
+        // Update sessionId from server response
+        if (returnedSessionId) {
+          setSessionId(returnedSessionId);
+        }
       },
       (err) => {
         setIsStreaming(false);
         setError(err.message);
       },
-      currentFaqContext
+      currentFaqContext,
+      sessionId
     );
-  }, [isStreaming, faqContext]);
+  }, [isStreaming, faqContext, sessionId]);
 
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort();
@@ -76,16 +82,38 @@ export const useSeniorChat = () => {
     setMessages([]);
     setError(null);
     setFaqContext(null);
+    setSessionId(null);
   }, [stopStreaming]);
+
+  const loadSession = useCallback(async (id: number) => {
+    try {
+      const detail = await sessionApi.getById(id);
+      setSessionId(id);
+      setMessages(
+        detail.messages.map((m) => ({
+          id: String(m.id),
+          role: m.role,
+          content: m.content,
+          timestamp: new Date(m.createdAt),
+        }))
+      );
+      setError(null);
+      setFaqContext(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load session');
+    }
+  }, []);
 
   return {
     messages,
     isStreaming,
     error,
     faqContext,
+    sessionId,
     setFaqContext,
     sendMessage,
     stopStreaming,
     clearChat,
+    loadSession,
   };
 };

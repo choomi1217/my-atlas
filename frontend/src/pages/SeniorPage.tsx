@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSeniorChat } from '@/hooks/useSeniorChat';
-import { KbItem } from '@/types/senior';
+import { useChatSessions } from '@/hooks/useChatSessions';
+import { KbItem, KbRequest } from '@/types/senior';
+import { kbApi } from '@/api/senior';
 import ChatView from '@/components/senior/ChatView';
 import FaqView from '@/components/senior/FaqView';
 
@@ -10,6 +12,7 @@ export default function SeniorPage() {
   const [activeView, setActiveView] = useState<SeniorView>('faq');
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const chat = useSeniorChat();
+  const { sessions, fetchSessions, deleteSession, renameSession } = useChatSessions();
 
   const handleSendToChat = useCallback((item: KbItem) => {
     chat.setFaqContext(item);
@@ -19,6 +22,35 @@ export default function SeniorPage() {
   const handleGoToChat = useCallback(() => {
     setActiveView('chat');
   }, []);
+
+  const handleSelectSession = useCallback(async (id: number) => {
+    await chat.loadSession(id);
+    setActiveView('chat');
+  }, [chat]);
+
+  const handleNewSession = useCallback(() => {
+    chat.clearChat();
+    setActiveView('chat');
+  }, [chat]);
+
+  const handleDeleteSession = useCallback(async (id: number) => {
+    await deleteSession(id);
+    // If deleted session is the active one, clear chat
+    if (chat.sessionId === id) {
+      chat.clearChat();
+    }
+  }, [deleteSession, chat]);
+
+  const handleSaveToKb = useCallback(async (request: KbRequest) => {
+    await kbApi.create(request);
+  }, []);
+
+  // Refresh sessions when streaming completes (new session may have been created)
+  useEffect(() => {
+    if (!chat.isStreaming && chat.sessionId) {
+      fetchSessions();
+    }
+  }, [chat.isStreaming, chat.sessionId, fetchSessions]);
 
   // Auto-focus chat input when switching to chat with faqContext
   useEffect(() => {
@@ -52,8 +84,15 @@ export default function SeniorPage() {
           error={chat.error}
           faqContext={chat.faqContext}
           onSendMessage={chat.sendMessage}
-          onClearChat={chat.clearChat}
+          onClearChat={handleNewSession}
+          onSaveToKb={handleSaveToKb}
           inputRef={chatInputRef}
+          sessions={sessions}
+          activeSessionId={chat.sessionId}
+          onSelectSession={handleSelectSession}
+          onNewSession={handleNewSession}
+          onDeleteSession={handleDeleteSession}
+          onRenameSession={renameSession}
         />
       )}
     </div>
