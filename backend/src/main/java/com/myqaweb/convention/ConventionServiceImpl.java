@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -36,6 +37,8 @@ public class ConventionServiceImpl implements ConventionService {
         entity.setTerm(request.term());
         entity.setDefinition(request.definition());
         entity.setCategory(request.category());
+        entity.setImageUrl(request.imageUrl());
+        entity.setUpdatedAt(LocalDateTime.now());
 
         ConventionEntity saved = conventionRepository.save(entity);
         return toResponse(saved);
@@ -49,6 +52,8 @@ public class ConventionServiceImpl implements ConventionService {
         entity.setTerm(request.term());
         entity.setDefinition(request.definition());
         entity.setCategory(request.category());
+        entity.setImageUrl(request.imageUrl());
+        entity.setUpdatedAt(LocalDateTime.now());
 
         ConventionEntity saved = conventionRepository.save(entity);
         return toResponse(saved);
@@ -68,7 +73,9 @@ public class ConventionServiceImpl implements ConventionService {
                 entity.getTerm(),
                 entity.getDefinition(),
                 entity.getCategory(),
-                entity.getCreatedAt()
+                entity.getImageUrl(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
         );
     }
 }

@@ -69,3 +69,8 @@ feature:
 kb:
   image:
     upload-dir: ${KB_IMAGE_UPLOAD_DIR:kb-images}
+
+# Convention image upload
+convention:
+  image:
+    upload-dir: ${CONVENTION_IMAGE_UPLOAD_DIR:convention-images}

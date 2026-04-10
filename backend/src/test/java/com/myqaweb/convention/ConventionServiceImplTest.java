@@ -3,6 +3,7 @@ package com.myqaweb.convention;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -35,8 +36,8 @@ class ConventionServiceImplTest {
     @BeforeEach
     void setUp() {
         now = LocalDateTime.now();
-        conv1 = new ConventionEntity(1L, "TC", "Test Case", "Testing", now);
-        conv2 = new ConventionEntity(2L, "QA", "Quality Assurance", "General", now);
+        conv1 = new ConventionEntity(1L, "TC", "Test Case", "Testing", "/api/convention-images/tc.png", now, now);
+        conv2 = new ConventionEntity(2L, "QA", "Quality Assurance", "General", null, now, null);
     }
 
     // --- findAll ---
@@ -103,9 +104,9 @@ class ConventionServiceImplTest {
     void create_savesAndReturnsResponse() {
         // Arrange
         ConventionDto.ConventionRequest request = new ConventionDto.ConventionRequest(
-                "BDD", "Behavior Driven Development", "Methodology");
+                "BDD", "Behavior Driven Development", "Methodology", null);
         ConventionEntity savedEntity = new ConventionEntity(
-                3L, "BDD", "Behavior Driven Development", "Methodology", now);
+                3L, "BDD", "Behavior Driven Development", "Methodology", null, now, now);
         when(conventionRepository.save(any(ConventionEntity.class))).thenReturn(savedEntity);
 
         // Act
@@ -116,7 +117,68 @@ class ConventionServiceImplTest {
         assertEquals("BDD", result.term());
         assertEquals("Behavior Driven Development", result.definition());
         assertEquals("Methodology", result.category());
+        assertNull(result.imageUrl());
         verify(conventionRepository).save(any(ConventionEntity.class));
+    }
+
+    @Test
+    void create_withImageUrl_savesImageUrl() {
+        // Arrange
+        String imageUrl = "/api/convention-images/test.png";
+        ConventionDto.ConventionRequest request = new ConventionDto.ConventionRequest(
+                "BDD", "Behavior Driven Development", "Methodology", imageUrl);
+        ConventionEntity savedEntity = new ConventionEntity(
+                3L, "BDD", "Behavior Driven Development", "Methodology", imageUrl, now, now);
+        when(conventionRepository.save(any(ConventionEntity.class))).thenReturn(savedEntity);
+
+        // Act
+        ConventionDto.ConventionResponse result = conventionService.create(request);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(imageUrl, result.imageUrl());
+
+        ArgumentCaptor<ConventionEntity> captor = ArgumentCaptor.forClass(ConventionEntity.class);
+        verify(conventionRepository).save(captor.capture());
+        assertEquals(imageUrl, captor.getValue().getImageUrl());
+    }
+
+    @Test
+    void create_withNullImageUrl_savesNullImageUrl() {
+        // Arrange
+        ConventionDto.ConventionRequest request = new ConventionDto.ConventionRequest(
+                "TC", "Test Case", "Testing", null);
+        ConventionEntity savedEntity = new ConventionEntity(
+                1L, "TC", "Test Case", "Testing", null, now, now);
+        when(conventionRepository.save(any(ConventionEntity.class))).thenReturn(savedEntity);
+
+        // Act
+        ConventionDto.ConventionResponse result = conventionService.create(request);
+
+        // Assert
+        assertNull(result.imageUrl());
+
+        ArgumentCaptor<ConventionEntity> captor = ArgumentCaptor.forClass(ConventionEntity.class);
+        verify(conventionRepository).save(captor.capture());
+        assertNull(captor.getValue().getImageUrl());
+    }
+
+    @Test
+    void create_setsUpdatedAt() {
+        // Arrange
+        ConventionDto.ConventionRequest request = new ConventionDto.ConventionRequest(
+                "TC", "Test Case", "Testing", null);
+        ConventionEntity savedEntity = new ConventionEntity(
+                1L, "TC", "Test Case", "Testing", null, now, now);
+        when(conventionRepository.save(any(ConventionEntity.class))).thenReturn(savedEntity);
+
+        // Act
+        conventionService.create(request);
+
+        // Assert
+        ArgumentCaptor<ConventionEntity> captor = ArgumentCaptor.forClass(ConventionEntity.class);
+        verify(conventionRepository).save(captor.capture());
+        assertNotNull(captor.getValue().getUpdatedAt());
     }
 
     // --- update ---
@@ -125,9 +187,9 @@ class ConventionServiceImplTest {
     void update_updatesAndReturns() {
         // Arrange
         ConventionDto.ConventionRequest request = new ConventionDto.ConventionRequest(
-                "TC Updated", "Test Case Updated", "Testing");
+                "TC Updated", "Test Case Updated", "Testing", null);
         ConventionEntity savedEntity = new ConventionEntity(
-                1L, "TC Updated", "Test Case Updated", "Testing", now);
+                1L, "TC Updated", "Test Case Updated", "Testing", null, now, now);
         when(conventionRepository.findById(1L)).thenReturn(Optional.of(conv1));
         when(conventionRepository.save(any(ConventionEntity.class))).thenReturn(savedEntity);
 
@@ -142,9 +204,32 @@ class ConventionServiceImplTest {
     }
 
     @Test
+    void update_setsUpdatedAtAndImageUrl() {
+        // Arrange
+        String newImageUrl = "/api/convention-images/updated.png";
+        ConventionDto.ConventionRequest request = new ConventionDto.ConventionRequest(
+                "TC Updated", "Test Case Updated", "Testing", newImageUrl);
+        ConventionEntity savedEntity = new ConventionEntity(
+                1L, "TC Updated", "Test Case Updated", "Testing", newImageUrl, now, now);
+        when(conventionRepository.findById(1L)).thenReturn(Optional.of(conv1));
+        when(conventionRepository.save(any(ConventionEntity.class))).thenReturn(savedEntity);
+
+        // Act
+        ConventionDto.ConventionResponse result = conventionService.update(1L, request);
+
+        // Assert
+        assertEquals(newImageUrl, result.imageUrl());
+
+        ArgumentCaptor<ConventionEntity> captor = ArgumentCaptor.forClass(ConventionEntity.class);
+        verify(conventionRepository).save(captor.capture());
+        assertEquals(newImageUrl, captor.getValue().getImageUrl());
+        assertNotNull(captor.getValue().getUpdatedAt());
+    }
+
+    @Test
     void update_throwsWhenNotFound() {
         // Arrange
-        ConventionDto.ConventionRequest request = new ConventionDto.ConventionRequest("T", "D", null);
+        ConventionDto.ConventionRequest request = new ConventionDto.ConventionRequest("T", "D", null, null);
         when(conventionRepository.findById(99L)).thenReturn(Optional.empty());
 
         // Act & Assert
@@ -200,6 +285,22 @@ class ConventionServiceImplTest {
         assertEquals("TC", result.term());
         assertEquals("Test Case", result.definition());
         assertEquals("Testing", result.category());
+        assertEquals("/api/convention-images/tc.png", result.imageUrl());
         assertEquals(now, result.createdAt());
+        assertEquals(now, result.updatedAt());
+    }
+
+    @Test
+    void findById_mapsNullImageUrlAndUpdatedAt() {
+        // Arrange
+        when(conventionRepository.findById(2L)).thenReturn(Optional.of(conv2));
+
+        // Act
+        ConventionDto.ConventionResponse result = conventionService.findById(2L).orElseThrow();
+
+        // Assert
+        assertEquals(2L, result.id());
+        assertNull(result.imageUrl());
+        assertNull(result.updatedAt());
     }
 }
