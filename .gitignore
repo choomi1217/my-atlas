@@ -43,3 +43,13 @@ logs/
 
 # KB uploaded images
 kb-images/
+
+# Playwright test artifacts
+qa/playwright-report/
+qa/playwright-results.xml
+qa/test-results/
+
+# Local convenience scripts
+scripts/start-all.sh
+scripts/stop-all.sh
+scripts/prompts/
