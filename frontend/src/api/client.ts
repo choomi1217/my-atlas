@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// 상대 경로 사용 → Vite proxy 경유 (worktree별 포트 자동 대응)
+const API_BASE_URL = '';
 
 /**
  * Axios instance for API calls.

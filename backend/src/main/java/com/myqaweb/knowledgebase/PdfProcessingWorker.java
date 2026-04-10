@@ -30,12 +30,15 @@ public class PdfProcessingWorker {
     private static final int MIN_CHUNK_TOKENS = 500;
     private static final int MAX_CHUNK_TOKENS = 800;
     private static final int OVERLAP_TOKENS = 50;
+    private static final int MAX_CHUNK_CHARS = 3000;
+    private static final int MIN_SECTION_CHARS = 200;
     private static final int RATE_LIMIT_DELAY_MS = 200;
     private static final int RETRY_DELAY_MS = 5000;
     private static final int MAX_RETRIES = 3;
 
+    // Step 1: "제N장", "Chapter N", "Part N" 만 인식 — 번호 리스트("1. 대문자") 패턴 제거
     private static final Pattern CHAPTER_PATTERN = Pattern.compile(
-            "^\\s*(제?\\s*\\d+\\s*[장절편부]|Chapter\\s+\\d+|Part\\s+\\d+|CHAPTER\\s+\\d+|PART\\s+\\d+|\\d+\\.\\s+[A-Z가-힣])",
+            "^\\s*(제\\s*\\d+\\s*[장편부]|Chapter\\s+\\d+|Part\\s+\\d+|CHAPTER\\s+\\d+|PART\\s+\\d+)",
             Pattern.MULTILINE
     );
 
@@ -58,16 +61,19 @@ public class PdfProcessingWorker {
                 throw new RuntimeException("PDF에서 텍스트를 추출할 수 없습니다.");
             }
 
-            // 2. Parse chapters/sections
+            // 2. Parse chapters/sections and merge small sections
             List<Section> sections = parseSections(fullText);
+            sections = mergeSections(sections);
 
-            // 3. Chunk each section
+            // 3. Chunk each section (global sequence numbering)
             List<Chunk> allChunks = new ArrayList<>();
+            int globalSeq = 1;
             for (Section section : sections) {
                 List<String> chunkTexts = chunkText(section.content());
-                for (int i = 0; i < chunkTexts.size(); i++) {
-                    String title = buildChunkTitle(bookTitle, section.name(), i + 1);
-                    allChunks.add(new Chunk(title, chunkTexts.get(i)));
+                chunkTexts = enforceMaxSize(chunkTexts);
+                for (String chunkText : chunkTexts) {
+                    String title = buildChunkTitle(bookTitle, section.name(), globalSeq++);
+                    allChunks.add(new Chunk(title, chunkText));
                 }
             }
 
@@ -139,6 +145,74 @@ public class PdfProcessingWorker {
             }
         }
         return false;
+    }
+
+    // --- Section/Chunk post-processing ---
+
+    /**
+     * Step 2: Merges sections shorter than MIN_SECTION_CHARS into adjacent sections.
+     * This eliminates noise chunks from TOC lines or tiny fragments.
+     */
+    List<Section> mergeSections(List<Section> sections) {
+        if (sections.size() <= 1) {
+            return sections;
+        }
+
+        List<Section> merged = new ArrayList<>();
+        for (int i = 0; i < sections.size(); i++) {
+            Section current = sections.get(i);
+            if (current.content().length() >= MIN_SECTION_CHARS) {
+                merged.add(current);
+            } else if (!merged.isEmpty()) {
+                // Append small section to the previous section
+                Section prev = merged.removeLast();
+                merged.add(new Section(prev.name(),
+                        prev.content() + "\n" + current.content()));
+            } else if (i + 1 < sections.size()) {
+                // First section is small — prepend to next section
+                Section next = sections.get(i + 1);
+                sections.set(i + 1, new Section(next.name(),
+                        current.content() + "\n" + next.content()));
+            } else {
+                // Only section and it's small — keep as-is
+                merged.add(current);
+            }
+        }
+        return merged;
+    }
+
+    /**
+     * Step 4: Splits any chunk exceeding MAX_CHUNK_CHARS at word boundaries.
+     * Safety net for when sentence-based splitting fails to divide large text.
+     */
+    List<String> enforceMaxSize(List<String> chunks) {
+        List<String> result = new ArrayList<>();
+        for (String chunk : chunks) {
+            if (chunk.length() <= MAX_CHUNK_CHARS) {
+                result.add(chunk);
+            } else {
+                // Force-split at word boundaries
+                String[] words = chunk.split("\\s+");
+                StringBuilder sb = new StringBuilder();
+                for (String word : words) {
+                    if (sb.length() + word.length() + 1 > MAX_CHUNK_CHARS && !sb.isEmpty()) {
+                        result.add(sb.toString().trim());
+                        // Overlap: take last OVERLAP_TOKENS words from the split point
+                        String[] splitWords = sb.toString().trim().split("\\s+");
+                        sb = new StringBuilder();
+                        int overlapStart = Math.max(0, splitWords.length - OVERLAP_TOKENS);
+                        for (int j = overlapStart; j < splitWords.length; j++) {
+                            sb.append(splitWords[j]).append(" ");
+                        }
+                    }
+                    sb.append(word).append(" ");
+                }
+                if (!sb.isEmpty()) {
+                    result.add(sb.toString().trim());
+                }
+            }
+        }
+        return result;
     }
 
     // --- Internal helpers ---
