@@ -53,3 +53,4 @@ qa/test-results/
 scripts/start-all.sh
 scripts/stop-all.sh
 scripts/prompts/
+backend/convention-images/
