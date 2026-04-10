@@ -39,6 +39,23 @@ public interface CompanyService {
     CompanyDto.CompanyResponse setActive(Long id);
 
     /**
+     * Update a company's name.
+     *
+     * @param id the company ID
+     * @param request the update request
+     * @return the updated company
+     */
+    CompanyDto.CompanyResponse update(Long id, CompanyDto.CompanyRequest request);
+
+    /**
+     * Deactivate a company (set is_active to false).
+     *
+     * @param id the company ID
+     * @return the deactivated company
+     */
+    CompanyDto.CompanyResponse deactivate(Long id);
+
+    /**
      * Delete a company.
      *
      * @param id the company ID

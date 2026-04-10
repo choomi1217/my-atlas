@@ -36,7 +36,7 @@ test.describe('Company List Page', () => {
     await page.getByRole('button', { name: /Activate/i }).first().click();
     await activatePromise;
 
-    const activeBadge = await page.getByText('Active').isVisible();
+    const activeBadge = await page.getByText('Active', { exact: true }).isVisible();
     expect(activeBadge).toBe(true);
   });
 
@@ -69,12 +69,90 @@ test.describe('Company List Page', () => {
     await expect(page.locator('p.text-gray-600').filter({ hasText: 'Products' })).toBeVisible();
   });
 
-  test('should show search bar and sort dropdown', async ({ page }) => {
-    await expect(page.locator('input[placeholder="Search companies..."]')).toBeVisible();
-    await expect(page.locator('select')).toBeVisible();
+  test('should show + New Company button', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /New Company/i })).toBeVisible();
   });
 
-  test('should show Add New card', async ({ page }) => {
-    await expect(page.locator('text=Add New').first()).toBeVisible();
+  test('should show hero card layout for active company', async ({ page }) => {
+    // Create and activate a company
+    const companyName = 'E2E Hero Active Company';
+    await featuresPage.addCompany(companyName);
+
+    // Activate the company
+    const activatePromise = page.waitForResponse(resp =>
+      resp.url().includes('/activate') && resp.request().method() === 'PATCH'
+    );
+    await page.getByRole('button', { name: /Activate/i }).first().click();
+    await activatePromise;
+
+    // Active company should be rendered as hero card with Active badge
+    await expect(page.getByText('Active', { exact: true })).toBeVisible();
+    // Hero card should show the company name
+    await expect(page.getByText(companyName)).toBeVisible();
+    // Hero card has border-indigo-300 class (larger card)
+    const heroCard = page.locator('.border-indigo-300').first();
+    await expect(heroCard).toBeVisible();
+    // Hero card should show Edit Name and Deactivate buttons
+    await expect(page.getByRole('button', { name: /Edit Name/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Deactivate/i })).toBeVisible();
+  });
+
+  test('should allow inline name editing via Edit Name button', async ({ page }) => {
+    const companyName = 'E2E Edit Name Test';
+    await featuresPage.addCompany(companyName);
+
+    // Activate the company so it shows as hero card with Edit Name button
+    const activatePromise = page.waitForResponse(resp =>
+      resp.url().includes('/activate') && resp.request().method() === 'PATCH'
+    );
+    await page.getByRole('button', { name: /Activate/i }).first().click();
+    await activatePromise;
+
+    // Click Edit Name button
+    await page.getByRole('button', { name: /Edit Name/i }).click();
+
+    // Input field should appear with the current name
+    const editInput = page.locator('input[type="text"]').first();
+    await expect(editInput).toBeVisible();
+    await expect(editInput).toHaveValue(companyName);
+
+    // Change the name
+    const newName = 'E2E Edit Name Updated';
+    await editInput.fill(newName);
+
+    // Click Save
+    const savePromise = page.waitForResponse(resp =>
+      resp.url().includes('/api/companies/') && resp.request().method() === 'PUT'
+    );
+    await page.getByRole('button', { name: /Save/i }).click();
+    await savePromise;
+
+    // Verify updated name is displayed
+    await expect(page.getByText(newName)).toBeVisible();
+  });
+
+  test('should deactivate active company via Deactivate button', async ({ page }) => {
+    const companyName = 'E2E Deactivate Test';
+    await featuresPage.addCompany(companyName);
+
+    // Activate the company first
+    const activatePromise = page.waitForResponse(resp =>
+      resp.url().includes('/activate') && resp.request().method() === 'PATCH'
+    );
+    await page.getByRole('button', { name: /Activate/i }).first().click();
+    await activatePromise;
+
+    // Verify it is active (hero card visible)
+    await expect(page.getByText('Active', { exact: true })).toBeVisible();
+
+    // Click Deactivate button
+    const deactivatePromise = page.waitForResponse(resp =>
+      resp.url().includes('/deactivate') && resp.request().method() === 'PATCH'
+    );
+    await page.getByRole('button', { name: /Deactivate/i }).click();
+    await deactivatePromise;
+
+    // After deactivation, no active company hero card — should show "No active company" placeholder
+    await expect(page.getByText('No active company')).toBeVisible();
   });
 });

@@ -1,15 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Version,
   TestResult,
+  TestResultComment,
   TestCase,
   RunResultStatus,
   ProgressStats,
 } from '@/types/features';
-import { versionApi, testResultApi, testCaseApi } from '@/api/features';
+import { versionApi, testResultApi, testCaseApi, testResultCommentApi } from '@/api/features';
 import ProgressStatsComponent from '@/components/features/ProgressStats';
 import ResultStatusBadge from '@/components/features/ResultStatusBadge';
+import StatusButtonGroup from '@/components/features/StatusButtonGroup';
+import CommentThread from '@/components/features/CommentThread';
 
 export default function VersionPhaseDetailPage() {
   const { productId, versionId, phaseId } = useParams<{
@@ -26,7 +29,7 @@ export default function VersionPhaseDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedResultId, setExpandedResultId] = useState<number | null>(null);
-  const [editingComment, setEditingComment] = useState<Record<number, string>>({});
+  const [comments, setComments] = useState<Record<number, TestResultComment[]>>({});
 
   useEffect(() => {
     const loadData = async () => {
@@ -73,12 +76,10 @@ export default function VersionPhaseDetailPage() {
   const handleStatusChange = async (resultId: number, newStatus: RunResultStatus) => {
     if (!versionId) return;
     try {
-      const comment = editingComment[resultId];
       const updated = await testResultApi.updateResult(
         Number(versionId),
         resultId,
-        newStatus,
-        comment || undefined
+        newStatus
       );
       setResults((prev) =>
         prev.map((r) => (r.id === resultId ? updated : r))
@@ -88,32 +89,26 @@ export default function VersionPhaseDetailPage() {
     }
   };
 
-  const handleCommentSave = async (resultId: number) => {
+  const loadComments = useCallback(async (resultId: number) => {
     if (!versionId) return;
-    const result = results.find((r) => r.id === resultId);
-    if (!result) return;
     try {
-      const comment = editingComment[resultId] ?? result.comment ?? '';
-      const updated = await testResultApi.updateResult(
-        Number(versionId),
-        resultId,
-        result.status,
-        comment
-      );
-      setResults((prev) =>
-        prev.map((r) => (r.id === resultId ? updated : r))
-      );
+      const data = await testResultCommentApi.getComments(Number(versionId), resultId);
+      setComments((prev) => ({ ...prev, [resultId]: data }));
     } catch (err) {
-      console.error('Failed to save comment:', err);
+      console.error('Failed to load comments:', err);
     }
-  };
+  }, [versionId]);
 
   const getTestCaseDetail = (testCaseId: number): TestCase | undefined => {
     return testCases.find((tc) => tc.id === testCaseId);
   };
 
   const toggleExpand = (resultId: number) => {
-    setExpandedResultId((prev) => (prev === resultId ? null : resultId));
+    const nextId = expandedResultId === resultId ? null : resultId;
+    setExpandedResultId(nextId);
+    if (nextId !== null && !comments[nextId]) {
+      loadComments(nextId);
+    }
   };
 
   if (isLoading) {
@@ -204,18 +199,10 @@ export default function VersionPhaseDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0 ml-4">
-                      <select
-                        value={result.status}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) =>
-                          handleStatusChange(result.id, e.target.value as RunResultStatus)
-                        }
-                        className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      >
-                        {Object.values(RunResultStatus).map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
+                      <StatusButtonGroup
+                        current={result.status}
+                        onChange={(status) => handleStatusChange(result.id, status)}
+                      />
                       <span className="text-gray-400 text-sm">
                         {isExpanded ? '▲' : '▼'}
                       </span>
@@ -267,30 +254,13 @@ export default function VersionPhaseDetailPage() {
                           </div>
                         )}
 
-                        {/* Comment */}
-                        <div>
-                          <h4 className="text-sm font-semibold text-gray-700 mb-1">Comment</h4>
-                          <div className="flex gap-2">
-                            <textarea
-                              value={editingComment[result.id] ?? result.comment ?? ''}
-                              onChange={(e) =>
-                                setEditingComment((prev) => ({
-                                  ...prev,
-                                  [result.id]: e.target.value,
-                                }))
-                              }
-                              placeholder="Add a comment..."
-                              rows={2}
-                              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                              onClick={() => handleCommentSave(result.id)}
-                              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 self-end"
-                            >
-                              Save
-                            </button>
-                          </div>
-                        </div>
+                        {/* Comment Thread */}
+                        <CommentThread
+                          versionId={Number(versionId)}
+                          resultId={result.id}
+                          comments={comments[result.id] || []}
+                          onRefresh={() => loadComments(result.id)}
+                        />
                       </div>
                     </div>
                   )}

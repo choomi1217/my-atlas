@@ -17,6 +17,7 @@ public class CompanyDto {
             Long id,
             String name,
             Boolean isActive,
+            Integer productCount,
             LocalDateTime createdAt
     ) {}
 }

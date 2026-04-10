@@ -6,6 +6,7 @@ import {
   Segment,
   Platform,
   TestCase,
+  TestCaseImage,
   TestCasePriority,
   TestCaseType,
   TestCaseStatus,
@@ -15,6 +16,7 @@ import {
   VersionPhase,
   RunResultStatus,
   TestResult,
+  TestResultComment,
 } from '@/types/features';
 // ProgressStats is used indirectly via Version/VersionPhase types
 
@@ -40,6 +42,21 @@ export const companyApi = {
   setActive: async (id: number): Promise<Company> => {
     const response = await apiClient.patch<ApiResponse<Company>>(
       `/api/companies/${id}/activate`
+    );
+    return response.data.data;
+  },
+
+  update: async (id: number, name: string): Promise<Company> => {
+    const response = await apiClient.put<ApiResponse<Company>>(
+      `/api/companies/${id}`,
+      { name }
+    );
+    return response.data.data;
+  },
+
+  deactivate: async (id: number): Promise<Company> => {
+    const response = await apiClient.patch<ApiResponse<Company>>(
+      `/api/companies/${id}/deactivate`
     );
     return response.data.data;
   },
@@ -481,5 +498,82 @@ export const testResultApi = {
       }
     );
     return response.data.data;
+  },
+};
+
+/**
+ * Feature image API (shared upload for TestCase images and comment images).
+ */
+export const featureImageApi = {
+  upload: async (file: File): Promise<{ url: string; filename: string; originalName: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<ApiResponse<{ url: string; filename: string; originalName: string }>>(
+      '/api/feature-images',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data.data;
+  },
+};
+
+/**
+ * TestCase image API.
+ */
+export const testCaseImageApi = {
+  getByTestCaseId: async (testCaseId: number): Promise<TestCaseImage[]> => {
+    const response = await apiClient.get<ApiResponse<TestCaseImage[]>>(
+      `/api/test-cases/${testCaseId}/images`
+    );
+    return response.data.data;
+  },
+
+  addImage: async (
+    testCaseId: number,
+    filename: string,
+    originalName: string
+  ): Promise<TestCaseImage> => {
+    const response = await apiClient.post<ApiResponse<TestCaseImage>>(
+      `/api/test-cases/${testCaseId}/images`,
+      { filename, originalName }
+    );
+    return response.data.data;
+  },
+
+  removeImage: async (testCaseId: number, imageId: number): Promise<void> => {
+    await apiClient.delete(`/api/test-cases/${testCaseId}/images/${imageId}`);
+  },
+};
+
+/**
+ * TestResult comment thread API.
+ */
+export const testResultCommentApi = {
+  getComments: async (versionId: number, resultId: number): Promise<TestResultComment[]> => {
+    const response = await apiClient.get<ApiResponse<TestResultComment[]>>(
+      `/api/versions/${versionId}/results/${resultId}/comments`
+    );
+    return response.data.data;
+  },
+
+  addComment: async (
+    versionId: number,
+    resultId: number,
+    content: string,
+    author?: string,
+    parentId?: number,
+    imageUrl?: string
+  ): Promise<TestResultComment> => {
+    const response = await apiClient.post<ApiResponse<TestResultComment>>(
+      `/api/versions/${versionId}/results/${resultId}/comments`,
+      { author, content, parentId: parentId ?? null, imageUrl: imageUrl ?? null }
+    );
+    return response.data.data;
+  },
+
+  deleteComment: async (versionId: number, resultId: number, commentId: number): Promise<void> => {
+    await apiClient.delete(
+      `/api/versions/${versionId}/results/${resultId}/comments/${commentId}`
+    );
   },
 };

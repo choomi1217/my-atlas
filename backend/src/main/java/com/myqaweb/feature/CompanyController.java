@@ -48,6 +48,26 @@ public class CompanyController {
     }
 
     /**
+     * PUT /api/companies/{id} - Update company name.
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<CompanyDto.CompanyResponse>> update(
+            @PathVariable Long id,
+            @Valid @RequestBody CompanyDto.CompanyRequest request) {
+        CompanyDto.CompanyResponse company = companyService.update(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Company updated", company));
+    }
+
+    /**
+     * PATCH /api/companies/{id}/deactivate - Deactivate a company.
+     */
+    @PatchMapping("/{id}/deactivate")
+    public ResponseEntity<ApiResponse<CompanyDto.CompanyResponse>> deactivate(@PathVariable Long id) {
+        CompanyDto.CompanyResponse company = companyService.deactivate(id);
+        return ResponseEntity.ok(ApiResponse.ok("Company deactivated", company));
+    }
+
+    /**
      * DELETE /api/companies/{id} - Delete a company.
      */
     @DeleteMapping("/{id}")
