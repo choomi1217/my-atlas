@@ -11,7 +11,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/claude-slack-notify.sh stop",
+            "command": "/bin/bash /Users/yeongmi/dev/qa/my-atlas/scripts/claude-slack-notify.sh stop",
             "timeout": 10
           }
         ]
@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/claude-slack-notify.sh notification",
+            "command": "/bin/bash /Users/yeongmi/dev/qa/my-atlas/scripts/claude-slack-notify.sh notification",
             "timeout": 10
           }
         ]
