@@ -13,7 +13,9 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,9 +38,31 @@ public class PdfProcessingWorker {
     private static final int RETRY_DELAY_MS = 5000;
     private static final int MAX_RETRIES = 3;
 
-    // Step 1: "제N장", "Chapter N", "Part N" 만 인식 — 번호 리스트("1. 대문자") 패턴 제거
+    private static final int REPEATING_HEADER_MAX_LENGTH = 100;
+    private static final int REPEATING_HEADER_MIN_COUNT = 3;
+    private static final double REPEATING_HEADER_RATIO = 0.4;
+    private static final int ESTIMATED_LINES_PER_PAGE = 45;
+
+    // Page number patterns — only match when the ENTIRE line is a page number
+    private static final Pattern PAGE_NUMBER_PATTERN = Pattern.compile(
+            "^\\s*(" +
+                    "\\d{1,4}" +                          // "66", " 3 "
+                    "|\\d{1,4}\\s*(?:of|/)\\s*\\d{1,4}" + // "66 of 72", "3/10"
+                    "|-\\s*\\d{1,4}\\s*-" +                // "- 66 -"
+                    "|Page\\s+\\d+" +                       // "Page 66"
+                    "|p\\.\\s*\\d+" +                       // "p. 66"
+                    ")\\s*$",
+            Pattern.MULTILINE | Pattern.CASE_INSENSITIVE
+    );
+
+    // "제N장", "Chapter N", "Part N", multi-level numbering ("6.1 Title"), "Section N"
+    // Note: single-level "N. Title" excluded to avoid matching numbered lists
     private static final Pattern CHAPTER_PATTERN = Pattern.compile(
-            "^\\s*(제\\s*\\d+\\s*[장편부]|Chapter\\s+\\d+|Part\\s+\\d+|CHAPTER\\s+\\d+|PART\\s+\\d+)",
+            "^\\s*(제\\s*\\d+\\s*[장편부]|Chapter\\s+\\d+|Part\\s+\\d+|CHAPTER\\s+\\d+|PART\\s+\\d+" +
+                    "|\\d{1,2}\\.\\d{1,2}\\.?\\s+\\S" +           // "6.1 Title", "6.2. Title"
+                    "|Section\\s+\\d+" +                            // "Section 3"
+                    "|SECTION\\s+\\d+" +                            // "SECTION 3"
+                    ")",
             Pattern.MULTILINE
     );
 
@@ -61,11 +85,14 @@ public class PdfProcessingWorker {
                 throw new RuntimeException("PDF에서 텍스트를 추출할 수 없습니다.");
             }
 
-            // 2. Parse chapters/sections and merge small sections
+            // 2. Clean extracted text (remove headers/footers, page numbers, normalize whitespace)
+            fullText = cleanExtractedText(fullText);
+
+            // 3. Parse chapters/sections and merge small sections
             List<Section> sections = parseSections(fullText);
             sections = mergeSections(sections);
 
-            // 3. Chunk each section (global sequence numbering)
+            // 4. Chunk each section (global sequence numbering)
             List<Chunk> allChunks = new ArrayList<>();
             int globalSeq = 1;
             for (Section section : sections) {
@@ -79,7 +106,7 @@ public class PdfProcessingWorker {
 
             log.info("PDF parsed: jobId={}, book='{}', totalChunks={}", jobId, bookTitle, allChunks.size());
 
-            // 4. Generate embeddings and save to KB (with rate limit handling)
+            // 5. Generate embeddings and save to KB (with rate limit handling)
             int savedCount = 0;
             for (int i = 0; i < allChunks.size(); i++) {
                 Chunk chunk = allChunks.get(i);
@@ -95,7 +122,7 @@ public class PdfProcessingWorker {
                 Thread.sleep(RATE_LIMIT_DELAY_MS);
             }
 
-            // 5. Mark as done
+            // 6. Mark as done
             job.setStatus("DONE");
             job.setTotalChunks(savedCount);
             job.setCompletedAt(LocalDateTime.now());
@@ -213,6 +240,107 @@ public class PdfProcessingWorker {
             }
         }
         return result;
+    }
+
+    // --- Text cleaning methods ---
+
+    /**
+     * Applies all cleaning steps to raw extracted PDF text.
+     * Called after extractText() and before parseSections().
+     */
+    String cleanExtractedText(String rawText) {
+        int originalLength = rawText.length();
+        String cleaned = rawText;
+        cleaned = removeRepeatingHeaders(cleaned);
+        cleaned = removePageNumbers(cleaned);
+        cleaned = normalizeWhitespace(cleaned);
+        log.info("Text cleaning: {} → {} chars (removed {})",
+                originalLength, cleaned.length(), originalLength - cleaned.length());
+        return cleaned;
+    }
+
+    /**
+     * Detects and removes repeating header/footer lines.
+     * Lines ≤ 100 chars appearing ≥ max(3, totalLines × 0.4) times are considered headers/footers.
+     */
+    String removeRepeatingHeaders(String text) {
+        String[] lines = text.split("\n", -1);
+        int totalLines = lines.length;
+
+        // Count occurrences of each non-blank trimmed line
+        Map<String, Integer> lineCounts = new HashMap<>();
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty() && trimmed.length() <= REPEATING_HEADER_MAX_LENGTH) {
+                lineCounts.merge(trimmed, 1, Integer::sum);
+            }
+        }
+
+        // Estimate page count from total lines, then determine threshold
+        int estimatedPages = Math.max(1, totalLines / ESTIMATED_LINES_PER_PAGE);
+        int threshold = Math.max(REPEATING_HEADER_MIN_COUNT,
+                (int) (estimatedPages * REPEATING_HEADER_RATIO));
+
+        // Filter out repeating header/footer lines
+        StringBuilder sb = new StringBuilder();
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty()
+                    && trimmed.length() <= REPEATING_HEADER_MAX_LENGTH
+                    && lineCounts.getOrDefault(trimmed, 0) >= threshold) {
+                continue; // Skip this repeating header/footer line
+            }
+            sb.append(line).append("\n");
+        }
+
+        // Remove trailing newline added by loop
+        if (!sb.isEmpty() && sb.charAt(sb.length() - 1) == '\n') {
+            sb.setLength(sb.length() - 1);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Removes lines that consist entirely of page number patterns.
+     * Does not touch numbers embedded within body text.
+     */
+    String removePageNumbers(String text) {
+        return PAGE_NUMBER_PATTERN.matcher(text).replaceAll("");
+    }
+
+    /**
+     * Normalizes whitespace: collapses excessive blank lines, trims lines, replaces tabs.
+     */
+    String normalizeWhitespace(String text) {
+        // Replace tabs with spaces
+        String result = text.replace('\t', ' ');
+
+        // Collapse consecutive spaces (2+) to single space within each line
+        result = result.replaceAll(" {2,}", " ");
+
+        // Trim each line
+        String[] lines = result.split("\n", -1);
+        StringBuilder sb = new StringBuilder();
+        int consecutiveBlank = 0;
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) {
+                consecutiveBlank++;
+                if (consecutiveBlank <= 2) {
+                    sb.append("\n");
+                }
+            } else {
+                consecutiveBlank = 0;
+                sb.append(trimmed).append("\n");
+            }
+        }
+
+        // Remove trailing newline
+        String finalResult = sb.toString();
+        if (finalResult.endsWith("\n")) {
+            finalResult = finalResult.substring(0, finalResult.length() - 1);
+        }
+        return finalResult;
     }
 
     // --- Internal helpers ---
