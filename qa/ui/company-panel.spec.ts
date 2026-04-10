@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { FeaturesPage } from '../pages/features-page';
-import { cleanupAllTestData } from '../helpers/api-helpers';
+import { cleanupAllTestData, loginAsAdminInBrowser } from '../helpers/api-helpers';
 
 test.describe('Company List Page', () => {
   let featuresPage: FeaturesPage;
 
   test.beforeEach(async ({ page }) => {
+    await loginAsAdminInBrowser(page);
     featuresPage = new FeaturesPage(page);
     await featuresPage.goto();
   });

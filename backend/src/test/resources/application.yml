@@ -19,6 +19,10 @@ spring:
     openai:
       api-key: test-key-do-not-use
 
+jwt:
+  secret: test-secret-key-for-unit-tests-only-32bytes-long!!
+  expiration-ms: 86400000
+
 feature:
   embedding:
     enabled: true

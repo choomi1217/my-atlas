@@ -1,4 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
+import { loginAsAdminInBrowser } from '../helpers/api-helpers';
 
 const API_URL = process.env.API_URL || 'http://localhost:8080';
 
@@ -31,6 +32,7 @@ test.describe('Knowledge Base UI E2E', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    await loginAsAdminInBrowser(page);
     await page.goto('/kb');
   });
 

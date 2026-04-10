@@ -14,21 +14,29 @@ export const apiClient = axios.create({
 });
 
 /**
- * Add request interceptor for common headers.
+ * Add request interceptor — inject JWT token.
  */
 apiClient.interceptors.request.use((config) => {
-  // Add custom headers if needed
+  const token = localStorage.getItem('my-atlas-token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
 /**
- * Add response interceptor for error handling.
+ * Add response interceptor — handle 401 (token expired/invalid).
  */
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle common errors
-    console.error('API Error:', error);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('my-atlas-token');
+      localStorage.removeItem('my-atlas-user');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
     return Promise.reject(error);
   }
 );
