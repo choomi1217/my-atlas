@@ -1,9 +1,6 @@
 package com.myqaweb.senior;
 
 import com.myqaweb.common.EmbeddingService;
-import com.myqaweb.convention.ConventionRepository;
-import com.myqaweb.convention.ConventionEntity;
-import com.myqaweb.feature.*;
 import com.myqaweb.knowledgebase.KnowledgeBaseDto;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
@@ -20,7 +17,6 @@ import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,18 +44,6 @@ class SeniorServiceImplTest {
     @Mock
     private KnowledgeBaseService knowledgeBaseService;
 
-    @Mock
-    private CompanyRepository companyRepository;
-
-    @Mock
-    private ProductRepository productRepository;
-
-    @Mock
-    private SegmentRepository segmentRepository;
-
-    @Mock
-    private ConventionRepository conventionRepository;
-
     @InjectMocks
     private SeniorServiceImpl seniorService;
 
@@ -79,12 +63,10 @@ class SeniorServiceImplTest {
     }
 
     private void setupMinimalRagMocks() {
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
         when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
-        when(conventionRepository.findAll()).thenReturn(List.of());
     }
 
     // --- chat ---
@@ -175,47 +157,7 @@ class SeniorServiceImplTest {
                 "System prompt should NOT contain FAQ context section when faqContext is null");
     }
 
-    // --- RAG Pipeline: Active Company ---
-
-    @Test
-    void chat_withActiveCompany_includesProductsAndSegmentsInContext() {
-        // Arrange
-        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
-        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
-
-        when(chatClient.prompt()).thenReturn(clientRequest);
-        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
-        when(clientRequest.system(systemCaptor.capture())).thenReturn(clientRequest);
-        when(clientRequest.user(anyString())).thenReturn(clientRequest);
-        when(clientRequest.stream()).thenReturn(streamSpec);
-        when(streamSpec.content()).thenReturn(Flux.just("response"));
-
-        CompanyEntity company = new CompanyEntity(1L, "TestCorp", true, now);
-        ProductEntity product = new ProductEntity(1L, company, "WebApp", Platform.WEB, "Main web app", now);
-        SegmentEntity segment = new SegmentEntity();
-        segment.setId(1L);
-        segment.setName("Login Module");
-
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.of(company));
-        when(productRepository.findAllByCompanyId(1L)).thenReturn(List.of(product));
-        when(segmentRepository.findAllByProductId(1L)).thenReturn(List.of(segment));
-        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
-        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
-        when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of());
-        when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
-        when(conventionRepository.findAll()).thenReturn(List.of());
-
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null);
-
-        // Act
-        seniorService.chat(request);
-
-        // Assert
-        String systemPrompt = systemCaptor.getValue();
-        assertTrue(systemPrompt.contains("TestCorp"), "Should contain company name");
-        assertTrue(systemPrompt.contains("WebApp"), "Should contain product name");
-        assertTrue(systemPrompt.contains("Login Module"), "Should contain segment name");
-    }
+    // --- RAG Pipeline: KB Sources ---
 
     @Test
     void chat_withKbResults_combinesAllSourcesInContext() {
@@ -230,7 +172,6 @@ class SeniorServiceImplTest {
         when(clientRequest.stream()).thenReturn(streamSpec);
         when(streamSpec.content()).thenReturn(Flux.just("response"));
 
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
 
@@ -244,9 +185,6 @@ class SeniorServiceImplTest {
         pdfKb.setContent("Testing patterns from a book.");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfKb));
 
-        ConventionEntity conv = new ConventionEntity(1L, "TC", "Test Case", "Testing", now);
-        when(conventionRepository.findAll()).thenReturn(List.of(conv));
-
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
 
         // Act
@@ -256,16 +194,13 @@ class SeniorServiceImplTest {
         String systemPrompt = systemCaptor.getValue();
         assertTrue(systemPrompt.contains("Regression Best Practices"), "Should contain manual KB entry");
         assertTrue(systemPrompt.contains("Book Chapter 5"), "Should contain PDF KB entry");
-        assertTrue(systemPrompt.contains("TC"), "Should contain convention term");
     }
 
     @Test
     void chat_whenEmbeddingServiceFails_stillStreamsResponse() {
         // Arrange
         setupChatClientMock();
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenThrow(new RuntimeException("OpenAI API unavailable"));
-        when(conventionRepository.findAll()).thenReturn(List.of());
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test login?", null);
 
@@ -292,7 +227,6 @@ class SeniorServiceImplTest {
         when(clientRequest.stream()).thenReturn(streamSpec);
         when(streamSpec.content()).thenReturn(Flux.just("response"));
 
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
 
@@ -305,8 +239,6 @@ class SeniorServiceImplTest {
         pdfEntry.setTitle("PDF Chapter");
         pdfEntry.setContent("Book-derived knowledge");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), eq(2))).thenReturn(List.of(pdfEntry));
-
-        when(conventionRepository.findAll()).thenReturn(List.of());
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
 
@@ -338,7 +270,6 @@ class SeniorServiceImplTest {
         when(clientRequest.stream()).thenReturn(streamSpec);
         when(streamSpec.content()).thenReturn(Flux.just("response"));
 
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
 
@@ -347,7 +278,6 @@ class SeniorServiceImplTest {
         manualEntry.setContent("Only manual content");
         when(knowledgeBaseRepository.findSimilarManual(anyString(), anyInt())).thenReturn(List.of(manualEntry));
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of());
-        when(conventionRepository.findAll()).thenReturn(List.of());
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null);
 
@@ -373,7 +303,6 @@ class SeniorServiceImplTest {
         when(clientRequest.stream()).thenReturn(streamSpec);
         when(streamSpec.content()).thenReturn(Flux.just("response"));
 
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
 
@@ -382,7 +311,6 @@ class SeniorServiceImplTest {
         pdfEntry.setTitle("PDF Only");
         pdfEntry.setContent("Only PDF content");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfEntry));
-        when(conventionRepository.findAll()).thenReturn(List.of());
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null);
 
@@ -401,7 +329,6 @@ class SeniorServiceImplTest {
     void chat_incrementsHitCountsForRetrievedKbEntries() {
         // Arrange
         setupChatClientMock();
-        when(companyRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
 
@@ -416,8 +343,6 @@ class SeniorServiceImplTest {
         pdfKb.setTitle("PDF Entry");
         pdfKb.setContent("PDF Content");
         when(knowledgeBaseRepository.findSimilarPdf(anyString(), anyInt())).thenReturn(List.of(pdfKb));
-
-        when(conventionRepository.findAll()).thenReturn(List.of());
 
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null);
 

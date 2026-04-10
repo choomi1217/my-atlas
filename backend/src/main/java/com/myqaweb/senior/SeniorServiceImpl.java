@@ -1,14 +1,6 @@
 package com.myqaweb.senior;
 
 import com.myqaweb.common.EmbeddingService;
-import com.myqaweb.convention.ConventionEntity;
-import com.myqaweb.convention.ConventionRepository;
-import com.myqaweb.feature.CompanyEntity;
-import com.myqaweb.feature.CompanyRepository;
-import com.myqaweb.feature.ProductEntity;
-import com.myqaweb.feature.ProductRepository;
-import com.myqaweb.feature.SegmentEntity;
-import com.myqaweb.feature.SegmentRepository;
 import com.myqaweb.knowledgebase.KnowledgeBaseDto;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
@@ -24,7 +16,6 @@ import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Implementation of SeniorService.
@@ -43,10 +34,6 @@ public class SeniorServiceImpl implements SeniorService {
     private final EmbeddingService embeddingService;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeBaseService knowledgeBaseService;
-    private final CompanyRepository companyRepository;
-    private final ProductRepository productRepository;
-    private final SegmentRepository segmentRepository;
-    private final ConventionRepository conventionRepository;
 
     @Override
     public SseEmitter chat(ChatDto.ChatRequest request) {
@@ -106,46 +93,14 @@ public class SeniorServiceImpl implements SeniorService {
             sb.append("내용: ").append(faqContext.content()).append("\n\n");
         }
 
-        // 1. Company Features (active company → products → segments)
-        appendCompanyFeatures(sb);
-
-        // 2. Knowledge Base (vector similarity search + hit count increment)
+        // 1. Knowledge Base (vector similarity search + hit count increment)
         appendKnowledgeBase(sb, userMessage);
 
-        // 3. Terminology Conventions (all)
-        appendConventions(sb);
-
-        sb.append("Use the above context for accurate, company-specific QA guidance. ");
+        sb.append("Use the above context for accurate QA guidance. ");
         sb.append("If the context doesn't contain relevant information, use your general QA expertise. ");
-        sb.append("Always use the terminology conventions when applicable. ");
         sb.append("Respond in the same language as the user's question.");
 
         return sb.toString();
-    }
-
-    private void appendCompanyFeatures(StringBuilder sb) {
-        Optional<CompanyEntity> activeCompany = companyRepository.findByIsActiveTrue();
-        if (activeCompany.isPresent()) {
-            CompanyEntity company = activeCompany.get();
-            sb.append("=== Company Features ===\n");
-            sb.append("Company: ").append(company.getName()).append("\n");
-
-            List<ProductEntity> products = productRepository.findAllByCompanyId(company.getId());
-            for (ProductEntity product : products) {
-                sb.append("Product: ").append(product.getName())
-                        .append(" (").append(product.getPlatform()).append(")");
-                if (product.getDescription() != null) {
-                    sb.append(" - ").append(product.getDescription());
-                }
-                sb.append("\n");
-
-                List<SegmentEntity> segments = segmentRepository.findAllByProductId(product.getId());
-                for (SegmentEntity segment : segments) {
-                    sb.append("  Segment: ").append(segment.getName()).append("\n");
-                }
-            }
-            sb.append("\n");
-        }
     }
 
     private void appendKnowledgeBase(StringBuilder sb, String userMessage) {
@@ -194,14 +149,4 @@ public class SeniorServiceImpl implements SeniorService {
         }
     }
 
-    private void appendConventions(StringBuilder sb) {
-        List<ConventionEntity> conventions = conventionRepository.findAll();
-        if (!conventions.isEmpty()) {
-            sb.append("=== Terminology Conventions ===\n");
-            for (ConventionEntity conv : conventions) {
-                sb.append("- ").append(conv.getTerm()).append(": ").append(conv.getDefinition()).append("\n");
-            }
-            sb.append("\n");
-        }
-    }
 }
