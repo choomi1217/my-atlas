@@ -3,6 +3,9 @@
 # 워크트리에서 docker compose를 실행하기 위한 환경을 자동 설정한다.
 # 메인 .env를 복사한 뒤, 워크트리별 고유 포트/컨테이너 변수를 추가한다.
 #
+# DB는 메인 레포의 docker-compose.db.yml로 독립 실행되므로,
+# 워크트리에서는 backend + frontend만 설정한다.
+#
 # 사용법:
 #   bash scripts/setup-worktree.sh .claude/worktrees/registry
 
@@ -26,6 +29,13 @@ fi
 WORKTREE_NAME="$(basename "$WORKTREE_DIR")"
 echo "🔧 워크트리 설정: $WORKTREE_NAME ($WORKTREE_DIR)"
 
+# --- DB 실행 확인 ---
+if ! docker ps --format '{{.Names}}' | grep -q '^myqaweb-db$'; then
+  echo "⚠️  myqaweb-db 컨테이너가 실행 중이 아닙니다."
+  echo "   먼저 DB를 띄워주세요: cd $MAIN_PROJECT && docker compose -f docker-compose.db.yml up -d"
+  exit 1
+fi
+
 # --- 포트 슬롯 할당 (알파벳 순) ---
 WORKTREE_NAMES=($(ls "$MAIN_PROJECT/.claude/worktrees/" 2>/dev/null | sort))
 SLOT=0
@@ -41,7 +51,6 @@ if [ "$SLOT" -eq 0 ]; then
   SLOT=1
 fi
 
-DB_PORT=$((15432 + SLOT))
 BACKEND_PORT=$((8080 + SLOT))
 FRONTEND_PORT=$((5173 + SLOT))
 
@@ -72,40 +81,18 @@ BACKEND_PORT=${BACKEND_PORT}
 FRONTEND_PORT=${FRONTEND_PORT}
 EOF
 
-# --- docker-compose.override.yml 생성 (DB 독립 볼륨 + 메인 DB 접속) ---
-cat > "$WORKTREE_DIR/docker-compose.override.yml" << OVERRIDE_EOF
-# Worktree override: DB는 독립 볼륨 사용 (메인 볼륨 보호)
-# backend는 메인 레포의 myqaweb-db(5432)에 접속
-services:
-  db:
-    volumes:
-      - worktree_pgdata:/var/lib/postgresql/data
-    ports: !reset
-      - "${DB_PORT}:5432"
+# --- 기존 docker-compose.override.yml 제거 (DB 분리로 더 이상 불필요) ---
+if [ -f "$WORKTREE_DIR/docker-compose.override.yml" ]; then
+  rm "$WORKTREE_DIR/docker-compose.override.yml"
+  echo "🗑️  기존 docker-compose.override.yml 제거 (DB 분리로 불필요)"
+fi
 
-  backend:
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/myqaweb
-      SPRING_DATASOURCE_USERNAME: \${SPRING_DATASOURCE_USERNAME:-myqaweb}
-      SPRING_DATASOURCE_PASSWORD: \${SPRING_DATASOURCE_PASSWORD:-admin}
-      ANTHROPIC_API_KEY: \${ANTHROPIC_API_KEY}
-      OPENAI_API_KEY: \${OPENAI_API_KEY}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-volumes:
-  worktree_pgdata:
-OVERRIDE_EOF
-
-echo "✅ .env + docker-compose.override.yml 생성 완료"
+echo "✅ .env 생성 완료"
 echo ""
 echo "📋 포트 할당:"
-echo "   DB:       메인 레포 (5432) 공유"
+echo "   DB:       myqaweb-db (5432) — docker-compose.db.yml로 독립 실행"
 echo "   Backend:  ${BACKEND_PORT}"
 echo "   Frontend: ${FRONTEND_PORT}"
-echo ""
-echo "⚠️  메인 레포에서 DB를 먼저 띄워야 합니다:"
-echo "   cd $MAIN_PROJECT && docker compose up -d db"
 echo ""
 echo "🚀 실행: cd $WORKTREE_DIR && docker compose up -d"
 echo "🌐 접속: http://localhost:${FRONTEND_PORT}"
