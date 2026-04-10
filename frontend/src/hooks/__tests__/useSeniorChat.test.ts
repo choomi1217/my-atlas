@@ -2,10 +2,17 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useSeniorChat } from '../useSeniorChat';
 
-// Mock chatApi
+// Mock chatApi and sessionApi
 vi.mock('@/api/senior', () => ({
   chatApi: {
     streamChat: vi.fn(),
+  },
+  sessionApi: {
+    getAll: vi.fn().mockResolvedValue([]),
+    getById: vi.fn(),
+    create: vi.fn(),
+    updateTitle: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -76,7 +83,7 @@ describe('useSeniorChat', () => {
     let capturedOnChunk: ((text: string) => void) | undefined;
 
     vi.mocked(chatApi.streamChat).mockImplementation(
-      (_msg, onChunk, _onDone, _onError, _ctx) => {
+      (_msg, onChunk, _onDone, _onError, _ctx, _sessionId) => {
         capturedOnChunk = onChunk;
         return { abort: vi.fn() } as unknown as AbortController;
       }
@@ -100,10 +107,10 @@ describe('useSeniorChat', () => {
   });
 
   it('onDone sets streaming false', () => {
-    let capturedOnDone: (() => void) | undefined;
+    let capturedOnDone: ((sessionId?: number) => void) | undefined;
 
     vi.mocked(chatApi.streamChat).mockImplementation(
-      (_msg, _onChunk, onDone, _onError, _ctx) => {
+      (_msg, _onChunk, onDone, _onError, _ctx, _sessionId) => {
         capturedOnDone = onDone;
         return { abort: vi.fn() } as unknown as AbortController;
       }
@@ -128,7 +135,7 @@ describe('useSeniorChat', () => {
     let capturedOnError: ((err: Error) => void) | undefined;
 
     vi.mocked(chatApi.streamChat).mockImplementation(
-      (_msg, _onChunk, _onDone, onError, _ctx) => {
+      (_msg, _onChunk, _onDone, onError, _ctx, _sessionId) => {
         capturedOnError = onError;
         return { abort: vi.fn() } as unknown as AbortController;
       }
@@ -207,7 +214,8 @@ describe('useSeniorChat', () => {
       expect.any(Function),
       expect.any(Function),
       expect.any(Function),
-      { title: 'Login FAQ', content: 'How to test login' }
+      { title: 'Login FAQ', content: 'How to test login' },
+      null
     );
 
     // faqContext should be cleared after sending

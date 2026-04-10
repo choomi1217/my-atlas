@@ -10,7 +10,16 @@ test.describe('Knowledge Base UI E2E', () => {
   let createdKbId: number | null = null;
 
   test.beforeAll(async ({ playwright }) => {
-    apiRequest = await playwright.request.newContext({ baseURL: API_URL });
+    // Login to get admin token for API calls
+    const loginCtx = await playwright.request.newContext({ baseURL: API_URL });
+    const loginResp = await loginCtx.post('/api/auth/login', { data: { username: 'admin', password: 'admin' } });
+    const token = (await loginResp.json() as any).data.token;
+    await loginCtx.dispose();
+
+    apiRequest = await playwright.request.newContext({
+      baseURL: API_URL,
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+    });
   });
 
   test.afterAll(async () => {

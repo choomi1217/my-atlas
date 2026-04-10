@@ -1,18 +1,17 @@
 package com.myqaweb.convention;
 
 import com.myqaweb.common.GlobalExceptionHandler;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -24,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(ConventionImageController.class)
 @Import(GlobalExceptionHandler.class)
+@AutoConfigureMockMvc(addFilters = false)
 class ConventionImageControllerTest {
 
     @Autowired
@@ -32,24 +32,10 @@ class ConventionImageControllerTest {
     @TempDir
     static Path tempDir;
 
-    /**
-     * We need to override the upload-dir property. Since @WebMvcTest creates the controller
-     * with @Value, we use a static @TempDir and configure via @TestPropertySource.
-     * However, @TempDir static fields are initialized before the context.
-     * Instead, we use a DynamicPropertySource or configure via test property.
-     *
-     * Actually, the simplest approach: since @WebMvcTest with @TempDir static won't
-     * integrate cleanly with @Value, we'll use @SpringBootTest with a limited scope.
-     */
-
-    // Note: The above comment is resolved by using
-    // @TestPropertySource in a separate integration-style approach.
-    // For @WebMvcTest, we need to provide the property differently.
-
-    // Since ConventionImageController uses @Value for the upload dir,
-    // and @WebMvcTest doesn't load full context, we override via properties.
-    // However, @TempDir path isn't known at compile time.
-    // We handle this by creating a dedicated test that works with the actual controller.
+    @DynamicPropertySource
+    static void overrideUploadDir(DynamicPropertyRegistry registry) {
+        registry.add("convention.image.upload-dir", () -> tempDir.toString());
+    }
 
     // --- POST /api/convention-images ---
 

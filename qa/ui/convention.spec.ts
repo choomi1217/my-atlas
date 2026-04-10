@@ -1,4 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
+import { loginAsAdminInBrowser } from '../helpers/api-helpers';
 
 const API_URL = process.env.API_URL || 'http://localhost:8080';
 
@@ -8,7 +9,16 @@ test.describe('Convention UI E2E', () => {
   let createdIds: number[] = [];
 
   test.beforeAll(async ({ playwright }) => {
-    apiRequest = await playwright.request.newContext({ baseURL: API_URL });
+    // Login to get admin token for API calls
+    const loginCtx = await playwright.request.newContext({ baseURL: API_URL });
+    const loginResp = await loginCtx.post('/api/auth/login', { data: { username: 'admin', password: 'admin' } });
+    const token = (await loginResp.json() as any).data.token;
+    await loginCtx.dispose();
+
+    apiRequest = await playwright.request.newContext({
+      baseURL: API_URL,
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+    });
 
     // Clean up leftover E2E conventions from previous runs
     const response = await apiRequest.get('/api/conventions');
@@ -41,6 +51,7 @@ test.describe('Convention UI E2E', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    await loginAsAdminInBrowser(page);
     await page.goto('/conventions');
   });
 
