@@ -32,6 +32,136 @@ class PdfProcessingWorkerTest {
     @InjectMocks
     private PdfProcessingWorker pdfProcessingWorker;
 
+    // --- removeRepeatingHeaders ---
+
+    @Test
+    void removeRepeatingHeaders_removesRepeatedShortLines() {
+        // T1: 반복 헤더 3개 + 본문 → 헤더만 제거
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 10; i++) {
+            sb.append("ISTQB Foundation Level Syllabus\n");
+            sb.append("Korean Software Testing Board\n");
+            sb.append("본문 내용 라인 ").append(i).append("는 고유한 텍스트입니다.\n");
+        }
+
+        String result = pdfProcessingWorker.removeRepeatingHeaders(sb.toString());
+
+        assertFalse(result.contains("ISTQB Foundation Level Syllabus"),
+                "반복 헤더가 제거되어야 함");
+        assertFalse(result.contains("Korean Software Testing Board"),
+                "반복 푸터가 제거되어야 함");
+        assertTrue(result.contains("본문 내용 라인 0"),
+                "본문은 유지되어야 함");
+        assertTrue(result.contains("본문 내용 라인 9"),
+                "본문은 유지되어야 함");
+    }
+
+    @Test
+    void removeRepeatingHeaders_noChangeWhenNoRepeats() {
+        // T2: 반복 없는 텍스트 → 변경 없음
+        String text = "첫 번째 줄입니다.\n두 번째 줄입니다.\n세 번째 줄입니다.";
+
+        String result = pdfProcessingWorker.removeRepeatingHeaders(text);
+
+        assertEquals(text, result);
+    }
+
+    @Test
+    void removeRepeatingHeaders_ignoresBlankLines() {
+        // T3: 빈 줄만 반복 → 변경 없음 (빈 줄은 클리닝 대상 아님)
+        String text = "내용1\n\n내용2\n\n내용3\n\n내용4";
+
+        String result = pdfProcessingWorker.removeRepeatingHeaders(text);
+
+        assertTrue(result.contains("내용1"));
+        assertTrue(result.contains("내용4"));
+    }
+
+    // --- removePageNumbers ---
+
+    @Test
+    void removePageNumbers_removesVariousPatterns() {
+        // T4: 다양한 페이지 번호 패턴 제거
+        String text = "본문 시작\n66\n다음 본문\n66 of 72\n더 많은 본문\n- 3 -\nPage 42\np. 15\n마지막 본문";
+
+        String result = pdfProcessingWorker.removePageNumbers(text);
+
+        assertTrue(result.contains("본문 시작"), "본문 유지");
+        assertTrue(result.contains("다음 본문"), "본문 유지");
+        assertTrue(result.contains("마지막 본문"), "본문 유지");
+        assertFalse(result.matches("(?s).*^\\s*66\\s*$.*"), "단독 숫자 제거");
+        assertFalse(result.contains("66 of 72"), "N of M 패턴 제거");
+        assertFalse(result.contains("- 3 -"), "대시 패턴 제거");
+        assertFalse(result.contains("Page 42"), "Page N 패턴 제거");
+        assertFalse(result.contains("p. 15"), "p. N 패턴 제거");
+    }
+
+    @Test
+    void removePageNumbers_preservesInlineNumbers() {
+        // T5: 본문 내 숫자는 건드리지 않음
+        String text = "테스트 결과는 66건이다.\n총 72개 항목 중 66개 통과.";
+
+        String result = pdfProcessingWorker.removePageNumbers(text);
+
+        assertEquals(text, result, "본문 내 숫자는 변경되지 않아야 함");
+    }
+
+    // --- normalizeWhitespace ---
+
+    @Test
+    void normalizeWhitespace_collapsesExcessiveBlankLines() {
+        // T6: 연속 빈 줄 축소
+        String text = "라인1\n\n\n\n\n라인2";
+
+        String result = pdfProcessingWorker.normalizeWhitespace(text);
+
+        // 3줄 이상 연속 빈 줄 → 2줄로 축소 (2 blank lines = 3 newlines between content)
+        assertFalse(result.contains("\n\n\n\n"), "3줄 이상 연속 빈 줄이 남아있으면 안 됨");
+        assertTrue(result.contains("라인1"));
+        assertTrue(result.contains("라인2"));
+    }
+
+    @Test
+    void normalizeWhitespace_trimsAndNormalizesSpaces() {
+        // T7: 공백/탭 정규화
+        String text = "  앞뒤 공백  \n\t탭문자\n여러   공백   있음";
+
+        String result = pdfProcessingWorker.normalizeWhitespace(text);
+
+        assertTrue(result.contains("앞뒤 공백"), "앞뒤 공백 trim");
+        assertFalse(result.contains("\t"), "탭 → 공백 변환");
+        assertTrue(result.contains("여러 공백 있음"), "연속 공백 → 단일 공백");
+    }
+
+    @Test
+    void normalizeWhitespace_noChangeForCleanText() {
+        String text = "정상\n텍스트";
+
+        String result = pdfProcessingWorker.normalizeWhitespace(text);
+
+        assertEquals(text, result);
+    }
+
+    // --- cleanExtractedText (integration) ---
+
+    @Test
+    void cleanExtractedText_appliesAllStepsSequentially() {
+        // T10: 통합 클리닝 검증 — 헤더 제거 + 페이지 번호 제거 + 공백 정규화
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 10; i++) {
+            sb.append("Repeated Header Line\n");
+            sb.append("본문 내용 ").append(i).append("\n");
+            sb.append(i + 1).append("\n");          // page number
+            sb.append("\n\n\n\n");                  // excessive blank lines
+        }
+
+        String result = pdfProcessingWorker.cleanExtractedText(sb.toString());
+
+        assertFalse(result.contains("Repeated Header Line"), "반복 헤더 제거됨");
+        assertTrue(result.contains("본문 내용 0"), "본문 유지됨");
+        assertFalse(result.contains("\n\n\n"), "연속 빈 줄 정규화됨");
+    }
+
     // --- parseSections ---
 
     @Test
@@ -108,6 +238,52 @@ class PdfProcessingWorkerTest {
         assertTrue(hasChapter1, "제1장 인식 실패");
         assertTrue(hasChapter2, "Chapter 2 인식 실패");
         assertFalse(hasNumberedItem, "번호 리스트 '1. Introduction'이 섹션으로 오인식됨");
+    }
+
+    @Test
+    void parseSections_recognizesMultiLevelNumbering() {
+        // T8: "6.1 제목" → 섹션으로 인식
+        String text = """
+                제1장 테스팅의 기초
+                기초에 대한 설명입니다.
+                6.1 테스팅 지원 도구
+                지원 도구에 대한 설명입니다.
+                6.2. 테스트 자동화
+                자동화에 대한 설명입니다.
+                Section 3 Advanced Topics
+                고급 주제에 대한 설명입니다.
+                """;
+
+        List<PdfProcessingWorker.Section> sections = pdfProcessingWorker.parseSections(text);
+
+        boolean has6_1 = sections.stream()
+                .anyMatch(s -> s.name() != null && s.name().contains("6.1"));
+        boolean has6_2 = sections.stream()
+                .anyMatch(s -> s.name() != null && s.name().contains("6.2"));
+        boolean hasSection3 = sections.stream()
+                .anyMatch(s -> s.name() != null && s.name().contains("Section 3"));
+
+        assertTrue(has6_1, "6.1 다단계 넘버링 인식 실패");
+        assertTrue(has6_2, "6.2. 다단계 넘버링 인식 실패");
+        assertTrue(hasSection3, "Section 3 인식 실패");
+    }
+
+    @Test
+    void parseSections_multiLevelDoesNotSplitLowercaseLists() {
+        // T9: "1. lowercase..." 는 섹션으로 미인식
+        String text = """
+                제1장 테스팅의 원리
+                다음은 중요한 원칙입니다:
+                1. testing is important for quality.
+                2. complete testing is impossible.
+                3. early testing saves time.
+                """;
+
+        List<PdfProcessingWorker.Section> sections = pdfProcessingWorker.parseSections(text);
+
+        boolean hasLowercaseSection = sections.stream()
+                .anyMatch(s -> s.name() != null && s.name().startsWith("1. testing"));
+        assertFalse(hasLowercaseSection, "소문자 시작 번호 리스트가 섹션으로 오인식됨");
     }
 
     @Test
