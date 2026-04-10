@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/context/AuthContext'
 
 const navItems = [
   { to: '/senior',      label: 'My Senior'        },
@@ -13,6 +14,14 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -39,6 +48,30 @@ export default function Layout({ children }: LayoutProps) {
             </NavLink>
           ))}
         </nav>
+
+        {/* User info + Logout */}
+        {user && (
+          <div className="p-3 border-t border-gray-200">
+            <div className="flex items-center justify-between px-3 py-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm font-medium text-gray-700 truncate">{user.username}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                  user.role === 'ADMIN'
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {user.role}
+                </span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
 
       {/* Main content */}
