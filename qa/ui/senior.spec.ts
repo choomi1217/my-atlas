@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { loginAsAdminInBrowser } from '../helpers/api-helpers';
                                                                                                                                                                                                                                                                                           
   test.describe('Senior Page', () => {
                                                                                                                                                                                                                                                                                           
     test.beforeEach(async ({ page }) => {                           
+    await loginAsAdminInBrowser(page);
       await page.goto('/senior');
     });
 

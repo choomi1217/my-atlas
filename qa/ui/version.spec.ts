@@ -5,6 +5,7 @@ import {
   createTestSegment,
   createTestTestCase,
   cleanupAllTestData,
+  loginAsAdminInBrowser,
 } from '../helpers/api-helpers';
 import axios from 'axios';
 
@@ -52,6 +53,11 @@ test.describe('Version Management UI E2E', () => {
   });
 
   test.beforeAll(async () => {
+    // Login and set token on local apiClient
+    const loginResp = await apiClient.post('/api/auth/login', { username: 'admin', password: 'admin' });
+    const token = loginResp.data.data.token;
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
     await cleanupAllTestData();
 
     const company = await createTestCompany('E2E Version UI Company');
@@ -82,6 +88,7 @@ test.describe('Version Management UI E2E', () => {
 
   test.beforeEach(async ({ browser }) => {
     page = await browser.newPage();
+    await loginAsAdminInBrowser(page);
   });
 
   test.afterEach(async () => {
