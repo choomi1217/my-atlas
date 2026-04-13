@@ -74,13 +74,9 @@ test.describe.serial('TestRun UI E2E', () => {
     testRunId = testRunResponse.data.data.id;
   });
 
-  test.beforeEach(async ({ browser }) => {
-    page = await browser.newPage();
+  test.beforeEach(async ({ page: newPage }) => {
+    page = newPage;
     await loginAsAdminInBrowser(page);
-  });
-
-  test.afterEach(async () => {
-    await page.close();
   });
 
   // Helper: navigate to TestRunListPage

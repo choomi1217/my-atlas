@@ -31,10 +31,11 @@ test.describe('Company List Page', () => {
     const companyName = 'E2E Activate Test';
     await featuresPage.addCompany(companyName);
 
+    const card = page.locator('.bg-white.border.rounded-lg').filter({ hasText: companyName });
     const activatePromise = page.waitForResponse(resp =>
       resp.url().includes('/activate') && resp.request().method() === 'PATCH'
     );
-    await page.getByRole('button', { name: /Activate/i }).first().click();
+    await card.getByRole('button', { name: /Activate/i }).click();
     await activatePromise;
 
     const activeBadge = await page.getByText('Active', { exact: true }).isVisible();
@@ -46,15 +47,13 @@ test.describe('Company List Page', () => {
     await featuresPage.addCompany(companyName);
 
     // Verify company exists
-    let companyExists = await page.getByText(companyName).isVisible();
-    expect(companyExists).toBe(true);
+    await expect(page.getByRole('heading', { name: companyName })).toBeVisible();
 
     // Delete company via ConfirmDialog
-    await featuresPage.deleteCompany();
+    await featuresPage.deleteCompany(companyName);
 
     // Verify company is removed
-    companyExists = await page.getByText(companyName).isVisible();
-    expect(companyExists).toBe(false);
+    await expect(page.getByRole('heading', { name: companyName })).not.toBeVisible();
   });
 
   test('should navigate to products on company click', async ({ page }) => {
@@ -80,10 +79,11 @@ test.describe('Company List Page', () => {
     await featuresPage.addCompany(companyName);
 
     // Activate the company
+    const card = page.locator('.bg-white.border.rounded-lg').filter({ hasText: companyName });
     const activatePromise = page.waitForResponse(resp =>
       resp.url().includes('/activate') && resp.request().method() === 'PATCH'
     );
-    await page.getByRole('button', { name: /Activate/i }).first().click();
+    await card.getByRole('button', { name: /Activate/i }).click();
     await activatePromise;
 
     // Active company should be rendered as hero card with Active badge
@@ -103,10 +103,11 @@ test.describe('Company List Page', () => {
     await featuresPage.addCompany(companyName);
 
     // Activate the company so it shows as hero card with Edit Name button
+    const card = page.locator('.bg-white.border.rounded-lg').filter({ hasText: companyName });
     const activatePromise = page.waitForResponse(resp =>
       resp.url().includes('/activate') && resp.request().method() === 'PATCH'
     );
-    await page.getByRole('button', { name: /Activate/i }).first().click();
+    await card.getByRole('button', { name: /Activate/i }).click();
     await activatePromise;
 
     // Click Edit Name button
@@ -137,10 +138,11 @@ test.describe('Company List Page', () => {
     await featuresPage.addCompany(companyName);
 
     // Activate the company first
+    const card = page.locator('.bg-white.border.rounded-lg').filter({ hasText: companyName });
     const activatePromise = page.waitForResponse(resp =>
       resp.url().includes('/activate') && resp.request().method() === 'PATCH'
     );
-    await page.getByRole('button', { name: /Activate/i }).first().click();
+    await card.getByRole('button', { name: /Activate/i }).click();
     await activatePromise;
 
     // Verify it is active (hero card visible)

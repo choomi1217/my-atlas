@@ -2,7 +2,7 @@ export default function WorkExpTab() {
   return (
     <div>
       {/* QA Experience */}
-      <section className="mb-14">
+      <section id="exp-studio-xid" className="mb-14">
         <div className="flex items-center gap-3.5 mb-8">
           <span className="font-mono text-xs font-medium uppercase tracking-widest text-gray-900">
             QA Experience
@@ -216,7 +216,7 @@ export default function WorkExpTab() {
       </section>
 
       {/* Development Experience */}
-      <section className="mb-14">
+      <section id="exp-dev" className="mb-14">
         <div className="flex items-center gap-3.5 mb-8">
           <span className="font-mono text-xs font-medium uppercase tracking-widest text-gray-900">
             Development Experience
@@ -225,7 +225,7 @@ export default function WorkExpTab() {
         </div>
 
         {/* NFLUX */}
-        <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-x-10 mb-12">
+        <div id="exp-nflux" className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-x-10 mb-12">
           <div className="mb-4 md:mb-0 pt-0.5">
             <div className="text-2xl font-bold tracking-tight">
               NFLUX<span className="text-violet-500">.</span>
@@ -273,7 +273,7 @@ export default function WorkExpTab() {
         </div>
 
         {/* 도로명주소단 */}
-        <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-x-10">
+        <div id="exp-doromyeong" className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-x-10">
           <div className="mb-4 md:mb-0 pt-0.5">
             <div className="text-2xl font-bold tracking-tight">
               도로명주소단<span className="text-violet-500">.</span>
@@ -316,7 +316,7 @@ export default function WorkExpTab() {
       </section>
 
       {/* Side Project */}
-      <section className="mb-14">
+      <section id="exp-side-project" className="mb-14">
         <div className="flex items-center gap-3.5 mb-8">
           <span className="font-mono text-xs font-medium uppercase tracking-widest text-gray-900">
             Side Project
