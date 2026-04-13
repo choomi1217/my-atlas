@@ -282,6 +282,44 @@ feature/* → develop (PR) → main (PR)
 
 ---
 
+## Worktree Git 생명주기
+
+이 프로젝트의 worktree는 기능 도메인별 **영구 작업 공간**이다 (일회성이 아님).
+
+### 작업 사이클
+1. **시작**: `./scripts/wt.sh sync <name>` — develop 최신 상태로 동기화
+2. **작업**: 코드 수정, 커밋
+3. **PR**: push → PR(→develop) 생성
+4. **머지 후**: 반드시 `./scripts/wt.sh sync <name>` 실행 — develop으로 리셋
+
+### 규칙
+- ❌ 머지 후 리셋 없이 다음 작업 시작 금지 (유령 커밋 누적)
+- ❌ develop에서 3일 이상 뒤처진 상태로 작업 금지
+- ✅ 작업 시작 전 반드시 sync
+- ✅ Claude 세션 시작 시 자동으로 sync 상태 확인
+- ✅ PR 머지 후 즉시 sync
+
+### develop → main
+- 기능이 완전히 완료되면 develop → main PR 생성
+- main PR은 유저가 직접 판단
+
+### Claude 세션 시작 시 자동 검증
+
+Claude가 worktree에서 세션을 시작할 때:
+1. `git fetch origin && git log --oneline origin/develop..HEAD`로 ahead 확인
+2. ahead > 0이면 "이 worktree에 미머지 커밋이 있습니다. sync 먼저 할까요?" 안내
+3. `git log --oneline HEAD..origin/develop`로 behind 확인
+4. behind > 3이면 "develop보다 N커밋 뒤처져 있습니다. sync 권장" 안내
+
+### 상태 확인 명령
+```bash
+./scripts/wt.sh status              # 전체 worktree 동기화 상태 표시
+./scripts/wt.sh sync <name>         # 특정 worktree 동기화
+./scripts/wt.sh sync --all          # 전체 worktree 동기화
+```
+
+---
+
 ## Git Branch Strategy
 
 ```
@@ -365,16 +403,13 @@ When working on **E2E tests**, reference `qa/CLAUDE.md`.
 **Tools:** Bash, Read, Glob, Grep (Write/Edit disabled)
 **Commands (must all pass in order):**
 ```bash
-# Step 1: Backend build
+# Step 1: Backend build + tests
 cd /Users/yeongmi/dev/qa/my-atlas/backend && ./gradlew clean build
 
-# Step 2: Unit tests
-./gradlew test
+# Step 2: Start full stack with rebuild (from repo root)
+cd /Users/yeongmi/dev/qa/my-atlas && docker compose up -d --build && sleep 10
 
-# Step 3: Start full stack (from repo root)
-cd /Users/yeongmi/dev/qa/my-atlas && docker compose up -d && sleep 10
-
-# Step 4: E2E tests
+# Step 3: E2E tests
 cd /Users/yeongmi/dev/qa/my-atlas/qa && npx playwright test
 
 # Teardown (always, unconditional)
@@ -382,7 +417,7 @@ cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 ```
 
 **Absolute Rules:**
-- ❌ **NEVER declare "complete"** without Agent-D passing ALL four steps
+- ❌ **NEVER declare "complete"** without Agent-D passing ALL three steps
 - ❌ **NEVER skip** any agent in the pipeline
 - ❌ **NEVER skip E2E** — "optional" does not apply
 - ❌ **NEVER let Agent-B write E2E tests or Agent-C write unit tests** — exclusive scope
