@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Company,
@@ -122,14 +122,64 @@ export default function TestCasePage() {
       .join(' > ');
   };
 
+  // Scroll spy: suppress observer updates during programmatic scroll
+  const isScrollingToRef = useRef(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
   const handleSelectPath = (path: number[]) => {
     setSelectedPath(path);
+    isScrollingToRef.current = true;
+    clearTimeout(scrollTimeoutRef.current);
     const sectionId = `section-${path.join('-')}`;
     setTimeout(() => {
       const el = document.getElementById(sectionId);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
+    scrollTimeoutRef.current = setTimeout(() => {
+      isScrollingToRef.current = false;
+    }, 800);
   };
+
+  // Scroll Spy: observe path group sections and auto-update selectedPath
+  const handleScrollSpy = useCallback((path: number[]) => {
+    if (isScrollingToRef.current) return;
+    setSelectedPath(path);
+  }, []);
+
+  useEffect(() => {
+    if (groupedTestCases.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const id = entry.target.id; // "section-3-7"
+            const pathStr = id.replace('section-', '');
+            const path = pathStr.split('-').map(Number);
+            if (path.length > 0 && path.every((n) => !isNaN(n))) {
+              handleScrollSpy(path);
+            }
+            break;
+          }
+        }
+      },
+      { rootMargin: '-40% 0px -50% 0px', threshold: 0 }
+    );
+
+    const sectionIds = groupedTestCases.map(
+      (g) => `section-${g.path.join('-')}`
+    );
+    const elements: Element[] = [];
+    for (const id of sectionIds) {
+      const el = document.getElementById(id);
+      if (el) {
+        observer.observe(el);
+        elements.push(el);
+      }
+    }
+
+    return () => observer.disconnect();
+  }, [groupedTestCases, handleScrollSpy]);
 
   const handleSegmentCreated = (segment: Segment) => {
     setSegments((prev) => [...prev, segment]);
@@ -152,6 +202,12 @@ export default function TestCasePage() {
   };
 
   const handleOpenAddModal = () => {
+    setModalEditData(null);
+    setModalOpen(true);
+  };
+
+  const handleAddTestCaseFromTree = (path: number[]) => {
+    setSelectedPath(path);
     setModalEditData(null);
     setModalOpen(true);
   };
@@ -247,8 +303,8 @@ export default function TestCasePage() {
 
           {/* Two-column layout: Path tree (left) + TestCase list (right) */}
           <div className="flex gap-6 items-start">
-            {/* Left: Path Tree */}
-            <div className="w-72 flex-shrink-0">
+            {/* Left: Path Tree (sticky) */}
+            <div className="w-72 flex-shrink-0 sticky top-0 self-start max-h-[calc(100vh-12rem)] overflow-y-auto">
               <div className="bg-white p-4 rounded-lg shadow">
                 <h3 className="font-bold text-sm text-gray-700 mb-3">Path</h3>
                 <SegmentTreeView
@@ -260,34 +316,42 @@ export default function TestCasePage() {
                   onSegmentCreated={handleSegmentCreated}
                   onSegmentDeleted={handleSegmentDeleted}
                   onSegmentsUpdated={setSegments}
+                  onAddTestCase={handleAddTestCaseFromTree}
                 />
-
-                {selectedPath.length > 0 && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xs text-gray-500">
-                      Selected: {resolvePathNames(selectedPath)}
-                    </span>
-                    <button
-                      onClick={() => setSelectedPath([])}
-                      className="text-xs text-red-500 hover:underline"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
 
             {/* Right: TestCase List */}
-            <div className="flex-1 min-w-0">
-              {/* Add button */}
-              <div className="flex gap-2 mb-4">
+            <div className="flex-1 min-w-0 max-w-4xl">
+              {/* Path Breadcrumb + Add button */}
+              <div className="flex items-center justify-between mb-4 bg-white border rounded-lg px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-2 text-sm min-w-0">
+                  {selectedPath.length > 0 ? (
+                    <>
+                      <span className="text-gray-400 flex-shrink-0">Path:</span>
+                      <span className="font-medium text-indigo-700 truncate">
+                        {resolvePathNames(selectedPath)}
+                      </span>
+                      <button
+                        onClick={() => setSelectedPath([])}
+                        className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0 ml-1"
+                        title="Clear selection"
+                      >
+                        &times;
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-gray-400 italic">
+                      Select a path from the tree
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={handleOpenAddModal}
                   disabled={selectedPath.length === 0}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 flex-shrink-0 ml-4"
                 >
-                  Add Test Case
+                  + Add Test Case
                 </button>
               </div>
 
@@ -304,18 +368,37 @@ export default function TestCasePage() {
                       </h3>
                       <div className="space-y-3">
                         {group.testCases.map((tc) => (
-                          <div key={tc.id} className="bg-white border rounded-lg shadow">
+                          <div
+                            key={tc.id}
+                            className={`group bg-white border rounded-lg shadow border-l-4 ${
+                              tc.priority === 'HIGH'
+                                ? 'border-l-red-400'
+                                : tc.priority === 'MEDIUM'
+                                ? 'border-l-yellow-400'
+                                : 'border-l-gray-300'
+                            }`}
+                          >
                             <div
-                              onClick={() =>
-                                setExpandedId(expandedId === tc.id ? null : tc.id)
-                              }
+                              onClick={() => {
+                                const next = expandedId === tc.id ? null : tc.id;
+                                setExpandedId(next);
+                                if (next !== null) setSelectedPath(tc.path);
+                              }}
                               className="p-4 cursor-pointer hover:bg-gray-50 transition"
                             >
                               <div className="flex items-center justify-between">
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <h4 className="font-bold">{tc.title}</h4>
                                   <div className="flex gap-2 mt-2">
-                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                    <span
+                                      className={`text-xs px-2 py-1 rounded font-medium ${
+                                        tc.priority === 'HIGH'
+                                          ? 'bg-red-100 text-red-700'
+                                          : tc.priority === 'MEDIUM'
+                                          ? 'bg-yellow-100 text-yellow-700'
+                                          : 'bg-gray-100 text-gray-500'
+                                      }`}
+                                    >
                                       {tc.priority}
                                     </span>
                                     <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
@@ -326,7 +409,7 @@ export default function TestCasePage() {
                                     </span>
                                   </div>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();

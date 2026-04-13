@@ -12,6 +12,7 @@ interface SegmentTreeViewProps {
   onSegmentCreated: (segment: Segment) => void;
   onSegmentDeleted: (id: number) => void;
   onSegmentsUpdated: (segments: Segment[]) => void;
+  onAddTestCase?: (path: number[]) => void;
 }
 
 interface ContextMenuState {
@@ -43,6 +44,7 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
   onSegmentCreated,
   onSegmentDeleted,
   onSegmentsUpdated,
+  onAddTestCase,
 }) => {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -194,6 +196,12 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
     }
     setInputValue('');
   }, [contextMenu]);
+
+  const handleAddTestCaseFromMenu = useCallback(() => {
+    if (!contextMenu || !onAddTestCase) return;
+    onAddTestCase(contextMenu.path);
+    setContextMenu(null);
+  }, [contextMenu, onAddTestCase]);
 
   const handleRequestDeletePath = useCallback(() => {
     if (!contextMenu || contextMenu.isRoot) return;
@@ -402,6 +410,11 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
     );
   };
 
+  const isAncestorOfSelected = (path: number[]): boolean => {
+    if (path.length >= selectedPath.length) return false;
+    return path.every((id, i) => selectedPath[i] === id);
+  };
+
   const renderNode = (segment: Segment, ancestorPath: number[]) => {
     const currentPath = [...ancestorPath, segment.id];
     const isExpanded = expanded.has(segment.id);
@@ -409,6 +422,7 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
     const count = countTestCases(currentPath);
     const isLeaf = children.length === 0;
     const nodeSelected = isSelected(currentPath);
+    const nodeIsAncestor = isAncestorOfSelected(currentPath);
     const isDragging = dragState.draggedSegmentId === segment.id;
     const isDropTarget = dragState.dragOverSegmentId === segment.id;
 
@@ -430,7 +444,9 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
             onDragEnd={handleDragEnd}
             className={`flex items-center gap-1 py-1 px-2 rounded text-sm group ${
               nodeSelected
-                ? 'bg-blue-100 border-l-2 border-blue-500'
+                ? 'bg-indigo-100 border-l-2 border-indigo-500'
+                : nodeIsAncestor
+                ? 'bg-indigo-50'
                 : isDropTarget
                 ? 'bg-blue-100 border-l-2 border-blue-400'
                 : 'hover:bg-gray-100'
@@ -454,7 +470,7 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
             )}
             <span
               className={`${
-                nodeSelected ? 'text-blue-700 font-medium' : isLeaf ? 'text-blue-600' : 'font-medium'
+                nodeSelected ? 'text-indigo-800 font-semibold' : nodeIsAncestor ? 'text-indigo-600 font-medium' : isLeaf ? 'text-blue-600' : 'font-medium'
               }`}
             >
               {segment.name}
@@ -536,6 +552,17 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
             >
               하단에 Path 추가
             </button>
+            {onAddTestCase && (
+              <>
+                <hr className="my-1" />
+                <button
+                  onClick={handleAddTestCaseFromMenu}
+                  className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+                >
+                  Test Case 추가
+                </button>
+              </>
+            )}
             <hr className="my-1" />
             <button
               onClick={handleRequestDeletePath}
