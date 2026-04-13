@@ -17,6 +17,7 @@ import TestRunDetailPage from '@/pages/features/TestRunDetailPage'
 import VersionListPage from '@/pages/features/VersionListPage'
 import VersionDetailPage from '@/pages/features/VersionDetailPage'
 import VersionPhaseDetailPage from '@/pages/features/VersionPhaseDetailPage'
+import ResumePage from '@/pages/ResumePage'
 
 export default function App() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
                 <Route path="/features/companies/:companyId/products/:productId/versions" element={<VersionListPage />} />
                 <Route path="/features/companies/:companyId/products/:productId/versions/:versionId" element={<VersionDetailPage />} />
                 <Route path="/features/companies/:companyId/products/:productId/versions/:versionId/phases/:phaseId" element={<VersionPhaseDetailPage />} />
+                <Route path="/resume" element={<ResumePage />} />
               </Routes>
             </Layout>
           </ProtectedRoute>
