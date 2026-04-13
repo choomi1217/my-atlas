@@ -179,10 +179,13 @@ export class FeaturesPage {
   }
 
   /**
-   * Delete a company (clicks Delete button, then confirms in ConfirmDialog)
+   * Delete a company by name (clicks Delete button on the matching card, then confirms in ConfirmDialog)
    */
-  async deleteCompany() {
-    await this.page.getByRole('button', { name: /Delete/i }).first().click();
+  async deleteCompany(companyName: string) {
+    const card = this.page.locator('.bg-white.border.rounded-lg')
+      .filter({ hasText: companyName })
+      .first();
+    await card.getByRole('button', { name: /Delete/i }).click();
 
     const responsePromise = this.page.waitForResponse(
       resp => resp.url().includes('/api/companies/') && resp.request().method() === 'DELETE'
@@ -192,10 +195,13 @@ export class FeaturesPage {
   }
 
   /**
-   * Delete a product (clicks Delete button, then confirms in ConfirmDialog)
+   * Delete a product by name (clicks Delete button on the matching card, then confirms in ConfirmDialog)
    */
-  async deleteProduct() {
-    await this.page.getByRole('button', { name: /Delete/i }).first().click();
+  async deleteProduct(productName: string) {
+    const card = this.page.locator('.bg-white.border.rounded-lg')
+      .filter({ hasText: productName })
+      .first();
+    await card.getByRole('button', { name: /Delete/i }).click();
 
     const responsePromise = this.page.waitForResponse(
       resp => resp.url().includes('/api/products/') && resp.request().method() === 'DELETE'
