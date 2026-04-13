@@ -257,6 +257,8 @@ test.describe('Version API E2E', () => {
     expect(past.isReleaseDatePassed).toBe(true);
   });
 
+  // skip 사유: DELETE API는 구현되어 있으나, 테스트 실행 시 다른 테스트의 데이터 의존성과
+  // 충돌 가능성이 있어 최초 커밋(b95f524)부터 skip 처리. 독립적인 테스트 데이터 설계 후 활성화 필요.
   test.skip('DELETE /api/versions/{id} - 버전 삭제', async () => {
     // Create a dedicated test run for deletion test
     const deleteTestRunResponse = await request.post(`/api/products/${productId}/test-runs`, {
@@ -302,6 +304,8 @@ test.describe('Version API E2E', () => {
     await request.delete(`/api/test-runs/${deleteTestRunId}`).catch(() => {});
   });
 
+  // skip 사유: 백엔드에 버전 이름 중복 방지 로직(unique constraint 또는 existsByName)이
+  // 미구현 상태. 해당 기능 구현 후 활성화 필요.
   test.skip('POST /api/products/{productId}/versions - 중복된 이름 방지', async () => {
     // Create a dedicated test run for duplicate test
     const dupTestRunResponse = await request.post(`/api/products/${productId}/test-runs`, {
