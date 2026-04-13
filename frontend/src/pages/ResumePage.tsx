@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import ResumeHeader from '@/components/resume/ResumeHeader'
 import WorkExpTab from '@/components/resume/WorkExpTab'
 import IntroTab from '@/components/resume/IntroTab'
@@ -7,6 +7,13 @@ type Tab = 'work-exp' | 'intro'
 
 export default function ResumePage() {
   const [activeTab, setActiveTab] = useState<Tab>('work-exp')
+
+  const navigateToWorkExp = useCallback((anchorId: string) => {
+    setActiveTab('work-exp')
+    setTimeout(() => {
+      document.getElementById(anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }, [])
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -38,7 +45,7 @@ export default function ResumePage() {
 
       {/* Tab Content */}
       <div className="mt-12">
-        {activeTab === 'work-exp' ? <WorkExpTab /> : <IntroTab />}
+        {activeTab === 'work-exp' ? <WorkExpTab /> : <IntroTab onNavigate={navigateToWorkExp} />}
       </div>
     </div>
   )
