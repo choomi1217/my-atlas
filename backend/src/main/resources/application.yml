@@ -27,6 +27,7 @@ spring:
     locations: classpath:db/migration
     validate-on-migrate: false
     ignore-migration-patterns: "*:missing"
+    out-of-order: true
 
   ai:
     anthropic:

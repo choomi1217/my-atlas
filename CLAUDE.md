@@ -89,8 +89,9 @@ my-atlas/
 | `segment` | 세그먼트 계층 (self-ref parent_id, Adjacency List) | 없음 | - |
 | `test_case` | 테스트 케이스 (path: bigint[], steps: jsonb) | 없음 | - |
 
-### Flyway Migrations (V1~V7)
+### Flyway Migrations
 
+#### 레거시 (V1~V13): 순차 번호
 | 버전 | 설명 |
 |------|------|
 | V1 | Company, Product 생성 |
@@ -100,6 +101,30 @@ my-atlas/
 | V5 | knowledge_base에 source 컬럼 추가 |
 | V6 | pdf_upload_job 테이블 생성 |
 | V7 | 초기 데이터 시드 (my-atlas company, Product Test Suite, 22 TestCases) |
+| V8~V13 | test_run, kb 개선, convention 확장, test_case 이미지 등 |
+
+#### 신규 마이그레이션: 타임스탬프 버전 (CRITICAL)
+
+V14부터는 **타임스탬프 기반 버전**을 사용한다. 여러 Worktree/Agent가 동시에 마이그레이션을 생성해도 충돌하지 않는다.
+
+**파일명 형식:**
+```
+V{YYYYMMDD}{HHmm}__{설명}.sql
+```
+
+**예시:**
+```
+V202604131430__add_convention_image.sql
+V202604131545__create_app_user.sql
+V202604140900__add_chat_session.sql
+```
+
+**규칙:**
+- ❌ 순차 번호 (V14, V15, V16...) 절대 사용 금지
+- ✅ 현재 날짜+시간을 버전으로 사용 (`YYYYMMDD` + `HHmm`)
+- ✅ 같은 날 여러 마이그레이션 → 시간(HHmm)으로 구분
+- ✅ `out-of-order: true` 설정 완료 — 순서 무관하게 적용됨
+- ✅ 마이그레이션 생성 전 기존 파일과 중복되지 않는지 확인
 
 ### Enum Values
 
