@@ -7,6 +7,7 @@ const navItems = [
   { to: '/kb',          label: 'Knowledge Base'   },
   { to: '/conventions', label: 'Word Conventions' },
   { to: '/features',    label: 'Product Test Suite' },
+  { to: '/resume',      label: 'Resume'             },
 ]
 
 interface LayoutProps {
