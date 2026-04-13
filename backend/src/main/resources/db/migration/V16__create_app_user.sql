@@ -9,4 +9,4 @@ CREATE TABLE app_user (
 
 -- admin 시드 (password: admin, BCrypt 해시)
 INSERT INTO app_user (username, password, role)
-VALUES ('admin', '$2b$10$oHojrMk7yY4R0gn24URIVeTjVITdkE6GZbpUSrXDayzgPQ1BhIBgG', 'ADMIN');
+VALUES ('admin', '$2a$10$oHojrMk7yY4R0gn24URIVeTjVITdkE6GZbpUSrXDayzgPQ1BhIBgG', 'ADMIN');
