@@ -108,7 +108,7 @@ test.describe('Resume Page UI E2E', () => {
     await expect(page.getByText('정보처리기사')).toBeVisible();
     await expect(page.getByText('SQLD')).toBeVisible();
     await expect(page.getByText('NFLUX')).toBeVisible();
-    await expect(page.getByText('Studio XID Korea')).toBeVisible();
+    await expect(page.getByText('Studio XID (QA)')).toBeVisible();
   });
 
   // --- Intro: Contact ---
