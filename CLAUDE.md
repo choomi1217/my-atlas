@@ -329,6 +329,8 @@ Optional body explaining why and what.
 - **Release:** develop → main (PR)
 - **Hotfix:** hotfix/* → main (PR) + cherry-pick to develop
 - No merge commits — prefer rebase or squash
+- ❌ **Claude는 PR merge 절대 금지** — PR 생성까지만 수행하고, merge는 반드시 User가 직접 확인·승인 후 실행한다
+- ✅ `gh pr create` → User에게 PR URL 전달 → User가 리뷰 후 merge
 
 ---
 
