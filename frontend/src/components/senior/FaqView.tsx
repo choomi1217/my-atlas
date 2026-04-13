@@ -12,15 +12,14 @@ export default function FaqView({ onSendToChat, onGoToChat }: FaqViewProps) {
   const { faqs, isLoading, error } = useCuratedFaq();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Client-side filtering on title + content + tags
+  // Client-side filtering on title + content
   const filteredFaqs = useMemo(() => {
     if (!searchQuery.trim()) return faqs;
     const query = searchQuery.toLowerCase();
     return faqs.filter(
       (item) =>
         item.title.toLowerCase().includes(query) ||
-        item.content.toLowerCase().includes(query) ||
-        (item.tags && item.tags.toLowerCase().includes(query))
+        item.content.toLowerCase().includes(query)
     );
   }, [faqs, searchQuery]);
 
@@ -41,7 +40,7 @@ export default function FaqView({ onSendToChat, onGoToChat }: FaqViewProps) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="FAQ 검색 (제목, 내용, 태그)..."
+            placeholder="FAQ 검색 (제목, 내용)..."
             className="w-full px-3 py-2 pl-9 border border-gray-300 rounded-lg text-sm
                        focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />

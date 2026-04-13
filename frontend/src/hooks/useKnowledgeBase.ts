@@ -3,18 +3,24 @@ import { KbItem, KbRequest } from '@/types/senior';
 import { kbApi } from '@/api/senior';
 
 export type SourceFilter = 'all' | 'manual' | 'pdf';
+export type SortOption = 'newest' | 'oldest' | 'title';
 
 export const useKnowledgeBase = () => {
   const [kbItems, setKbItems] = useState<KbItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortOption>('newest');
 
-  const fetchKbItems = useCallback(async () => {
+  const fetchKbItems = useCallback(async (searchQuery?: string, sortOption?: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await kbApi.getAll();
+      const params: { search?: string; sort?: string } = {};
+      if (searchQuery) params.search = searchQuery;
+      if (sortOption) params.sort = sortOption;
+      const data = await kbApi.getAll(Object.keys(params).length > 0 ? params : undefined);
       setKbItems(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load Knowledge Base');
@@ -24,8 +30,8 @@ export const useKnowledgeBase = () => {
   }, []);
 
   useEffect(() => {
-    fetchKbItems();
-  }, [fetchKbItems]);
+    fetchKbItems(search || undefined, sort);
+  }, [fetchKbItems, search, sort]);
 
   const filteredItems = useMemo(() => {
     switch (sourceFilter) {
@@ -86,9 +92,13 @@ export const useKnowledgeBase = () => {
     error,
     sourceFilter,
     setSourceFilter,
+    search,
+    setSearch,
+    sort,
+    setSort,
     manualCount,
     pdfCount,
-    fetchKbItems,
+    fetchKbItems: () => fetchKbItems(search || undefined, sort),
     createKbItem,
     updateKbItem,
     deleteKbItem,

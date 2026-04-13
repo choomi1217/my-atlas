@@ -21,14 +21,18 @@ public class PdfPipelineServiceImpl implements PdfPipelineService {
     private final PdfUploadJobRepository jobRepository;
     private final KnowledgeBaseRepository kbRepository;
     private final PdfProcessingWorker pdfProcessingWorker;
+    private final KbCategoryService categoryService;
 
     @Override
-    public Long startUpload(MultipartFile file, String bookTitle) {
+    public Long startUpload(MultipartFile file, String bookTitle, String category) {
         PdfUploadJobEntity job = new PdfUploadJobEntity();
         job.setBookTitle(bookTitle);
         job.setOriginalFilename(file.getOriginalFilename());
         job.setStatus("PENDING");
         PdfUploadJobEntity saved = jobRepository.save(job);
+
+        // Auto-register category for autocomplete
+        categoryService.ensureExists(category);
 
         byte[] pdfBytes;
         try {
@@ -41,8 +45,7 @@ public class PdfPipelineServiceImpl implements PdfPipelineService {
             return saved.getId();
         }
 
-        // Delegate to async worker (separate bean → Spring @Async proxy works)
-        pdfProcessingWorker.processPdf(saved.getId(), pdfBytes, bookTitle);
+        pdfProcessingWorker.processPdf(saved.getId(), pdfBytes, bookTitle, category);
         return saved.getId();
     }
 
@@ -65,8 +68,9 @@ public class PdfPipelineServiceImpl implements PdfPipelineService {
     @Override
     @Transactional
     public void deleteBook(String source) {
-        kbRepository.deleteBySource(source);
-        jobRepository.deleteByBookTitle(source);
+        // Soft Delete for PDF chunks (preserve original data)
+        kbRepository.softDeleteBySource(source, LocalDateTime.now());
+        // Keep job records for history
     }
 
     private PdfUploadJobDto.JobResponse toJobResponse(PdfUploadJobEntity entity) {

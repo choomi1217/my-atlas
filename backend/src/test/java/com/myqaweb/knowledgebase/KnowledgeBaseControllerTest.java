@@ -48,11 +48,11 @@ class KnowledgeBaseControllerTest {
         // Arrange
         List<KnowledgeBaseDto.KbResponse> items = List.of(
                 new KnowledgeBaseDto.KbResponse(1L, "Regression Testing", "Best practices",
-                        "Testing", "regression", null, 0, null, now, now),
+                        "Testing", null, 0, null, now, now, null),
                 new KnowledgeBaseDto.KbResponse(2L, "API Testing", "How to test REST APIs",
-                        "API", "api", null, 3, null, now, now)
+                        "API", null, 3, null, now, now, null)
         );
-        when(knowledgeBaseService.findAll()).thenReturn(items);
+        when(knowledgeBaseService.findAll(null, null)).thenReturn(items);
 
         // Act & Assert
         mockMvc.perform(get("/api/kb"))
@@ -62,7 +62,7 @@ class KnowledgeBaseControllerTest {
                 .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].title").value("Regression Testing"));
 
-        verify(knowledgeBaseService).findAll();
+        verify(knowledgeBaseService).findAll(null, null);
     }
 
     // --- GET /api/kb/{id} ---
@@ -71,8 +71,8 @@ class KnowledgeBaseControllerTest {
     void getById_returnsOk() throws Exception {
         // Arrange
         KnowledgeBaseDto.KbResponse kb = new KnowledgeBaseDto.KbResponse(
-                1L, "Regression Testing", "Best practices", "Testing", "regression",
-                null, 0, null, now, now);
+                1L, "Regression Testing", "Best practices", "Testing",
+                null, 0, null, now, now, null);
         when(knowledgeBaseService.findById(1L)).thenReturn(Optional.of(kb));
 
         // Act & Assert
@@ -103,14 +103,14 @@ class KnowledgeBaseControllerTest {
     void create_returns201() throws Exception {
         // Arrange
         KnowledgeBaseDto.KbResponse created = new KnowledgeBaseDto.KbResponse(
-                1L, "New Article", "Content", "QA", "qa", null, 0, null, now, now);
+                1L, "New Article", "Content", "QA", null, 0, null, now, now, null);
         when(knowledgeBaseService.create(any(KnowledgeBaseDto.KbRequest.class))).thenReturn(created);
 
         // Act & Assert
         mockMvc.perform(post("/api/kb")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"title": "New Article", "content": "Content", "category": "QA", "tags": "qa"}
+                                {"title": "New Article", "content": "Content", "category": "QA"}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
@@ -154,7 +154,7 @@ class KnowledgeBaseControllerTest {
     void update_returnsOk() throws Exception {
         // Arrange
         KnowledgeBaseDto.KbResponse updated = new KnowledgeBaseDto.KbResponse(
-                1L, "Updated", "Updated Content", "QA", "qa", null, 0, null, now, now);
+                1L, "Updated", "Updated Content", "QA", null, 0, null, now, now, null);
         when(knowledgeBaseService.update(eq(1L), any(KnowledgeBaseDto.KbRequest.class))).thenReturn(updated);
 
         // Act & Assert
@@ -209,7 +209,7 @@ class KnowledgeBaseControllerTest {
         // Arrange
         MockMultipartFile file = new MockMultipartFile(
                 "file", "test-book.pdf", "application/pdf", "PDF content".getBytes());
-        when(pdfPipelineService.startUpload(any(), eq("Test Book"))).thenReturn(42L);
+        when(pdfPipelineService.startUpload(any(), eq("Test Book"), any())).thenReturn(42L);
 
         // Act & Assert
         mockMvc.perform(multipart("/api/kb/upload-pdf")
@@ -219,7 +219,7 @@ class KnowledgeBaseControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.jobId").value(42));
 
-        verify(pdfPipelineService).startUpload(any(), eq("Test Book"));
+        verify(pdfPipelineService).startUpload(any(), eq("Test Book"), any());
     }
 
     @Test
@@ -236,7 +236,7 @@ class KnowledgeBaseControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("File is empty"));
 
-        verify(pdfPipelineService, never()).startUpload(any(), any());
+        verify(pdfPipelineService, never()).startUpload(any(), any(), any());
     }
 
     // --- GET /api/kb/jobs/{jobId} ---

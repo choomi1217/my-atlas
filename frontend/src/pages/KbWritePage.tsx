@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import MDEditor from '@uiw/react-md-editor';
 import { kbApi } from '@/api/senior';
 import { useImageUpload } from '@/hooks/useImageUpload';
+import CategoryAutocomplete from '@/components/kb/CategoryAutocomplete';
 
 export default function KbWritePage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
-  const [tags, setTags] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { uploadImage } = useImageUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -22,7 +22,6 @@ export default function KbWritePage() {
         title,
         content,
         category: category || undefined,
-        tags: tags || undefined,
       });
       navigate(`/kb/${created.id}`);
     } catch {
@@ -66,24 +65,9 @@ export default function KbWritePage() {
                    focus:outline-none focus:ring-2 focus:ring-indigo-500"
       />
 
-      {/* Category & Tags */}
-      <div className="flex gap-4 mb-4">
-        <input
-          type="text"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder="카테고리 (예: Test Design, Automation)"
-          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md
-                     focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <input
-          type="text"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="태그 (쉼표 구분, 예: boundary-testing, equivalence)"
-          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md
-                     focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+      {/* Category */}
+      <div className="mb-4">
+        <CategoryAutocomplete value={category} onChange={setCategory} />
       </div>
 
       {/* Image Upload Button */}
