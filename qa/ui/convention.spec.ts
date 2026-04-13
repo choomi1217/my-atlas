@@ -144,11 +144,8 @@ test.describe('Convention UI E2E', () => {
     // Should redirect back to list
     await expect(page).toHaveURL(/\/conventions$/);
 
-    // Wait for list to load and verify updated card
-    await page.waitForResponse(
-      resp => resp.url().includes('/api/conventions') && resp.request().method() === 'GET'
-    );
-    await expect(page.getByText(updatedTerm)).toBeVisible();
+    // Verify updated card (auto-retry handles race condition between PUT commit and GET fetch)
+    await expect(page.getByText(updatedTerm)).toBeVisible({ timeout: 5000 });
   });
 
   // --- Delete from list (card delete button) ---

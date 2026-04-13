@@ -65,7 +65,7 @@ test.describe('Product List Page', () => {
     let productExists = await page.getByText('E2E Delete Product').isVisible();
     expect(productExists).toBe(true);
 
-    await featuresPage.deleteProduct();
+    await featuresPage.deleteProduct('E2E Delete Product');
 
     productExists = await page.getByText('E2E Delete Product').isVisible();
     expect(productExists).toBe(false);
