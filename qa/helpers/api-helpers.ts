@@ -241,6 +241,7 @@ export async function createTestTestCase(
   productId: number,
   title = 'E2E Test Case',
   path: number[] = [],
+  priority: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM',
 ): Promise<TestCaseData> {
   try {
     await ensureAuthenticated();
@@ -249,7 +250,7 @@ export async function createTestTestCase(
       title,
       path,
       description: 'Test case for E2E testing',
-      priority: 'MEDIUM',
+      priority,
       testType: 'FUNCTIONAL',
       status: 'DRAFT',
     });

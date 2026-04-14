@@ -158,7 +158,7 @@ export class FeaturesPage {
    * Check if a test case with given title is visible
    */
   async isTestCaseVisible(title: string): Promise<boolean> {
-    return this.page.locator(`text=${title}`).isVisible();
+    return this.page.locator(`h4:has-text("${title}")`).first().isVisible();
   }
 
   /**
