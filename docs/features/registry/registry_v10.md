@@ -3,7 +3,7 @@
 > 변경 유형: 기능 개선  
 > 작성일: 2026-04-05  
 > 버전: v10  
-> 상태: 진행 중
+> 상태: 완료
 
 ---
 
@@ -202,3 +202,17 @@
 - [x] 빈 상태: "테스트 실행이 없습니다." → "No test runs yet."
 - [x] 로딩: "테스트 실행 로드 중..." → "Loading test runs..."
 - [x] 삭제 확인: "이 테스트 실행을 삭제하시겠습니까?" → "Delete this test run?"
+
+---
+
+## 최종 요약
+
+### 구현 내용
+
+1. **[BUG-1]** VersionPhaseDetailPage — 더미 데이터 제거, 실제 TestResult API 연동, Accordion 상세 펼침, 실시간 통계 갱신
+2. **[UX-1]** VersionListPage — 카드 클릭으로 상세 이동, "상세보기" 버튼 삭제
+3. **[UX-2]** VersionDetailPage — Phase 카드 클릭으로 상세 이동, "결과 보기 →" 링크 삭제
+4. **[UX-3]** VersionCopyModal — 한자 제거, "버전 복사" 명칭 통일, 빈 기본값
+5. **[UX-4]** VersionDetailPage — 복사 출처에 Version ID 대신 실제 이름 표시
+6. **[UX-5]** ProductListPage — 불필요한 "Test Cases" 버튼 삭제
+7. **[UX-6]** TestRunListPage — 타이틀/버튼/빈 상태 영어화

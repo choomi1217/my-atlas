@@ -3,7 +3,7 @@
 > 변경 유형: 기능 추가 + 기능 개선  
 > 작성일: 2026-04-09  
 > 버전: v12  
-> 상태: 진행 중
+> 상태: 완료
 
 ---
 
@@ -572,3 +572,31 @@ Steps:
 | `pages/features/ProductListPage.tsx` | Edit 버튼 |
 | `components/features/ProductFormModal.tsx` | 수정 모드 |
 | `pages/features/VersionDetailPage.tsx` | Edit 기능 |
+
+---
+
+## 최종 요약
+
+### 구현 내용
+
+1. **[FEAT-1]** TestCase 이미지 첨부 — DB 테이블(V13), Backend CRUD, Frontend 드래그&드롭 업로드 + `image #N` 호버 미리보기
+2. **[FEAT-2]** TestResult 댓글 스레드 — 대댓글 구조(self-ref parent_id), CommentThread 재귀 렌더링, 이미지 첨부 지원
+3. **[UX-1]** TestResult Status — select box → StatusButtonGroup 1-click 인라인 버튼 그룹
+4. **[UX-2]** Company 수정 — PUT 이름 수정 + PATCH Deactivate 엔드포인트, 히어로 레이아웃
+5. **[UX-3]** Product 수정 — ProductFormModal 수정 모드 지원, Edit 버튼 추가
+6. **[UX-4]** Version 수정 — VersionDetailPage 인라인 편집 (이름, 설명, 릴리스일)
+7. **[DESIGN-1]** Company 카드 UI — Active 히어로 카드 + Inactive 콤팩트 카드 분리, productCount 표시
+
+### 신규 파일
+
+| 구분 | 파일 수 |
+|------|---------|
+| Backend (Entity, DTO, Service, Controller, Repository, Migration) | 10 |
+| Frontend (CommentThread, StatusButtonGroup) | 2 |
+
+### 수정 파일
+
+| 구분 | 파일 수 |
+|------|---------|
+| Backend | 7 |
+| Frontend | 8 |
