@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import MDEditor from '@uiw/react-md-editor';
 import { kbApi } from '@/api/senior';
 import { useImageUpload } from '@/hooks/useImageUpload';
+import CategoryAutocomplete from '@/components/kb/CategoryAutocomplete';
 
 export default function KbEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -10,7 +11,7 @@ export default function KbEditPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
-  const [tags, setTags] = useState('');
+  const [source, setSource] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export default function KbEditPage() {
         setTitle(item.title);
         setContent(item.content);
         setCategory(item.category || '');
-        setTags(item.tags || '');
+        setSource(item.source);
       })
       .catch(() => setError('KB 항목을 불러올 수 없습니다.'))
       .finally(() => setIsLoading(false));
@@ -40,7 +41,6 @@ export default function KbEditPage() {
         title,
         content,
         category: category || undefined,
-        tags: tags || undefined,
       });
       navigate(`/kb/${id}`);
     } catch {
@@ -57,7 +57,14 @@ export default function KbEditPage() {
     <div className="max-w-4xl mx-auto" data-color-mode="light">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">글 수정</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-gray-800">글 수정</h2>
+          {source && (
+            <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">
+              도서: {source}
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => navigate(`/kb/${id}`)}
@@ -87,24 +94,9 @@ export default function KbEditPage() {
                    focus:outline-none focus:ring-2 focus:ring-indigo-500"
       />
 
-      {/* Category & Tags */}
-      <div className="flex gap-4 mb-4">
-        <input
-          type="text"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder="카테고리 (예: Test Design, Automation)"
-          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md
-                     focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <input
-          type="text"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="태그 (쉼표 구분, 예: boundary-testing, equivalence)"
-          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md
-                     focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+      {/* Category */}
+      <div className="mb-4">
+        <CategoryAutocomplete value={category} onChange={setCategory} />
       </div>
 
       {/* Image Upload Button */}

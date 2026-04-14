@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { PdfUploadJob } from '@/types/senior';
 import { usePdfUpload } from '@/hooks/usePdfUpload';
+import CategoryAutocomplete from '@/components/kb/CategoryAutocomplete';
 
 interface PdfUploadModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface PdfUploadModalProps {
 
 export default function PdfUploadModal({ isOpen, onClose, onUploadComplete }: PdfUploadModalProps) {
   const [bookTitle, setBookTitle] = useState('');
+  const [category, setCategory] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -27,6 +29,7 @@ export default function PdfUploadModal({ isOpen, onClose, onUploadComplete }: Pd
   const handleClose = () => {
     if (isUploading) return;
     setBookTitle('');
+    setCategory('');
     setSelectedFile(null);
     reset();
     onClose();
@@ -35,7 +38,7 @@ export default function PdfUploadModal({ isOpen, onClose, onUploadComplete }: Pd
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile || !bookTitle.trim()) return;
-    await uploadPdf(selectedFile, bookTitle.trim());
+    await uploadPdf(selectedFile, bookTitle.trim(), category.trim() || undefined);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,6 +72,18 @@ export default function PdfUploadModal({ isOpen, onClose, onUploadComplete }: Pd
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
                            focus:outline-none focus:ring-2 focus:ring-indigo-500
                            disabled:bg-gray-100 disabled:text-gray-500"
+              />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                카테고리 (선택)
+              </label>
+              <CategoryAutocomplete
+                value={category}
+                onChange={setCategory}
+                disabled={isUploading}
               />
             </div>
 

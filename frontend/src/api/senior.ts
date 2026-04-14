@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '@/types/features';
-import { ChatSession, ChatSessionDetail, FaqContext, KbItem, KbRequest, PdfUploadJob } from '@/types/senior';
+import { ChatSession, ChatSessionDetail, FaqContext, KbCategory, KbItem, KbRequest, PdfUploadJob } from '@/types/senior';
 
 // 상대 경로 사용 → Vite proxy 경유 (worktree별 포트 자동 대응)
 const API_BASE_URL = '';
@@ -95,8 +95,8 @@ export const faqApi = {
  * Knowledge Base API endpoints.
  */
 export const kbApi = {
-  getAll: async (): Promise<KbItem[]> => {
-    const response = await apiClient.get<ApiResponse<KbItem[]>>('/api/kb');
+  getAll: async (params?: { search?: string; sort?: string }): Promise<KbItem[]> => {
+    const response = await apiClient.get<ApiResponse<KbItem[]>>('/api/kb', { params });
     return response.data.data;
   },
 
@@ -126,10 +126,11 @@ export const kbApi = {
     await apiClient.delete(`/api/kb/${id}`);
   },
 
-  uploadPdf: async (file: File, bookTitle: string): Promise<{ jobId: number }> => {
+  uploadPdf: async (file: File, bookTitle: string, category?: string): Promise<{ jobId: number }> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('bookTitle', bookTitle);
+    if (category) formData.append('category', category);
     const response = await apiClient.post<ApiResponse<{ jobId: number }>>(
       '/api/kb/upload-pdf',
       formData,
@@ -173,6 +174,28 @@ export const kbApi = {
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );
     return response.data.data.url;
+  },
+};
+
+/**
+ * KB Category API endpoints.
+ */
+export const kbCategoryApi = {
+  getAll: async (): Promise<KbCategory[]> => {
+    const response = await apiClient.get<ApiResponse<KbCategory[]>>('/api/kb/categories');
+    return response.data.data;
+  },
+
+  search: async (query: string): Promise<KbCategory[]> => {
+    const response = await apiClient.get<ApiResponse<KbCategory[]>>('/api/kb/categories/search', {
+      params: { q: query },
+    });
+    return response.data.data;
+  },
+
+  create: async (name: string): Promise<KbCategory> => {
+    const response = await apiClient.post<ApiResponse<KbCategory>>('/api/kb/categories', { name });
+    return response.data.data;
   },
 };
 

@@ -7,47 +7,87 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBaseEntity, Long> {
 
-    /**
-     * Finds the most similar Knowledge Base entries by cosine distance using pgvector.
-     *
-     * @param queryVector the query embedding vector as a string representation
-     * @param topK        the maximum number of results to return
-     * @return list of KB entities ordered by similarity (most similar first)
-     */
-    @Query(value = "SELECT * FROM knowledge_base WHERE embedding IS NOT NULL "
+    // --- Active-only queries (exclude soft-deleted) ---
+
+    @Query("SELECT k FROM KnowledgeBaseEntity k WHERE k.deletedAt IS NULL ORDER BY k.createdAt DESC")
+    List<KnowledgeBaseEntity> findAllActive();
+
+    @Query("SELECT k FROM KnowledgeBaseEntity k WHERE k.id = :id AND k.deletedAt IS NULL")
+    Optional<KnowledgeBaseEntity> findActiveById(@Param("id") Long id);
+
+    // --- Search + Sort ---
+
+    @Query("SELECT k FROM KnowledgeBaseEntity k WHERE k.deletedAt IS NULL " +
+            "AND (:search IS NULL OR :search = '' " +
+            "     OR LOWER(k.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "     OR LOWER(k.content) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "ORDER BY k.createdAt DESC")
+    List<KnowledgeBaseEntity> findActiveBySearchNewest(@Param("search") String search);
+
+    @Query("SELECT k FROM KnowledgeBaseEntity k WHERE k.deletedAt IS NULL " +
+            "AND (:search IS NULL OR :search = '' " +
+            "     OR LOWER(k.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "     OR LOWER(k.content) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "ORDER BY k.createdAt ASC")
+    List<KnowledgeBaseEntity> findActiveBySearchOldest(@Param("search") String search);
+
+    @Query("SELECT k FROM KnowledgeBaseEntity k WHERE k.deletedAt IS NULL " +
+            "AND (:search IS NULL OR :search = '' " +
+            "     OR LOWER(k.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "     OR LOWER(k.content) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "ORDER BY k.title ASC")
+    List<KnowledgeBaseEntity> findActiveBySearchTitle(@Param("search") String search);
+
+    // --- Vector search (exclude soft-deleted) ---
+
+    @Query(value = "SELECT * FROM knowledge_base WHERE embedding IS NOT NULL AND deleted_at IS NULL "
             + "ORDER BY embedding <=> cast(:queryVector as vector) LIMIT :topK",
             nativeQuery = true)
     List<KnowledgeBaseEntity> findSimilar(@Param("queryVector") String queryVector,
                                           @Param("topK") int topK);
 
-    /**
-     * Finds similar manual KB entries (source IS NULL) by cosine distance.
-     */
-    @Query(value = "SELECT * FROM knowledge_base WHERE embedding IS NOT NULL AND source IS NULL "
+    @Query(value = "SELECT * FROM knowledge_base WHERE embedding IS NOT NULL AND source IS NULL AND deleted_at IS NULL "
             + "ORDER BY embedding <=> cast(:queryVector as vector) LIMIT :topK",
             nativeQuery = true)
     List<KnowledgeBaseEntity> findSimilarManual(@Param("queryVector") String queryVector,
                                                  @Param("topK") int topK);
 
-    /**
-     * Finds similar PDF KB entries (source IS NOT NULL) by cosine distance.
-     */
-    @Query(value = "SELECT * FROM knowledge_base WHERE embedding IS NOT NULL AND source IS NOT NULL "
+    @Query(value = "SELECT * FROM knowledge_base WHERE embedding IS NOT NULL AND source IS NOT NULL AND deleted_at IS NULL "
             + "ORDER BY embedding <=> cast(:queryVector as vector) LIMIT :topK",
             nativeQuery = true)
     List<KnowledgeBaseEntity> findSimilarPdf(@Param("queryVector") String queryVector,
                                               @Param("topK") int topK);
 
-    List<KnowledgeBaseEntity> findBySourceIsNull();
+    // --- Source filters (exclude soft-deleted) ---
 
-    List<KnowledgeBaseEntity> findBySourceIsNotNull();
+    @Query("SELECT k FROM KnowledgeBaseEntity k WHERE k.source IS NULL AND k.deletedAt IS NULL")
+    List<KnowledgeBaseEntity> findBySourceIsNullAndActive();
+
+    @Query("SELECT k FROM KnowledgeBaseEntity k WHERE k.source IS NOT NULL AND k.deletedAt IS NULL")
+    List<KnowledgeBaseEntity> findBySourceIsNotNullAndActive();
 
     void deleteBySource(String source);
+
+    // --- Soft Delete ---
+
+    @Transactional
+    @Modifying
+    @Query("UPDATE KnowledgeBaseEntity k SET k.deletedAt = :now WHERE k.id = :id")
+    void softDelete(@Param("id") Long id, @Param("now") LocalDateTime now);
+
+    @Transactional
+    @Modifying
+    @Query("UPDATE KnowledgeBaseEntity k SET k.deletedAt = :now WHERE k.source = :source AND k.deletedAt IS NULL")
+    void softDeleteBySource(@Param("source") String source, @Param("now") LocalDateTime now);
+
+    // --- Embedding ---
 
     @Transactional
     @Modifying
@@ -55,14 +95,14 @@ public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBaseEnti
             nativeQuery = true)
     void updateEmbedding(@Param("id") Long id, @Param("embedding") String embedding);
 
-    // --- 큐레이션 FAQ 관련 쿼리 ---
+    // --- 큐레이션 FAQ 관련 쿼리 (exclude soft-deleted) ---
 
-    @Query(value = "SELECT * FROM knowledge_base WHERE pinned_at IS NOT NULL "
+    @Query(value = "SELECT * FROM knowledge_base WHERE pinned_at IS NOT NULL AND deleted_at IS NULL "
             + "ORDER BY pinned_at ASC LIMIT 15",
             nativeQuery = true)
     List<KnowledgeBaseEntity> findPinned();
 
-    @Query(value = "SELECT * FROM knowledge_base ORDER BY hit_count DESC LIMIT :limit",
+    @Query(value = "SELECT * FROM knowledge_base WHERE deleted_at IS NULL ORDER BY hit_count DESC LIMIT :limit",
             nativeQuery = true)
     List<KnowledgeBaseEntity> findTopByHitCount(@Param("limit") int limit);
 
@@ -77,5 +117,6 @@ public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBaseEnti
     @Query("UPDATE KnowledgeBaseEntity k SET k.pinnedAt = :pinnedAt WHERE k.id = :id")
     void updatePinnedAt(@Param("id") Long id, @Param("pinnedAt") java.time.LocalDateTime pinnedAt);
 
+    @Query("SELECT COUNT(k) FROM KnowledgeBaseEntity k WHERE k.pinnedAt IS NOT NULL AND k.deletedAt IS NULL")
     long countByPinnedAtIsNotNull();
 }

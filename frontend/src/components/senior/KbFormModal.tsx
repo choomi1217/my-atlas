@@ -12,7 +12,6 @@ export default function KbFormModal({ isOpen, onClose, onSubmit, editItem }: KbF
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
-  const [tags, setTags] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -20,12 +19,10 @@ export default function KbFormModal({ isOpen, onClose, onSubmit, editItem }: KbF
       setTitle(editItem.title);
       setContent(editItem.content);
       setCategory(editItem.category || '');
-      setTags(editItem.tags || '');
     } else {
       setTitle('');
       setContent('');
       setCategory('');
-      setTags('');
     }
   }, [editItem, isOpen]);
 
@@ -39,7 +36,6 @@ export default function KbFormModal({ isOpen, onClose, onSubmit, editItem }: KbF
         title,
         content,
         category: category || undefined,
-        tags: tags || undefined,
       });
       onClose();
     } finally {
@@ -86,19 +82,6 @@ export default function KbFormModal({ isOpen, onClose, onSubmit, editItem }: KbF
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g. Test Design, Automation"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
-                           focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tags <span className="text-gray-400">(comma-separated)</span>
-              </label>
-              <input
-                type="text"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="e.g. boundary-testing, equivalence"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
                            focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />

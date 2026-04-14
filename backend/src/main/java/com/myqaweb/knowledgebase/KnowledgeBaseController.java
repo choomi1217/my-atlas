@@ -20,8 +20,10 @@ public class KnowledgeBaseController {
     private final PdfPipelineService pdfPipelineService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<KnowledgeBaseDto.KbResponse>>> list() {
-        List<KnowledgeBaseDto.KbResponse> items = knowledgeBaseService.findAll();
+    public ResponseEntity<ApiResponse<List<KnowledgeBaseDto.KbResponse>>> list(
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "sort", required = false) String sort) {
+        List<KnowledgeBaseDto.KbResponse> items = knowledgeBaseService.findAll(search, sort);
         return ResponseEntity.ok(ApiResponse.ok(items));
     }
 
@@ -60,12 +62,13 @@ public class KnowledgeBaseController {
     @PostMapping("/upload-pdf")
     public ResponseEntity<ApiResponse<Map<String, Long>>> uploadPdf(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("bookTitle") String bookTitle) {
+            @RequestParam("bookTitle") String bookTitle,
+            @RequestParam(value = "category", required = false) String category) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("File is empty"));
         }
-        Long jobId = pdfPipelineService.startUpload(file, bookTitle);
+        Long jobId = pdfPipelineService.startUpload(file, bookTitle, category);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("PDF upload started", Map.of("jobId", jobId)));
     }

@@ -77,7 +77,7 @@ test.describe('Knowledge Base UI E2E', () => {
     // Fill in the form
     await page.locator('input[placeholder="제목을 입력하세요"]').fill(testTitle);
     await page.locator('input[placeholder*="카테고리"]').fill('E2E Testing');
-    await page.locator('input[placeholder*="태그"]').fill('e2e,test');
+    // Tags input removed in v6 — only category remains
 
     // Type content into MDEditor textarea
     const editorTextarea = page.locator('.w-md-editor-text-input');
@@ -102,7 +102,7 @@ test.describe('Knowledge Base UI E2E', () => {
     // Ensure we have a KB entry to view
     if (!createdKbId) {
       const resp = await apiRequest.post('/api/kb', {
-        data: { title: testTitle, content: testContent, category: 'E2E Testing', tags: 'e2e,test' },
+        data: { title: testTitle, content: testContent, category: 'E2E Testing' },
       });
       const body = await resp.json() as any;
       createdKbId = body.data.id;
@@ -127,7 +127,7 @@ test.describe('Knowledge Base UI E2E', () => {
   test('should navigate to edit page from detail page and save changes', async ({ page }) => {
     if (!createdKbId) {
       const resp = await apiRequest.post('/api/kb', {
-        data: { title: testTitle, content: testContent, category: 'E2E Testing', tags: 'e2e,test' },
+        data: { title: testTitle, content: testContent, category: 'E2E Testing' },
       });
       const body = await resp.json() as any;
       createdKbId = body.data.id;
@@ -170,7 +170,7 @@ test.describe('Knowledge Base UI E2E', () => {
     // Ensure we have a KB entry
     if (!createdKbId) {
       const resp = await apiRequest.post('/api/kb', {
-        data: { title: testTitle, content: testContent, category: 'E2E Testing', tags: 'e2e,test' },
+        data: { title: testTitle, content: testContent, category: 'E2E Testing' },
       });
       const body = await resp.json() as any;
       createdKbId = body.data.id;
@@ -197,7 +197,6 @@ test.describe('Knowledge Base UI E2E', () => {
           title: testTitle,
           content: '## This is a heading\n\nSome **bold** text and `code` here.',
           category: 'E2E Testing',
-          tags: 'e2e,test',
         },
       });
       const body = await resp.json() as any;
@@ -221,5 +220,42 @@ test.describe('Knowledge Base UI E2E', () => {
     // Card should NOT have Edit/Delete buttons
     await expect(card.locator('text=Edit')).not.toBeVisible();
     await expect(card.locator('text=Delete')).not.toBeVisible();
+  });
+
+  // --- Search & Sort UI ---
+
+  test('should show search input and sort dropdown', async ({ page }) => {
+    await expect(page.locator('input[placeholder*="검색"]')).toBeVisible();
+    await expect(page.locator('select')).toBeVisible();
+  });
+
+  test('should filter results when typing in search', async ({ page }) => {
+    // Ensure we have an entry
+    if (!createdKbId) {
+      const resp = await apiRequest.post('/api/kb', {
+        data: { title: testTitle, content: testContent, category: 'E2E Testing' },
+      });
+      const body = await resp.json() as any;
+      createdKbId = body.data.id;
+    }
+
+    // Type a search query
+    const searchInput = page.locator('input[placeholder*="검색"]');
+    await searchInput.fill('E2E');
+
+    // Wait for debounced search to fire
+    await page.waitForResponse(
+      resp => resp.url().includes('/api/kb') && resp.url().includes('search=E2E')
+    );
+
+    // Should still show E2E items
+    await expect(page.locator('.cursor-pointer').first()).toBeVisible({ timeout: 5000 });
+  });
+
+  // --- Tags removed ---
+
+  test('should not show tags input on write page', async ({ page }) => {
+    await page.goto('/kb/write');
+    await expect(page.locator('input[placeholder*="태그"]')).not.toBeVisible();
   });
 });
