@@ -19,9 +19,15 @@ export const chatApi = {
   ): AbortController => {
     const controller = new AbortController();
 
+    const token = localStorage.getItem('my-atlas-token');
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     fetch(`${API_BASE_URL}/api/senior/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         message,
         faqContext: faqContext || null,
