@@ -3,12 +3,9 @@ package com.myqaweb.knowledgebase;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Service interface for Knowledge Base CRUD operations.
- */
 public interface KnowledgeBaseService {
 
-    List<KnowledgeBaseDto.KbResponse> findAll();
+    List<KnowledgeBaseDto.KbResponse> findAll(String search, String sort);
 
     Optional<KnowledgeBaseDto.KbResponse> findById(Long id);
 

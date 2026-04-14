@@ -253,7 +253,6 @@ function KbSaveForm({
 }) {
   const [title, setTitle] = useState(defaultTitle);
   const [category, setCategory] = useState('');
-  const [tags, setTags] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -264,7 +263,6 @@ function KbSaveForm({
         title,
         content: defaultContent,
         category: category || undefined,
-        tags: tags || undefined,
       });
     } finally {
       setIsSaving(false);
@@ -283,20 +281,13 @@ function KbSaveForm({
           className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
-      <div className="flex gap-2">
+      <div>
         <input
           type="text"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
           placeholder="Category"
-          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
-        />
-        <input
-          type="text"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="Tags (comma-sep)"
-          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
       <div className="flex justify-end gap-2">

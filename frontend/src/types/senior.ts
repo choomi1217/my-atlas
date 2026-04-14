@@ -15,7 +15,6 @@ export interface FaqItem {
   id: number;
   title: string;
   content: string;
-  tags: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,7 +33,6 @@ export interface FaqContext {
 export interface FaqRequest {
   title: string;
   content: string;
-  tags?: string;
 }
 
 /**
@@ -45,12 +43,12 @@ export interface KbItem {
   title: string;
   content: string;
   category: string | null;
-  tags: string | null;
   source: string | null;
   hitCount: number;
   pinnedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 }
 
 /**
@@ -60,7 +58,15 @@ export interface KbRequest {
   title: string;
   content: string;
   category?: string;
-  tags?: string;
+}
+
+/**
+ * KB Category for autocomplete.
+ */
+export interface KbCategory {
+  id: number;
+  name: string;
+  createdAt: string;
 }
 
 /**

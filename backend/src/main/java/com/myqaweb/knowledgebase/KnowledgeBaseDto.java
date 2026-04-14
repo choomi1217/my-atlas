@@ -13,9 +13,7 @@ public class KnowledgeBaseDto {
             @NotBlank(message = "Content is required")
             String content,
 
-            String category,
-
-            String tags
+            String category
     ) {}
 
     public record KbResponse(
@@ -23,11 +21,11 @@ public class KnowledgeBaseDto {
             String title,
             String content,
             String category,
-            String tags,
             String source,
             int hitCount,
             LocalDateTime pinnedAt,
             LocalDateTime createdAt,
-            LocalDateTime updatedAt
+            LocalDateTime updatedAt,
+            LocalDateTime deletedAt
     ) {}
 }

@@ -71,7 +71,7 @@ public class PdfProcessingWorker {
     private final EmbeddingService embeddingService;
 
     @Async
-    public void processPdf(Long jobId, byte[] pdfBytes, String bookTitle) {
+    public void processPdf(Long jobId, byte[] pdfBytes, String bookTitle, String category) {
         PdfUploadJobEntity job = jobRepository.findById(jobId).orElse(null);
         if (job == null) return;
 
@@ -110,7 +110,7 @@ public class PdfProcessingWorker {
             int savedCount = 0;
             for (int i = 0; i < allChunks.size(); i++) {
                 Chunk chunk = allChunks.get(i);
-                boolean saved = saveChunkWithRetry(chunk, bookTitle);
+                boolean saved = saveChunkWithRetry(chunk, bookTitle, category);
                 if (saved) savedCount++;
 
                 // Progress log every 50 chunks
@@ -139,7 +139,7 @@ public class PdfProcessingWorker {
         }
     }
 
-    private boolean saveChunkWithRetry(Chunk chunk, String bookTitle) {
+    private boolean saveChunkWithRetry(Chunk chunk, String bookTitle, String category) {
         int retries = 0;
         while (retries < MAX_RETRIES) {
             try {
@@ -150,6 +150,7 @@ public class PdfProcessingWorker {
                 entity.setTitle(chunk.title());
                 entity.setContent(chunk.content());
                 entity.setSource(bookTitle);
+                entity.setCategory(category);
                 KnowledgeBaseEntity saved = kbRepository.save(entity);
                 kbRepository.updateEmbedding(saved.getId(), vectorStr);
                 return true;

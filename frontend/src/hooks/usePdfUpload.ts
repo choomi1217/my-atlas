@@ -20,14 +20,14 @@ export const usePdfUpload = ({ onComplete, onError }: UsePdfUploadOptions = {}) 
     }
   }, []);
 
-  const uploadPdf = useCallback(async (file: File, bookTitle: string) => {
+  const uploadPdf = useCallback(async (file: File, bookTitle: string, category?: string) => {
     setIsUploading(true);
     setError(null);
     setCurrentJob(null);
     stopPolling();
 
     try {
-      const { jobId } = await kbApi.uploadPdf(file, bookTitle);
+      const { jobId } = await kbApi.uploadPdf(file, bookTitle, category);
 
       // Start polling
       intervalRef.current = setInterval(async () => {

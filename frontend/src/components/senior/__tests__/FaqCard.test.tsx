@@ -9,12 +9,12 @@ const mockItem: KbItem = {
   title: 'Login Testing Guide',
   content: 'Step-by-step guide for login testing.',
   category: 'QA',
-  tags: 'auth,login',
   source: null,
   hitCount: 5,
   pinnedAt: null,
   createdAt: '2026-03-26T10:00:00',
   updatedAt: '2026-03-26T10:00:00',
+  deletedAt: null,
 };
 
 describe('FaqCard', () => {
@@ -26,12 +26,6 @@ describe('FaqCard', () => {
   it('renders title', () => {
     render(<FaqCard {...defaultProps} />);
     expect(screen.getByText('Login Testing Guide')).toBeInTheDocument();
-  });
-
-  it('renders tags', () => {
-    render(<FaqCard {...defaultProps} />);
-    expect(screen.getByText('#auth')).toBeInTheDocument();
-    expect(screen.getByText('#login')).toBeInTheDocument();
   });
 
   it('does not show content initially (collapsed)', () => {

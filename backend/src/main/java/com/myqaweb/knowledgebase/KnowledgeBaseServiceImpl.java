@@ -21,12 +21,22 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private static final int HIT_TOP_K = 5;
 
     private final KnowledgeBaseRepository knowledgeBaseRepository;
+    private final KbCategoryService categoryService;
     private final EmbeddingService embeddingService;
 
     @Override
     @Transactional(readOnly = true)
-    public List<KnowledgeBaseDto.KbResponse> findAll() {
-        return knowledgeBaseRepository.findAll().stream()
+    public List<KnowledgeBaseDto.KbResponse> findAll(String search, String sort) {
+        List<KnowledgeBaseEntity> entities;
+        String effectiveSort = (sort == null || sort.isBlank()) ? "newest" : sort;
+
+        entities = switch (effectiveSort) {
+            case "oldest" -> knowledgeBaseRepository.findActiveBySearchOldest(search);
+            case "title" -> knowledgeBaseRepository.findActiveBySearchTitle(search);
+            default -> knowledgeBaseRepository.findActiveBySearchNewest(search);
+        };
+
+        return entities.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -34,7 +44,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     @Override
     @Transactional(readOnly = true)
     public Optional<KnowledgeBaseDto.KbResponse> findById(Long id) {
-        return knowledgeBaseRepository.findById(id)
+        return knowledgeBaseRepository.findActiveById(id)
                 .map(this::toResponse);
     }
 
@@ -44,7 +54,9 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         entity.setTitle(request.title());
         entity.setContent(request.content());
         entity.setCategory(request.category());
-        entity.setTags(request.tags());
+
+        // Auto-register category for autocomplete
+        categoryService.ensureExists(request.category());
 
         KnowledgeBaseEntity saved = knowledgeBaseRepository.save(entity);
         scheduleEmbeddingGeneration(saved.getId(), saved.getTitle(), saved.getContent());
@@ -54,13 +66,15 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     @Override
     public KnowledgeBaseDto.KbResponse update(Long id, KnowledgeBaseDto.KbRequest request) {
-        KnowledgeBaseEntity entity = knowledgeBaseRepository.findById(id)
+        KnowledgeBaseEntity entity = knowledgeBaseRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Knowledge Base entry not found: " + id));
 
         entity.setTitle(request.title());
         entity.setContent(request.content());
         entity.setCategory(request.category());
-        entity.setTags(request.tags());
+
+        // Auto-register category for autocomplete
+        categoryService.ensureExists(request.category());
 
         KnowledgeBaseEntity saved = knowledgeBaseRepository.save(entity);
         scheduleEmbeddingGeneration(saved.getId(), saved.getTitle(), saved.getContent());
@@ -70,15 +84,21 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     @Override
     public void delete(Long id) {
-        if (!knowledgeBaseRepository.existsById(id)) {
-            throw new IllegalArgumentException("Knowledge Base entry not found: " + id);
+        KnowledgeBaseEntity entity = knowledgeBaseRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Knowledge Base entry not found: " + id));
+
+        if (entity.getSource() != null) {
+            // PDF 항목 → Soft Delete (원본 보존)
+            knowledgeBaseRepository.softDelete(id, LocalDateTime.now());
+        } else {
+            // 수동 항목 → Hard Delete
+            knowledgeBaseRepository.deleteById(id);
         }
-        knowledgeBaseRepository.deleteById(id);
     }
 
     @Override
     public void pinKbEntry(Long id) {
-        KnowledgeBaseEntity entity = knowledgeBaseRepository.findById(id)
+        KnowledgeBaseEntity entity = knowledgeBaseRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Knowledge Base entry not found: " + id));
 
         if (entity.getPinnedAt() != null) {
@@ -95,7 +115,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     @Override
     public void unpinKbEntry(Long id) {
-        KnowledgeBaseEntity entity = knowledgeBaseRepository.findById(id)
+        KnowledgeBaseEntity entity = knowledgeBaseRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Knowledge Base entry not found: " + id));
 
         if (entity.getPinnedAt() == null) {
@@ -146,25 +166,21 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         });
     }
 
-    /**
-     * Strips Markdown syntax from text to improve embedding quality.
-     * Removes image tags, links, headings, bold/italic markers, code blocks, etc.
-     */
     static String stripMarkdown(String md) {
         if (md == null || md.isBlank()) return "";
         return md
-                .replaceAll("```[\\s\\S]*?```", " ")           // fenced code blocks
-                .replaceAll("`[^`]*`", " ")                     // inline code
-                .replaceAll("!\\[([^]]*)]\\([^)]*\\)", "$1")   // images → alt text
-                .replaceAll("\\[([^]]*)]\\([^)]*\\)", "$1")     // links → text
-                .replaceAll("^#{1,6}\\s+", "")                  // headings
-                .replaceAll("(\\*{1,3}|_{1,3})", "")            // bold/italic
-                .replaceAll("^>\\s?", "")                        // blockquotes
-                .replaceAll("^[-*+]\\s+", "")                    // unordered lists
-                .replaceAll("^\\d+\\.\\s+", "")                  // ordered lists
-                .replaceAll("---+|===+|\\*\\*\\*+", "")          // horizontal rules
-                .replaceAll("~{2}[^~]*~{2}", "")                // strikethrough
-                .replaceAll("\\n{2,}", "\n")                     // multiple newlines
+                .replaceAll("```[\\s\\S]*?```", " ")
+                .replaceAll("`[^`]*`", " ")
+                .replaceAll("!\\[([^]]*)]\\([^)]*\\)", "$1")
+                .replaceAll("\\[([^]]*)]\\([^)]*\\)", "$1")
+                .replaceAll("^#{1,6}\\s+", "")
+                .replaceAll("(\\*{1,3}|_{1,3})", "")
+                .replaceAll("^>\\s?", "")
+                .replaceAll("^[-*+]\\s+", "")
+                .replaceAll("^\\d+\\.\\s+", "")
+                .replaceAll("---+|===+|\\*\\*\\*+", "")
+                .replaceAll("~{2}[^~]*~{2}", "")
+                .replaceAll("\\n{2,}", "\n")
                 .trim();
     }
 
@@ -174,12 +190,12 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 entity.getTitle(),
                 entity.getContent(),
                 entity.getCategory(),
-                entity.getTags(),
                 entity.getSource(),
                 entity.getHitCount(),
                 entity.getPinnedAt(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getDeletedAt()
         );
     }
 }

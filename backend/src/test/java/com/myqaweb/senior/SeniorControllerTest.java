@@ -47,9 +47,9 @@ class SeniorControllerTest {
         // Arrange
         List<KnowledgeBaseDto.KbResponse> faqs = List.of(
                 new KnowledgeBaseDto.KbResponse(1L, "Pinned KB Entry", "Content 1",
-                        "QA", "tag1", null, 0, now, now, now),
+                        "QA", null, 0, now, now, now, null),
                 new KnowledgeBaseDto.KbResponse(2L, "Top Hit Entry", "Content 2",
-                        "API", "tag2", null, 10, null, now, now)
+                        "API", null, 10, null, now, now, null)
         );
         when(seniorService.getCuratedFaqs()).thenReturn(faqs);
 
@@ -89,7 +89,7 @@ class SeniorControllerTest {
         // Arrange — verify that the response includes KB-specific fields (source, hitCount, pinnedAt)
         List<KnowledgeBaseDto.KbResponse> faqs = List.of(
                 new KnowledgeBaseDto.KbResponse(5L, "KB Entry", "Content", "Category",
-                        "tags", "book-source", 3, now, now, now)
+                        "book-source", 3, now, now, now, null)
         );
         when(seniorService.getCuratedFaqs()).thenReturn(faqs);
 
@@ -100,7 +100,6 @@ class SeniorControllerTest {
                 .andExpect(jsonPath("$.data[0].title").value("KB Entry"))
                 .andExpect(jsonPath("$.data[0].content").value("Content"))
                 .andExpect(jsonPath("$.data[0].category").value("Category"))
-                .andExpect(jsonPath("$.data[0].tags").value("tags"))
                 .andExpect(jsonPath("$.data[0].source").value("book-source"))
                 .andExpect(jsonPath("$.data[0].hitCount").value(3))
                 .andExpect(jsonPath("$.data[0].pinnedAt").exists());
