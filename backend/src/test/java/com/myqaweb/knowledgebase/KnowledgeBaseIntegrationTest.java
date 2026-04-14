@@ -83,8 +83,8 @@ class KnowledgeBaseIntegrationTest extends BaseIntegrationTest {
         kbRepository.save(manualEntry);
 
         // Act
-        List<KnowledgeBaseEntity> pdfResults = kbRepository.findBySourceIsNotNull();
-        List<KnowledgeBaseEntity> manualResults = kbRepository.findBySourceIsNull();
+        List<KnowledgeBaseEntity> pdfResults = kbRepository.findBySourceIsNotNullAndActive();
+        List<KnowledgeBaseEntity> manualResults = kbRepository.findBySourceIsNullAndActive();
 
         // Assert
         assertEquals(1, pdfResults.size());

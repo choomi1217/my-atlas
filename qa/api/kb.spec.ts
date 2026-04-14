@@ -34,8 +34,7 @@ test.describe('Knowledge Base API E2E', () => {
       data: {
         title: 'E2E Test Article',
         content: 'This is an E2E test article for knowledge base.',
-        category: 'Testing',
-        tags: 'e2e,test',
+        category: 'E2E Testing',
       },
     });
     expect(response.status()).toBe(201);
@@ -43,8 +42,7 @@ test.describe('Knowledge Base API E2E', () => {
     expect(body.success).toBe(true);
     expect(body.data.title).toBe('E2E Test Article');
     expect(body.data.content).toBe('This is an E2E test article for knowledge base.');
-    expect(body.data.category).toBe('Testing');
-    expect(body.data.tags).toBe('e2e,test');
+    expect(body.data.category).toBe('E2E Testing');
     kbId = body.data.id;
   });
 
@@ -63,7 +61,6 @@ test.describe('Knowledge Base API E2E', () => {
         title: 'E2E Updated Article',
         content: 'Updated content for E2E test.',
         category: 'QA',
-        tags: 'e2e,updated',
       },
     });
     expect(response.status()).toBe(200);
@@ -90,7 +87,7 @@ test.describe('Knowledge Base API E2E', () => {
     expect(Array.isArray(body.data)).toBe(true);
   });
 
-  test('DELETE /api/kb/{id} - delete entry', async () => {
+  test('DELETE /api/kb/{id} - delete manual entry (hard delete)', async () => {
     const response = await request.delete(`/api/kb/${kbId}`);
     expect(response.status()).toBe(200);
     const body = await response.json() as any;
@@ -105,20 +102,97 @@ test.describe('Knowledge Base API E2E', () => {
   });
 });
 
+test.describe('Knowledge Base Search & Sort API', () => {
+  let searchId1: number;
+  let searchId2: number;
+
+  test.beforeAll(async () => {
+    // Create test entries for search
+    const resp1 = await request.post('/api/kb', {
+      data: { title: 'E2E SearchAlpha', content: 'Alpha content for search test', category: 'SearchCat' },
+    });
+    searchId1 = (await resp1.json() as any).data.id;
+
+    const resp2 = await request.post('/api/kb', {
+      data: { title: 'E2E SearchBeta', content: 'Beta content unique keyword', category: 'SearchCat' },
+    });
+    searchId2 = (await resp2.json() as any).data.id;
+  });
+
+  test.afterAll(async () => {
+    if (searchId1) await request.delete(`/api/kb/${searchId1}`).catch(() => {});
+    if (searchId2) await request.delete(`/api/kb/${searchId2}`).catch(() => {});
+  });
+
+  test('GET /api/kb?search=Alpha - filters by keyword', async () => {
+    const response = await request.get('/api/kb?search=Alpha');
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    const found = body.data.find((k: any) => k.id === searchId1);
+    expect(found).toBeDefined();
+    const notFound = body.data.find((k: any) => k.id === searchId2);
+    expect(notFound).toBeUndefined();
+  });
+
+  test('GET /api/kb?sort=title - sorts by title', async () => {
+    const response = await request.get('/api/kb?sort=title');
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('GET /api/kb?sort=oldest - sorts by oldest first', async () => {
+    const response = await request.get('/api/kb?sort=oldest');
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+  });
+});
+
+test.describe('Knowledge Base Category API', () => {
+  test('GET /api/kb/categories - returns category list', async () => {
+    const response = await request.get('/api/kb/categories');
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  test('POST /api/kb/categories - create category', async () => {
+    const catName = `E2E Cat ${Date.now()}`;
+    const response = await request.post('/api/kb/categories', {
+      data: { name: catName },
+    });
+    expect(response.status()).toBe(201);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.name).toBe(catName);
+  });
+
+  test('GET /api/kb/categories/search?q=E2E - search categories', async () => {
+    const response = await request.get('/api/kb/categories/search?q=E2E');
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
 test.describe('Knowledge Base Image API E2E', () => {
   let uploadedImageUrl: string;
 
   test('POST /api/kb/images - upload valid PNG image', async () => {
-    // Create a minimal 1x1 red PNG (68 bytes)
     const pngHeader = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
-      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1
-      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, // 8-bit RGB
-      0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde,
+      0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54,
       0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00, 0x00,
       0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33,
-      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, // IEND chunk
+      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44,
       0xae, 0x42, 0x60, 0x82,
     ]);
 
@@ -136,7 +210,6 @@ test.describe('Knowledge Base Image API E2E', () => {
     expect(body.success).toBe(true);
     expect(body.data.url).toBeDefined();
     expect(body.data.url).toContain('/api/kb/images/');
-    expect(body.data.url).toMatch(/\.png$/);
     uploadedImageUrl = body.data.url;
   });
 

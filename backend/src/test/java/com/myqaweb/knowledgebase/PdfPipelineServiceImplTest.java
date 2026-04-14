@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -28,6 +29,9 @@ class PdfPipelineServiceImplTest {
 
     @Mock
     private PdfProcessingWorker pdfProcessingWorker;
+
+    @Mock
+    private KbCategoryService categoryService;
 
     @InjectMocks
     private PdfPipelineServiceImpl pdfPipelineService;
@@ -84,11 +88,11 @@ class PdfPipelineServiceImplTest {
     // --- deleteBook ---
 
     @Test
-    void deleteBook_deletesChunksAndJobs() {
+    void deleteBook_softDeletesChunks() {
         pdfPipelineService.deleteBook("테스트 도서");
 
-        verify(kbRepository).deleteBySource("테스트 도서");
-        verify(jobRepository).deleteByBookTitle("테스트 도서");
+        verify(kbRepository).softDeleteBySource(eq("테스트 도서"), any(LocalDateTime.class));
+        verify(jobRepository, never()).deleteByBookTitle(any());
     }
 
     // --- Response mapping ---

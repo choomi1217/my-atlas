@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useKnowledgeBase, SourceFilter } from '@/hooks/useKnowledgeBase';
+import { useKnowledgeBase, SourceFilter, SortOption } from '@/hooks/useKnowledgeBase';
 import PdfUploadModal from '@/components/kb/PdfUploadModal';
 
 const filterTabs: { key: SourceFilter; label: string }[] = [
   { key: 'all', label: '전체' },
   { key: 'manual', label: '직접 작성' },
   { key: 'pdf', label: 'PDF 도서' },
+];
+
+const sortOptions: { key: SortOption; label: string }[] = [
+  { key: 'newest', label: '최신순' },
+  { key: 'oldest', label: '오래된순' },
+  { key: 'title', label: '제목순' },
 ];
 
 export default function KnowledgeBasePage() {
@@ -17,6 +23,10 @@ export default function KnowledgeBasePage() {
     error,
     sourceFilter,
     setSourceFilter,
+    search,
+    setSearch,
+    sort,
+    setSort,
     manualCount,
     pdfCount,
     fetchKbItems,
@@ -25,9 +35,22 @@ export default function KnowledgeBasePage() {
 
   const navigate = useNavigate();
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearch(searchInput);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchInput, setSearch]);
 
   const handleDeleteBook = async (source: string) => {
-    if (!window.confirm(`"${source}"의 전체 청크를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!window.confirm(`"${source}"의 전체 청크를 삭제하시겠습니까?`)) return;
     await deleteBook(source);
   };
 
@@ -39,7 +62,6 @@ export default function KnowledgeBasePage() {
     }
   };
 
-  // Group PDF items by source for book-level delete
   const uniqueSources = [...new Set(
     filteredItems.filter((item) => item.source !== null).map((item) => item.source!)
   )];
@@ -65,6 +87,28 @@ export default function KnowledgeBasePage() {
             PDF 업로드
           </button>
         </div>
+      </div>
+
+      {/* Search + Sort */}
+      <div className="flex gap-3 mb-4">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="제목 또는 내용 검색..."
+          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md
+                     focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortOption)}
+          className="px-3 py-2 text-sm border border-gray-300 rounded-md
+                     focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {sortOptions.map(({ key, label }) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Source Filter Tabs */}
@@ -116,7 +160,9 @@ export default function KnowledgeBasePage() {
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-12 text-gray-400">
           <p>
-            {sourceFilter === 'all' && 'KB 항목이 없습니다. 직접 작성하거나 PDF를 업로드하세요.'}
+            {sourceFilter === 'all' && (search
+              ? '검색 결과가 없습니다.'
+              : 'KB 항목이 없습니다. 직접 작성하거나 PDF를 업로드하세요.')}
             {sourceFilter === 'manual' && '직접 작성한 KB 항목이 없습니다.'}
             {sourceFilter === 'pdf' && '업로드된 PDF 도서가 없습니다.'}
           </p>
@@ -151,19 +197,6 @@ export default function KnowledgeBasePage() {
 
               {item.source && (
                 <p className="text-xs text-purple-600 mb-1">source: {item.source}</p>
-              )}
-
-              {item.tags && (
-                <div className="flex flex-wrap gap-1">
-                  {item.tags.split(',').map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full"
-                    >
-                      {tag.trim()}
-                    </span>
-                  ))}
-                </div>
               )}
             </div>
           ))}

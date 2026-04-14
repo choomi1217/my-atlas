@@ -78,11 +78,9 @@ test.describe('Test Case Page', () => {
 
     await featuresPage.gotoTestCases(companyId, productId);
 
-    // Path should be displayed on card
-    const pathText = await featuresPage.page
-      .locator('text=Main > Login')
-      .isVisible();
-    expect(pathText).toBe(true);
+    // Path should be displayed as group heading
+    const pathHeading = featuresPage.page.locator('h3', { hasText: 'Main > Login' });
+    await expect(pathHeading).toBeVisible();
   });
 
   test('should select segment and add test case via modal', async () => {
@@ -93,16 +91,83 @@ test.describe('Test Case Page', () => {
     // Select segment in tree
     await featuresPage.selectSegmentInTree('Main');
 
-    // Verify selected path is shown
-    const selectedText = await featuresPage.page
-      .getByText(/Selected: Main/)
-      .isVisible();
-    expect(selectedText).toBe(true);
+    // Verify selected path is shown in the right panel breadcrumb
+    const pathBreadcrumb = featuresPage.page.locator('.font-medium.text-indigo-700.truncate');
+    await expect(pathBreadcrumb).toContainText('Main');
 
     // Add test case via modal - should use the selected path
     await featuresPage.addTestCase('TC With Selected Path');
 
     const tcExists = await featuresPage.isTestCaseVisible('TC With Selected Path');
     expect(tcExists).toBe(true);
+  });
+
+  test('should highlight selected segment node in tree', async ({ page }) => {
+    const seg1 = await createTestSegment(productId, 'Main');
+    const seg2 = await createTestSegment(productId, 'Login', seg1.id);
+
+    await featuresPage.gotoTestCases(companyId, productId);
+
+    // Click on "Login" node (child of Main)
+    await featuresPage.selectSegmentInTree('Login');
+
+    // Selected node (Login) should have indigo-100 background
+    const loginNode = page
+      .locator('.flex.items-center.gap-1.py-1.px-2.rounded')
+      .filter({ hasText: 'Login' })
+      .first();
+    await expect(loginNode).toHaveClass(/bg-indigo-100/);
+
+    // Ancestor node (Main) should have indigo-50 background
+    const mainNode = page
+      .locator('.flex.items-center.gap-1.py-1.px-2.rounded')
+      .filter({ hasText: 'Main' })
+      .first();
+    await expect(mainNode).toHaveClass(/bg-indigo-50/);
+  });
+
+  test('should show priority color bar on test case cards', async ({ page }) => {
+    const seg = await createTestSegment(productId, 'Main');
+    await createTestTestCase(productId, 'E2E High Priority TC', [seg.id], 'HIGH');
+
+    await featuresPage.gotoTestCases(companyId, productId);
+
+    // Card with HIGH priority should have red left border
+    const card = page
+      .locator('.bg-white.border.rounded-lg')
+      .filter({ hasText: 'E2E High Priority TC' })
+      .first();
+    await expect(card).toHaveClass(/border-l-red-400/);
+  });
+
+  test('should show action buttons only on card hover', async ({ page }) => {
+    const seg = await createTestSegment(productId, 'Main');
+    await createTestTestCase(productId, 'E2E Hover TC', [seg.id]);
+
+    await featuresPage.gotoTestCases(companyId, productId);
+
+    const card = page
+      .locator('.bg-white.border.rounded-lg')
+      .filter({ hasText: 'E2E Hover TC' })
+      .first();
+
+    // Buttons should be hidden by default (opacity-0)
+    const buttonGroup = card.locator('.opacity-0');
+    await expect(buttonGroup).toBeAttached();
+
+    // Hover on card — buttons should become visible
+    await card.hover();
+    const visibleButtons = card.locator('.group-hover\\:opacity-100');
+    await expect(visibleButtons).toBeAttached();
+  });
+
+  test('should show path breadcrumb placeholder when no path selected', async () => {
+    await createTestSegment(productId, 'Main');
+
+    await featuresPage.gotoTestCases(companyId, productId);
+
+    // No path selected initially — should show placeholder
+    const placeholder = featuresPage.page.getByText('Select a path from the tree');
+    await expect(placeholder).toBeVisible();
   });
 });

@@ -36,15 +36,6 @@ export default function FaqCard({ item, onSendToChat }: FaqCardProps) {
             {item.category}
           </span>
         )}
-        {item.tags &&
-          item.tags.split(',').map((tag, idx) => (
-            <span
-              key={idx}
-              className="px-2 py-0.5 text-xs bg-indigo-50 text-indigo-600 rounded-full"
-            >
-              #{tag.trim()}
-            </span>
-          ))}
       </div>
 
       {/* Title */}

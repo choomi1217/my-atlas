@@ -36,7 +36,6 @@ export default function KbManagementView() {
     title: string;
     content: string;
     category?: string;
-    tags?: string;
   }) => {
     if (editItem) {
       await updateKbItem(editItem.id, request);
@@ -156,18 +155,6 @@ export default function KbManagementView() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-600 line-clamp-3 mb-3">{item.content}</p>
-                  {item.tags && (
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {item.tags.split(',').map((tag, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full"
-                        >
-                          {tag.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => handleEdit(item)}

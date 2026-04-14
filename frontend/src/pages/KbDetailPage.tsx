@@ -41,24 +41,22 @@ export default function KbDetailPage() {
         >
           &larr; 목록으로
         </button>
-        {!item.source && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => navigate(`/kb/edit/${item.id}`)}
-              className="px-4 py-2 text-sm text-indigo-600 border border-indigo-300 rounded-md
-                         hover:bg-indigo-50 transition-colors"
-            >
-              수정
-            </button>
-            <button
-              onClick={handleDelete}
-              className="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-md
-                         hover:bg-red-50 transition-colors"
-            >
-              삭제
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate(`/kb/edit/${item.id}`)}
+            className="px-4 py-2 text-sm text-indigo-600 border border-indigo-300 rounded-md
+                       hover:bg-indigo-50 transition-colors"
+          >
+            수정
+          </button>
+          <button
+            onClick={handleDelete}
+            className="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-md
+                       hover:bg-red-50 transition-colors"
+          >
+            삭제
+          </button>
+        </div>
       </div>
 
       {/* Title & Meta */}
@@ -76,15 +74,6 @@ export default function KbDetailPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">{item.title}</h1>
         {item.source && (
           <p className="text-sm text-purple-600 mb-1">source: {item.source}</p>
-        )}
-        {item.tags && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            {item.tags.split(',').map((tag, idx) => (
-              <span key={idx} className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full">
-                {tag.trim()}
-              </span>
-            ))}
-          </div>
         )}
         <p className="text-xs text-gray-400">
           {new Date(item.createdAt).toLocaleDateString('ko-KR')} 작성

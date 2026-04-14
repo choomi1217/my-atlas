@@ -378,10 +378,10 @@ class SeniorServiceImplTest {
     void getCuratedFaqs_delegatesToKnowledgeBaseService() {
         // Arrange
         List<KnowledgeBaseDto.KbResponse> expectedFaqs = List.of(
-                new KnowledgeBaseDto.KbResponse(1L, "Pinned Entry", "Content", "QA", "qa",
-                        null, 0, now, now, now),
-                new KnowledgeBaseDto.KbResponse(2L, "Top Hit", "Content", "API", "api",
-                        null, 5, null, now, now)
+                new KnowledgeBaseDto.KbResponse(1L, "Pinned Entry", "Content", "QA",
+                        null, 0, now, now, now, null),
+                new KnowledgeBaseDto.KbResponse(2L, "Top Hit", "Content", "API",
+                        null, 5, null, now, now, null)
         );
         when(knowledgeBaseService.getCuratedFaqs()).thenReturn(expectedFaqs);
 
