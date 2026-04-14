@@ -19,6 +19,9 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./logs:/app/logs
+      - ./feature-images:/app/feature-images
+      - ./kb-images:/app/kb-images
+      - ./convention-images:/app/convention-images
 
   frontend:
     build:
