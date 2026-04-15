@@ -44,6 +44,12 @@ class VersionServiceImplTest {
     @Mock
     private TestRunTestCaseRepository testRunTestCaseRepository;
 
+    @Mock
+    private VersionPhaseTestCaseRepository versionPhaseTestCaseRepository;
+
+    @Mock
+    private TicketRepository ticketRepository;
+
     @InjectMocks
     private VersionServiceImpl service;
 
@@ -75,11 +81,10 @@ class VersionServiceImplTest {
     }
 
     @Test
-    void testCreateVersion_Success() {
-        // Given
-        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", List.of(1L));
+    void testCreateVersion_Simplified_Success() {
+        // Given — v15: create only saves version, no phases
         VersionDto.CreateVersionRequest request = new VersionDto.CreateVersionRequest(
-                1L, "v9", "Release v9", LocalDate.of(2026, 5, 1), List.of(phaseRequest)
+                1L, "v9", "Release v9", LocalDate.of(2026, 5, 1)
         );
 
         VersionEntity savedVersion = new VersionEntity();
@@ -91,30 +96,11 @@ class VersionServiceImplTest {
         savedVersion.setCreatedAt(LocalDateTime.now());
         savedVersion.setUpdatedAt(LocalDateTime.now());
 
-        VersionPhaseEntity savedPhase = new VersionPhaseEntity();
-        savedPhase.setId(1L);
-        savedPhase.setVersion(savedVersion);
-        savedPhase.setPhaseName("1차 테스트");
-        savedPhase.setOrderIndex(1);
-
-        VersionPhaseTestRunEntity junction = new VersionPhaseTestRunEntity();
-        junction.setId(1L);
-        junction.setVersionPhase(savedPhase);
-        junction.setTestRun(testRun);
-
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(versionRepository.save(any())).thenReturn(savedVersion);
         when(versionRepository.findById(1L)).thenReturn(Optional.of(savedVersion));
-        when(testRunRepository.findById(1L)).thenReturn(Optional.of(testRun));
-        when(versionPhaseRepository.save(any())).thenReturn(savedPhase);
-        when(versionPhaseTestRunRepository.save(any())).thenReturn(junction);
-        when(versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(1L)).thenReturn(List.of(savedPhase));
-        when(versionPhaseTestRunRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of(junction));
-        when(testRunTestCaseRepository.findAllByTestRunId(1L)).thenReturn(List.of());
-        when(testResultRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of());
+        when(versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(1L)).thenReturn(List.of());
         when(testResultService.computeVersionProgress(1L))
-                .thenReturn(new VersionDto.ProgressStats(0, 0, 0, 0, 0, 0, 0, 0));
-        when(testResultService.computePhaseProgress(1L))
                 .thenReturn(new VersionDto.ProgressStats(0, 0, 0, 0, 0, 0, 0, 0));
 
         // When
@@ -123,17 +109,19 @@ class VersionServiceImplTest {
         // Then
         assertNotNull(result);
         assertEquals("v9", result.name());
+        assertTrue(result.phases().isEmpty());
         verify(productRepository).findById(1L);
         verify(versionRepository).save(any());
-        verify(versionPhaseTestRunRepository).save(any());
+        // No phase/junction creation
+        verify(versionPhaseRepository, never()).save(any());
+        verify(versionPhaseTestRunRepository, never()).save(any());
     }
 
     @Test
     void testCreateVersion_ProductNotFound() {
         // Given
-        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", List.of(1L));
         VersionDto.CreateVersionRequest request = new VersionDto.CreateVersionRequest(
-                999L, "v9", "Release v9", LocalDate.of(2026, 5, 1), List.of(phaseRequest)
+                999L, "v9", "Release v9", LocalDate.of(2026, 5, 1)
         );
 
         when(productRepository.findById(999L)).thenReturn(Optional.empty());
@@ -483,5 +471,117 @@ class VersionServiceImplTest {
         assertEquals(1, result.size());
         assertEquals("v9", result.get(0).name());
         verify(versionRepository).findAllByProductIdOrderByReleaseDateDescCreatedAtDesc(1L);
+    }
+
+    @Test
+    void testGetFailedTestCases_ReturnsFailedTCsWithTicketCount() {
+        // Given
+        TestCaseEntity tc1 = new TestCaseEntity();
+        tc1.setId(10L);
+        tc1.setTitle("Login TC");
+        tc1.setPath(new Long[]{1L, 2L});
+
+        TestCaseEntity tc2 = new TestCaseEntity();
+        tc2.setId(20L);
+        tc2.setTitle("Search TC");
+        tc2.setPath(null);
+
+        VersionPhaseEntity phase1 = new VersionPhaseEntity();
+        phase1.setId(1L);
+        phase1.setPhaseName("Regression");
+
+        VersionPhaseEntity phase2 = new VersionPhaseEntity();
+        phase2.setId(2L);
+        phase2.setPhaseName("Smoke");
+
+        TestResultEntity r1 = new TestResultEntity();
+        r1.setId(100L);
+        r1.setStatus(RunResultStatus.FAIL);
+        r1.setTestCase(tc1);
+        r1.setVersionPhase(phase1);
+
+        TestResultEntity r2 = new TestResultEntity();
+        r2.setId(200L);
+        r2.setStatus(RunResultStatus.FAIL);
+        r2.setTestCase(tc2);
+        r2.setVersionPhase(phase2);
+
+        when(testResultRepository.findAllByVersionIdAndStatus(1L, RunResultStatus.FAIL))
+                .thenReturn(List.of(r1, r2));
+        when(ticketRepository.countByTestResultId(100L)).thenReturn(2);
+        when(ticketRepository.countByTestResultId(200L)).thenReturn(0);
+
+        // When
+        List<VersionDto.FailedTestCaseInfo> result = service.getFailedTestCases(1L);
+
+        // Then
+        assertEquals(2, result.size());
+
+        VersionDto.FailedTestCaseInfo info1 = result.get(0);
+        assertEquals(10L, info1.testCaseId());
+        assertEquals("Login TC", info1.testCaseTitle());
+        assertEquals(List.of(1L, 2L), info1.testCasePath());
+        assertEquals("Regression", info1.failedInPhaseName());
+        assertEquals(2, info1.ticketCount());
+
+        VersionDto.FailedTestCaseInfo info2 = result.get(1);
+        assertEquals(20L, info2.testCaseId());
+        assertEquals("Search TC", info2.testCaseTitle());
+        assertEquals(List.of(), info2.testCasePath());
+        assertEquals("Smoke", info2.failedInPhaseName());
+        assertEquals(0, info2.ticketCount());
+    }
+
+    @Test
+    void testGetFailedTestCases_DeduplicatesSameTC() {
+        // Given - same TC fails in two phases, should appear once
+        TestCaseEntity tc = new TestCaseEntity();
+        tc.setId(10L);
+        tc.setTitle("Login TC");
+        tc.setPath(new Long[]{1L});
+
+        VersionPhaseEntity phase1 = new VersionPhaseEntity();
+        phase1.setId(1L);
+        phase1.setPhaseName("Regression");
+
+        VersionPhaseEntity phase2 = new VersionPhaseEntity();
+        phase2.setId(2L);
+        phase2.setPhaseName("Smoke");
+
+        TestResultEntity r1 = new TestResultEntity();
+        r1.setId(100L);
+        r1.setStatus(RunResultStatus.FAIL);
+        r1.setTestCase(tc);
+        r1.setVersionPhase(phase1);
+
+        TestResultEntity r2 = new TestResultEntity();
+        r2.setId(200L);
+        r2.setStatus(RunResultStatus.FAIL);
+        r2.setTestCase(tc);
+        r2.setVersionPhase(phase2);
+
+        when(testResultRepository.findAllByVersionIdAndStatus(1L, RunResultStatus.FAIL))
+                .thenReturn(List.of(r1, r2));
+        when(ticketRepository.countByTestResultId(100L)).thenReturn(0);
+
+        // When
+        List<VersionDto.FailedTestCaseInfo> result = service.getFailedTestCases(1L);
+
+        // Then - deduplicated to 1 entry, first phase wins
+        assertEquals(1, result.size());
+        assertEquals("Regression", result.get(0).failedInPhaseName());
+    }
+
+    @Test
+    void testGetFailedTestCases_EmptyResults() {
+        // Given
+        when(testResultRepository.findAllByVersionIdAndStatus(1L, RunResultStatus.FAIL))
+                .thenReturn(List.of());
+
+        // When
+        List<VersionDto.FailedTestCaseInfo> result = service.getFailedTestCases(1L);
+
+        // Then
+        assertTrue(result.isEmpty());
     }
 }

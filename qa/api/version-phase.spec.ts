@@ -108,7 +108,7 @@ test.describe('Version Phase API E2E', () => {
     const testRun2Body = await testRun2Response.json() as any;
     testRunId2 = testRun2Body.data.id;
 
-    // Create version with initial phase
+    // Create version (simplified: no phases in creation)
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + 30);
     const dateString = futureDate.toISOString().split('T')[0];
@@ -119,27 +119,30 @@ test.describe('Version Phase API E2E', () => {
         name: 'v1.0.0-phase-test',
         releaseDate: dateString,
         description: 'Version for phase testing',
-        phases: [
-          {
-            phaseName: '0차 초기 Phase',
-            testRunIds: [testRunId1],
-            orderIndex: 0,
-          },
-        ],
       },
     });
     expect(versionResponse.status()).toBe(201);
     const versionBody = await versionResponse.json() as any;
     versionId = versionBody.data.id;
+
+    // Add an initial phase via Phase API
+    const initialPhaseResp = await request.post(`/api/versions/${versionId}/phases`, {
+      data: {
+        phaseName: '0차 초기 Phase',
+        testRunIds: [testRunId1],
+        testCaseIds: [],
+      },
+    });
+    expect(initialPhaseResp.status()).toBe(201);
   });
 
-  test('POST /api/versions/{versionId}/phases - Phase 추가', async () => {
-    // Version already has 1 phase (orderIndex 0), so add at orderIndex 1
+  test('POST /api/versions/{versionId}/phases - Phase 추가 (testRunIds + testCaseIds)', async () => {
+    // Version already has 1 phase (0차 초기 Phase), so add at orderIndex 1
     const response = await request.post(`/api/versions/${versionId}/phases`, {
       data: {
         phaseName: '1차 테스트',
         testRunIds: [testRunId1],
-        orderIndex: 1,
+        testCaseIds: [testCaseId2],
       },
     });
     expect(response.status()).toBe(201);
@@ -150,33 +153,35 @@ test.describe('Version Phase API E2E', () => {
     expect(body.data.testRuns[0].testRunId).toBe(testRunId1);
     // Backend may auto-adjust orderIndex, so just check it's a number
     expect(typeof body.data.orderIndex).toBe('number');
-    expect(body.data.orderIndex).toBeGreaterThanOrEqual(1);
+    // totalTestCaseCount should include TCs from testRun + direct testCaseIds
+    expect(body.data.totalTestCaseCount).toBeGreaterThanOrEqual(1);
     phaseId1 = body.data.id;
   });
 
-  test('POST /api/versions/{versionId}/phases - 두 번째 Phase 추가', async () => {
-    // Now version has 2 phases, so add the next one
+  test('POST /api/versions/{versionId}/phases - 두 번째 Phase 추가 (testCaseIds만)', async () => {
+    // Now version has 2 phases, so add the next one with only testCaseIds (no testRunIds)
     const response = await request.post(`/api/versions/${versionId}/phases`, {
       data: {
         phaseName: '2차 테스트',
-        testRunIds: [testRunId2],
-        orderIndex: 2,
+        testRunIds: [],
+        testCaseIds: [testCaseId1, testCaseId2],
       },
     });
     expect(response.status()).toBe(201);
     const body = await response.json() as any;
     expect(body.data.phaseName).toBe('2차 테스트');
     expect(typeof body.data.orderIndex).toBe('number');
-    expect(body.data.orderIndex).toBeGreaterThan(1);
+    // Should have both TCs directly
+    expect(body.data.totalTestCaseCount).toBeGreaterThanOrEqual(2);
     phaseId2 = body.data.id;
   });
 
-  test('POST /api/versions/{versionId}/phases - 다중 testRunIds로 Phase 생성', async () => {
+  test('POST /api/versions/{versionId}/phases - 다중 testRunIds + testCaseIds로 Phase 생성', async () => {
     const response = await request.post(`/api/versions/${versionId}/phases`, {
       data: {
         phaseName: '다중 TestRun Phase',
         testRunIds: [testRunId1, testRunId2],
-        orderIndex: 10,
+        testCaseIds: [testCaseId1],
       },
     });
     expect(response.status()).toBe(201);
@@ -274,12 +279,12 @@ test.describe('Version Phase API E2E', () => {
   });
 
   test('DELETE /api/versions/{versionId}/phases/{phaseId} - Phase 삭제', async () => {
-    // Create a phase to delete (version has 3 phases now, so add at orderIndex 3)
+    // Create a phase to delete
     const createResponse = await request.post(`/api/versions/${versionId}/phases`, {
       data: {
         phaseName: 'Phase to Delete',
         testRunIds: [testRunId1],
-        orderIndex: 3,
+        testCaseIds: [],
       },
     });
     expect(createResponse.status()).toBe(201);
@@ -325,6 +330,81 @@ test.describe('Version Phase API E2E', () => {
     // Deleted phase should not exist
     const deletedPhase = postDeleteBody.data.phases.find((p: any) => p.id === phaseToDelete.id);
     expect(deletedPhase).toBeUndefined();
+  });
+
+  test('POST /api/versions/{versionId}/phases/{phaseId}/test-cases - Phase에 TC 추가', async () => {
+    // Create a fresh phase for this test
+    const phaseResponse = await request.post(`/api/versions/${versionId}/phases`, {
+      data: {
+        phaseName: 'TC 추가 테스트 Phase',
+        testRunIds: [],
+        testCaseIds: [testCaseId1],
+      },
+    });
+    expect(phaseResponse.status()).toBe(201);
+    const phaseBody = await phaseResponse.json() as any;
+    const tcPhaseId = phaseBody.data.id;
+    const initialTcCount = phaseBody.data.totalTestCaseCount;
+
+    // Add testCaseId2 to this phase
+    const addResponse = await request.post(
+      `/api/versions/${versionId}/phases/${tcPhaseId}/test-cases`,
+      { data: { testCaseIds: [testCaseId2] } }
+    );
+    expect(addResponse.status()).toBe(200);
+
+    // Verify: phase should now have more TCs
+    const verifyResponse = await request.get(`/api/versions/${versionId}`);
+    const verifyBody = await verifyResponse.json() as any;
+    const updatedPhase = verifyBody.data.phases.find((p: any) => p.id === tcPhaseId);
+    expect(updatedPhase).toBeDefined();
+    expect(updatedPhase.totalTestCaseCount).toBeGreaterThan(initialTcCount);
+
+    // Cleanup
+    await request.delete(`/api/versions/${versionId}/phases/${tcPhaseId}`).catch(() => {});
+  });
+
+  test('DELETE /api/versions/{versionId}/phases/{phaseId}/test-cases - Phase에서 TC 제거', async () => {
+    // Create a phase with both TCs
+    const phaseResponse = await request.post(`/api/versions/${versionId}/phases`, {
+      data: {
+        phaseName: 'TC 제거 테스트 Phase',
+        testRunIds: [],
+        testCaseIds: [testCaseId1, testCaseId2],
+      },
+    });
+    expect(phaseResponse.status()).toBe(201);
+    const phaseBody = await phaseResponse.json() as any;
+    const tcPhaseId = phaseBody.data.id;
+    const initialTcCount = phaseBody.data.totalTestCaseCount;
+
+    // Remove testCaseId2 from this phase
+    const removeResponse = await request.delete(
+      `/api/versions/${versionId}/phases/${tcPhaseId}/test-cases`,
+      { data: JSON.stringify({ testCaseIds: [testCaseId2] }), headers: { 'Content-Type': 'application/json' } }
+    );
+    expect(removeResponse.status()).toBe(200);
+
+    // Verify: phase should now have fewer TCs
+    const verifyResponse = await request.get(`/api/versions/${versionId}`);
+    const verifyBody = await verifyResponse.json() as any;
+    const updatedPhase = verifyBody.data.phases.find((p: any) => p.id === tcPhaseId);
+    expect(updatedPhase).toBeDefined();
+    expect(updatedPhase.totalTestCaseCount).toBeLessThan(initialTcCount);
+
+    // Cleanup
+    await request.delete(`/api/versions/${versionId}/phases/${tcPhaseId}`).catch(() => {});
+  });
+
+  test('GET /api/versions/{id}/failed-test-cases - 실패한 TC 조회', async () => {
+    // Even without FAIL results, the endpoint should return an array
+    const response = await request.get(`/api/versions/${versionId}/failed-test-cases`);
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(Array.isArray(body.data)).toBe(true);
+    // No FAIL results yet, so should be empty
+    // Each item (if present) should have: testCaseId, testCaseTitle, failedInPhaseName, ticketCount
   });
 
   test.afterAll(async () => {

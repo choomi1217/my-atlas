@@ -71,5 +71,23 @@ public class VersionPhaseController {
         );
     }
 
+    @PostMapping("/versions/{versionId}/phases/{phaseId}/test-cases")
+    public ResponseEntity<ApiResponse<Void>> addTestCasesToPhase(
+            @PathVariable Long versionId,
+            @PathVariable Long phaseId,
+            @Valid @RequestBody VersionDto.PhaseTestCaseIdsRequest request) {
+        versionPhaseService.addTestCasesToPhase(versionId, phaseId, request.testCaseIds());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Test cases added to phase", null));
+    }
+
+    @DeleteMapping("/versions/{versionId}/phases/{phaseId}/test-cases")
+    public ResponseEntity<ApiResponse<Void>> removeTestCasesFromPhase(
+            @PathVariable Long versionId,
+            @PathVariable Long phaseId,
+            @RequestBody VersionDto.PhaseTestCaseIdsRequest request) {
+        versionPhaseService.removeTestCasesFromPhase(phaseId, request.testCaseIds());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Test cases removed from phase", null));
+    }
+
     public record ReorderRequest(Integer newOrderIndex) {}
 }

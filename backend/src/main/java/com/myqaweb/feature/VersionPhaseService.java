@@ -40,4 +40,14 @@ public interface VersionPhaseService {
      * Reorder phases (legacy method).
      */
     void reorderPhase(Long phaseId, Integer newOrderIndex);
+
+    /**
+     * Add individual test cases to a phase (creates TestResults).
+     */
+    void addTestCasesToPhase(Long versionId, Long phaseId, List<Long> testCaseIds);
+
+    /**
+     * Remove individual test cases from a phase (deletes TestResults).
+     */
+    void removeTestCasesFromPhase(Long phaseId, List<Long> testCaseIds);
 }

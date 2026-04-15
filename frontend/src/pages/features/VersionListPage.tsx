@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Version, TestRun } from '@/types/features';
-import { versionApi, testRunApi, productApi } from '@/api/features';
+import { Version } from '@/types/features';
+import { versionApi, productApi } from '@/api/features';
 import VersionFormModal from '@/components/features/VersionFormModal';
 import ProgressStats from '@/components/features/ProgressStats';
 
@@ -13,7 +13,6 @@ export default function VersionListPage() {
   const navigate = useNavigate();
 
   const [versions, setVersions] = useState<Version[]>([]);
-  const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [productName, setProductName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,10 +36,6 @@ export default function VersionListPage() {
         // Load versions
         const versions = await versionApi.getByProductId(Number(productId));
         setVersions(versions);
-
-        // Load test runs
-        const runs = await testRunApi.getByProductId(Number(productId));
-        setTestRuns(runs);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to load versions'
@@ -57,19 +52,19 @@ export default function VersionListPage() {
     name: string;
     description: string;
     releaseDate: string;
-    phases: Array<{ phaseName: string; testRunIds: number[] }>;
   }) => {
     if (!productId) return;
     try {
-      await versionApi.create(
+      const created = await versionApi.create(
         Number(productId),
         data.name,
         data.description,
-        data.releaseDate || null,
-        data.phases
+        data.releaseDate || null
       );
-      const versions = await versionApi.getByProductId(Number(productId));
-      setVersions(versions);
+      // Navigate to detail page for Phase addition
+      navigate(
+        `/features/companies/${companyId}/products/${productId}/versions/${created.id}`
+      );
     } catch (err) {
       console.error('Failed to create version:', err);
     }
@@ -203,7 +198,6 @@ export default function VersionListPage() {
         }}
         onSubmit={handleCreate}
         initialData={selectedVersion}
-        availableTestRuns={testRuns}
       />
     </div>
   );

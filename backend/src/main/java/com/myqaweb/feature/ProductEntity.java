@@ -35,6 +35,9 @@ public class ProductEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "jira_project_key", length = 20)
+    private String jiraProjectKey;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

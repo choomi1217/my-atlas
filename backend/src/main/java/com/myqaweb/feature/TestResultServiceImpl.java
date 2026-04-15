@@ -20,13 +20,16 @@ public class TestResultServiceImpl implements TestResultService {
     private final TestResultRepository testResultRepository;
     private final TestRunRepository testRunRepository;
     private final TestRunTestCaseRepository testRunTestCaseRepository;
+    private final TestCaseRepository testCaseRepository;
 
     public TestResultServiceImpl(TestResultRepository testResultRepository,
                                 TestRunRepository testRunRepository,
-                                TestRunTestCaseRepository testRunTestCaseRepository) {
+                                TestRunTestCaseRepository testRunTestCaseRepository,
+                                TestCaseRepository testCaseRepository) {
         this.testResultRepository = testResultRepository;
         this.testRunRepository = testRunRepository;
         this.testRunTestCaseRepository = testRunTestCaseRepository;
+        this.testCaseRepository = testCaseRepository;
     }
 
     @Override
@@ -38,32 +41,67 @@ public class TestResultServiceImpl implements TestResultService {
     @Override
     @Transactional
     public void createInitialResults(Long versionId, Long phaseId, List<Long> testRunIds) {
+        createInitialResults(versionId, phaseId, testRunIds, null);
+    }
+
+    @Override
+    @Transactional
+    public void createInitialResults(Long versionId, Long phaseId, List<Long> testRunIds, List<Long> directTestCaseIds) {
         Set<Long> seenTestCaseIds = new HashSet<>();
         List<TestResultEntity> results = new ArrayList<>();
 
-        for (Long testRunId : testRunIds) {
-            List<TestRunTestCaseEntity> testRunTestCases = testRunTestCaseRepository.findAllByTestRunId(testRunId);
-            for (TestRunTestCaseEntity rtc : testRunTestCases) {
-                if (seenTestCaseIds.add(rtc.getTestCase().getId())) {
-                    TestResultEntity result = new TestResultEntity();
-                    result.setVersion(new VersionEntity());
-                    result.getVersion().setId(versionId);
-                    result.setVersionPhase(new VersionPhaseEntity());
-                    result.getVersionPhase().setId(phaseId);
-                    result.setTestCase(rtc.getTestCase());
-                    result.setStatus(RunResultStatus.UNTESTED);
-                    result.setComment(null);
-                    result.setExecutedAt(null);
-                    results.add(result);
+        // 1. TestRun-sourced TCs
+        if (testRunIds != null) {
+            for (Long testRunId : testRunIds) {
+                List<TestRunTestCaseEntity> testRunTestCases = testRunTestCaseRepository.findAllByTestRunId(testRunId);
+                for (TestRunTestCaseEntity rtc : testRunTestCases) {
+                    if (seenTestCaseIds.add(rtc.getTestCase().getId())) {
+                        results.add(buildUntested(versionId, phaseId, rtc.getTestCase()));
+                    }
+                }
+            }
+        }
+
+        // 2. Directly added TCs
+        if (directTestCaseIds != null) {
+            for (Long tcId : directTestCaseIds) {
+                if (seenTestCaseIds.add(tcId)) {
+                    TestCaseEntity tc = testCaseRepository.findById(tcId)
+                            .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("TestCase not found: " + tcId));
+                    results.add(buildUntested(versionId, phaseId, tc));
                 }
             }
         }
 
         if (!results.isEmpty()) {
             testResultRepository.saveAll(results);
-            log.info("Created {} initial test results for version {} phase {} from {} runs",
-                    results.size(), versionId, phaseId, testRunIds.size());
+            log.info("Created {} initial test results for version {} phase {}", results.size(), versionId, phaseId);
         }
+    }
+
+    @Override
+    @Transactional
+    public void createResultForTestCase(Long versionId, Long phaseId, Long testCaseId) {
+        // Skip if result already exists for this phase+tc combo
+        if (testResultRepository.findByVersionPhaseIdAndTestCaseId(phaseId, testCaseId).isPresent()) {
+            return;
+        }
+        TestCaseEntity tc = testCaseRepository.findById(testCaseId)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("TestCase not found: " + testCaseId));
+        testResultRepository.save(buildUntested(versionId, phaseId, tc));
+    }
+
+    private TestResultEntity buildUntested(Long versionId, Long phaseId, TestCaseEntity testCase) {
+        TestResultEntity result = new TestResultEntity();
+        result.setVersion(new VersionEntity());
+        result.getVersion().setId(versionId);
+        result.setVersionPhase(new VersionPhaseEntity());
+        result.getVersionPhase().setId(phaseId);
+        result.setTestCase(testCase);
+        result.setStatus(RunResultStatus.UNTESTED);
+        result.setComment(null);
+        result.setExecutedAt(null);
+        return result;
     }
 
     @Override

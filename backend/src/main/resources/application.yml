@@ -65,6 +65,11 @@ logging:
     root: INFO
     com.myqaweb: DEBUG
 
+# CORS configuration
+app:
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://*.cloudfront.net}
+
 # Feature configuration
 feature:
   embedding:
@@ -76,6 +81,14 @@ feature:
 kb:
   image:
     upload-dir: ${KB_IMAGE_UPLOAD_DIR:kb-images}
+
+# Jira integration
+jira:
+  base-url: ${JIRA_BASE_URL:}
+  email: ${JIRA_EMAIL:}
+  api-key: ${JIRA_API_KEY:}
+  default-project-key: AT
+  issue-type-id: "10042"
 
 # Convention image upload
 convention:

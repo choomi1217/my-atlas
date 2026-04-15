@@ -223,6 +223,31 @@ export interface Version {
 }
 
 /**
+ * Ticket (Jira issue reference).
+ */
+export interface Ticket {
+  id: number;
+  testResultId: number;
+  jiraKey: string;
+  jiraUrl: string;
+  summary: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Failed test case info (for "add failed TCs to phase").
+ */
+export interface FailedTestCaseInfo {
+  testCaseId: number;
+  testCaseTitle: string;
+  testCasePath: number[];
+  failedInPhaseName: string;
+  ticketCount: number;
+}
+
+/**
  * Test result comment interface (threaded).
  */
 export interface TestResultComment {
