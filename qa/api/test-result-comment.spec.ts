@@ -99,7 +99,7 @@ test.describe('TestResult Comment API E2E', () => {
         phases: [
           {
             phaseName: 'Comment Phase',
-            testRunId,
+            testRunIds: [testRunId],
             orderIndex: 1,
           },
         ],

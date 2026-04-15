@@ -17,6 +17,12 @@ public interface TestResultService {
     void createInitialResults(Long versionId, Long phaseId, Long testRunId);
 
     /**
+     * Create initial test results for multiple test runs (1:N Phase:TestRun).
+     * Deduplicates test cases that appear in multiple runs.
+     */
+    void createInitialResults(Long versionId, Long phaseId, List<Long> testRunIds);
+
+    /**
      * Get all results for a version (Option A: total progress).
      */
     List<TestResultEntity> getAllByVersionId(Long versionId);

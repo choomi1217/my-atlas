@@ -13,6 +13,7 @@ import ProgressStatsComponent from '@/components/features/ProgressStats';
 import ResultStatusBadge from '@/components/features/ResultStatusBadge';
 import StatusButtonGroup from '@/components/features/StatusButtonGroup';
 import CommentThread from '@/components/features/CommentThread';
+import ImageRefText from '@/components/features/ImageRefText';
 
 export default function VersionPhaseDetailPage() {
   const { productId, versionId, phaseId } = useParams<{
@@ -148,7 +149,11 @@ export default function VersionPhaseDetailPage() {
           {version.name} &gt; {phase.phaseName}
         </h1>
         <p className="text-gray-600">
-          TestRun: {phase.testRunName} ({phase.testRunTestCaseCount} TC)
+          TestRun:{' '}
+          {phase.testRuns
+            .map((tr) => `${tr.testRunName} (${tr.testCaseCount} TC)`)
+            .join(', ')}
+          {' — '}총 {phase.totalTestCaseCount} TC
         </p>
       </div>
 
@@ -237,8 +242,8 @@ export default function VersionPhaseDetailPage() {
                                 {tc.steps.map((step) => (
                                   <tr key={step.order} className="border-t border-gray-100">
                                     <td className="px-3 py-2 text-gray-500">{step.order}</td>
-                                    <td className="px-3 py-2 text-gray-800">{step.action}</td>
-                                    <td className="px-3 py-2 text-gray-600">{step.expected}</td>
+                                    <td className="px-3 py-2 text-gray-800"><ImageRefText text={step.action} images={tc.images} /></td>
+                                    <td className="px-3 py-2 text-gray-600"><ImageRefText text={step.expected} images={tc.images} /></td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -250,7 +255,7 @@ export default function VersionPhaseDetailPage() {
                         {tc.expectedResult && (
                           <div>
                             <h4 className="text-sm font-semibold text-gray-700 mb-1">Expected Result</h4>
-                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{tc.expectedResult}</p>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap"><ImageRefText text={tc.expectedResult} images={tc.images} /></p>
                           </div>
                         )}
 

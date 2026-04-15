@@ -190,6 +190,25 @@ test.describe.serial('TestRun UI E2E', () => {
     await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible();
   });
 
+  test('TestRunDetailPage - TC 행 클릭 → 상세 정보 확장/축소', async () => {
+    await goToTestRunDetail(testRunId);
+
+    // Find a test case row (rendered as div with TC title) and click to expand
+    const tcRow = page.locator('div.cursor-pointer:has-text("E2E TR UI TC")').first();
+    await expect(tcRow).toBeVisible({ timeout: 10000 });
+    await tcRow.click();
+
+    // Expanded content should be visible
+    const expandedContent = page.locator('text=/Steps:|Expected Result:|Description:/').first();
+    await expect(expandedContent).toBeVisible({ timeout: 5000 });
+
+    // Click again to collapse
+    await tcRow.click();
+
+    // Expanded content should no longer be visible
+    await expect(expandedContent).not.toBeVisible({ timeout: 5000 });
+  });
+
   test('TestRunDetailPage - Delete 클릭 → ConfirmDialog 표시', async () => {
     await goToTestRunDetail(testRunId);
 

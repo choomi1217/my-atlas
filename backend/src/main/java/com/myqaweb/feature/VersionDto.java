@@ -26,8 +26,8 @@ public class VersionDto {
     public record PhaseRequest(
             @NotBlank(message = "Phase name is required")
             String phaseName,
-            @NotNull(message = "Test run ID is required")
-            Long testRunId
+            @NotEmpty(message = "At least one test run is required")
+            List<Long> testRunIds
     ) {}
 
     public record UpdateVersionRequest(
@@ -42,12 +42,18 @@ public class VersionDto {
             LocalDate newReleaseDate
     ) {}
 
+    /** Summary of a TestRun referenced by a phase */
+    public record TestRunRef(
+            Long testRunId,
+            String testRunName,
+            Integer testCaseCount
+    ) {}
+
     public record VersionPhaseDto(
             Long id,
             String phaseName,
-            Long testRunId,
-            String testRunName,
-            Integer testRunTestCaseCount,
+            List<TestRunRef> testRuns,
+            Integer totalTestCaseCount,
             Integer orderIndex,
             ProgressStats phaseProgress
     ) {}

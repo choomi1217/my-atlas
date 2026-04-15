@@ -400,6 +400,11 @@ When working on **E2E tests**, reference `qa/CLAUDE.md`.
 **Tools:** Read, Write, Edit, Glob, Grep
 **Scope:** `qa/api/`, `qa/ui/`에 Playwright E2E 테스트 작성
 
+**셀렉터 작성 규칙:**
+- ❌ 추측으로 HTML 태그(tr, li, table 등)를 사용하지 않는다
+- ✅ 테스트 대상 TSX 파일을 반드시 Read하여 실제 DOM 구조(태그, className, data-testid) 확인 후 셀렉터 작성
+- ✅ Agent-C에 위임 시 대상 컴포넌트의 JSX 구조를 프롬프트에 포함
+
 ### Agent-D — Build & Test Verification
 **File:** `.claude/agents/build-verifier.md`
 **Tools:** Bash, Read, Glob, Grep (Write/Edit disabled)
@@ -418,6 +423,12 @@ cd /Users/yeongmi/dev/qa/my-atlas/qa && npx playwright test
 cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 ```
 
+**E2E 결과 검증 규칙:**
+- ❌ "0 failed"만 확인하고 성공 선언 금지
+- ✅ "did not run" 테스트가 있으면 반드시 원인 조사
+- ✅ 새로 추가한 테스트는 개별 지정 실행하여 실제 동작 확인 (`npx playwright test ui/specific.spec.ts`)
+- ✅ 예상 테스트 수와 실제 실행 수 비교
+
 **Absolute Rules:**
 - ❌ **NEVER declare "complete"** without Agent-D passing ALL three steps
 - ❌ **NEVER skip** any agent in the pipeline
@@ -426,6 +437,8 @@ cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 - ✅ **ALWAYS fix** build/test errors before final approval
 - ✅ **ALWAYS run `docker compose down`** after Agent-D finishes, regardless of outcome
 - ✅ Agent-C/D는 User 승인 없이 자동 진행
+- ❌ **NEVER write E2E selectors by guessing** — Agent-C must read the target TSX file first
+- ❌ **NEVER ignore "did not run" tests** — Agent-D must investigate and ensure new tests actually executed
 
 ---
 

@@ -4,6 +4,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -15,12 +16,19 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class TestResultServiceImplTest {
     @Mock
     private TestResultRepository testResultRepository;
+
+    @Mock
+    private TestRunRepository testRunRepository;
+
+    @Mock
+    private TestRunTestCaseRepository testRunTestCaseRepository;
 
     @InjectMocks
     private TestResultServiceImpl service;
@@ -318,5 +326,94 @@ class TestResultServiceImplTest {
         assertEquals(0, progress.completed());
         assertEquals(0, progress.pass());
         assertEquals(0, progress.fail());
+    }
+
+    @Test
+    void testCreateInitialResults_SingleRun() {
+        // Given
+        TestCaseEntity tc1 = new TestCaseEntity();
+        tc1.setId(10L);
+        TestCaseEntity tc2 = new TestCaseEntity();
+        tc2.setId(20L);
+
+        TestRunTestCaseEntity rtc1 = new TestRunTestCaseEntity();
+        rtc1.setTestCase(tc1);
+        TestRunTestCaseEntity rtc2 = new TestRunTestCaseEntity();
+        rtc2.setTestCase(tc2);
+
+        when(testRunTestCaseRepository.findAllByTestRunId(1L))
+                .thenReturn(List.of(rtc1, rtc2));
+        when(testResultRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When - single-param overload delegates to list version
+        service.createInitialResults(100L, 200L, 1L);
+
+        // Then
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TestResultEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(testResultRepository).saveAll(captor.capture());
+        List<TestResultEntity> saved = captor.getValue();
+        assertEquals(2, saved.size());
+        assertTrue(saved.stream().allMatch(r -> r.getStatus() == RunResultStatus.UNTESTED));
+    }
+
+    @Test
+    void testCreateInitialResults_MultipleRuns_Dedup() {
+        // Given - two test runs share testCase 20
+        TestCaseEntity tc1 = new TestCaseEntity();
+        tc1.setId(10L);
+        TestCaseEntity tc2 = new TestCaseEntity();
+        tc2.setId(20L);
+        TestCaseEntity tc3 = new TestCaseEntity();
+        tc3.setId(30L);
+
+        // Run 1 has tc1, tc2
+        TestRunTestCaseEntity rtc1a = new TestRunTestCaseEntity();
+        rtc1a.setTestCase(tc1);
+        TestRunTestCaseEntity rtc1b = new TestRunTestCaseEntity();
+        rtc1b.setTestCase(tc2);
+
+        // Run 2 has tc2, tc3 (tc2 is shared)
+        TestRunTestCaseEntity rtc2a = new TestRunTestCaseEntity();
+        rtc2a.setTestCase(tc2);
+        TestRunTestCaseEntity rtc2b = new TestRunTestCaseEntity();
+        rtc2b.setTestCase(tc3);
+
+        when(testRunTestCaseRepository.findAllByTestRunId(1L))
+                .thenReturn(List.of(rtc1a, rtc1b));
+        when(testRunTestCaseRepository.findAllByTestRunId(2L))
+                .thenReturn(List.of(rtc2a, rtc2b));
+        when(testResultRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        service.createInitialResults(100L, 200L, List.of(1L, 2L));
+
+        // Then - only 3 unique test cases (tc2 deduplicated)
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TestResultEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(testResultRepository).saveAll(captor.capture());
+        List<TestResultEntity> saved = captor.getValue();
+        assertEquals(3, saved.size());
+        // Verify all are UNTESTED
+        assertTrue(saved.stream().allMatch(r -> r.getStatus() == RunResultStatus.UNTESTED));
+        // Verify the test case IDs are 10, 20, 30 (no duplicates)
+        List<Long> testCaseIds = saved.stream()
+                .map(r -> r.getTestCase().getId())
+                .sorted()
+                .toList();
+        assertEquals(List.of(10L, 20L, 30L), testCaseIds);
+    }
+
+    @Test
+    void testCreateInitialResults_EmptyRuns_NoSave() {
+        // Given - test run has no test cases
+        when(testRunTestCaseRepository.findAllByTestRunId(1L))
+                .thenReturn(List.of());
+
+        // When
+        service.createInitialResults(100L, 200L, List.of(1L));
+
+        // Then - saveAll should not be called for empty results
+        verify(testResultRepository, never()).saveAll(any());
     }
 }
