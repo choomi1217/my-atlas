@@ -20,9 +20,9 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./logs:/app/logs
-      - ./feature-images:/app/feature-images
-      - ./kb-images:/app/kb-images
-      - ./convention-images:/app/convention-images
+      - ./backend/feature-images:/app/feature-images
+      - ./backend/kb-images:/app/kb-images
+      - ./backend/convention-images:/app/convention-images
 
   frontend:
     build:
@@ -31,7 +31,6 @@ services:
     container_name: ${COMPOSE_CONTAINER_PREFIX:-myqaweb}-frontend
     restart: unless-stopped
     environment:
-      VITE_API_BASE_URL: http://localhost:${BACKEND_PORT:-8080}
       API_PROXY_TARGET: http://${COMPOSE_CONTAINER_PREFIX:-myqaweb}-backend:8080
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
