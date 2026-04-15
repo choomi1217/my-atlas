@@ -50,11 +50,7 @@ export default function VersionPhaseDetailPage() {
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, [versionId, phaseId, productId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!versionId || !phaseId || !productId) return;
     try {
       setIsLoading(true);
@@ -76,7 +72,11 @@ export default function VersionPhaseDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [versionId, phaseId, productId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Build segment name map
   const segmentMap = useMemo(() => {
@@ -85,10 +85,10 @@ export default function VersionPhaseDetailPage() {
     return map;
   }, [segments]);
 
-  const resolvePathNames = (path: number[]): string => {
+  const resolvePathNames = useCallback((path: number[]): string => {
     if (!path || path.length === 0) return '';
     return path.map((id) => segmentMap.get(id) || `?`).join(' > ');
-  };
+  }, [segmentMap]);
 
   // Group results by segment path
   const groupedResults = useMemo(() => {
@@ -112,7 +112,7 @@ export default function VersionPhaseDetailPage() {
     // Sort groups by path name
     return Array.from(groups.entries())
       .sort(([, a], [, b]) => a.pathName.localeCompare(b.pathName));
-  }, [results, testCases, segmentMap]);
+  }, [results, testCases, resolvePathNames]);
 
   const liveStats = useMemo((): ProgressStats => {
     const total = results.length;

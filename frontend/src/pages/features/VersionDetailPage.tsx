@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Version, TestRun, TestCase, Segment, FailedTestCaseInfo } from '@/types/features';
 import {
@@ -46,11 +46,7 @@ export default function VersionDetailPage() {
   const [showTcSelector, setShowTcSelector] = useState(false);
   const [showFailedTcs, setShowFailedTcs] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [versionId, productId, companyId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!versionId || !productId) return;
     try {
       setIsLoading(true);
@@ -92,7 +88,11 @@ export default function VersionDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [versionId, productId, companyId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleCopy = async (data: { newName: string; newReleaseDate: string }) => {
     if (!version) return;
