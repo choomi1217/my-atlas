@@ -41,8 +41,13 @@ Thumbs.db
 *.log
 logs/
 
-# KB uploaded images
+# Uploaded images (all environments)
 kb-images/
+convention-images/
+feature-images/
+backend/kb-images/
+backend/convention-images/
+backend/feature-images/
 
 # Playwright test artifacts
 qa/playwright-report/
@@ -53,4 +58,3 @@ qa/test-results/
 scripts/start-all.sh
 scripts/stop-all.sh
 scripts/prompts/
-backend/convention-images/
