@@ -14,6 +14,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +40,12 @@ class VersionPhaseServiceImplTest {
 
     @Mock
     private TestRunTestCaseRepository testRunTestCaseRepository;
+
+    @Mock
+    private VersionPhaseTestCaseRepository versionPhaseTestCaseRepository;
+
+    @Mock
+    private TestCaseRepository testCaseRepository;
 
     @InjectMocks
     private VersionPhaseServiceImpl service;
@@ -75,7 +83,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testAddPhase_Success() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(1L));
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(1L), null);
 
         VersionPhaseTestRunEntity junction = new VersionPhaseTestRunEntity();
         junction.setId(1L);
@@ -107,13 +115,13 @@ class VersionPhaseServiceImplTest {
         verify(testRunRepository).findById(1L);
         verify(versionPhaseRepository).save(any());
         verify(versionPhaseTestRunRepository).save(any());
-        verify(testResultService).createInitialResults(1L, 1L, List.of(1L));
+        verify(testResultService).createInitialResults(eq(1L), eq(1L), eq(List.of(1L)), isNull());
     }
 
     @Test
     void testAddPhase_MultipleTestRuns() {
         // Given — 2 test runs assigned to one phase
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Full Regression", List.of(1L, 2L));
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Full Regression", List.of(1L, 2L), null);
 
         VersionPhaseTestRunEntity junction1 = new VersionPhaseTestRunEntity();
         junction1.setId(1L);
@@ -146,13 +154,13 @@ class VersionPhaseServiceImplTest {
         assertEquals(2, result.testRuns().size());
         assertEquals(0, result.totalTestCaseCount());
         verify(versionPhaseTestRunRepository, times(2)).save(any());
-        verify(testResultService).createInitialResults(1L, 1L, List.of(1L, 2L));
+        verify(testResultService).createInitialResults(eq(1L), eq(1L), eq(List.of(1L, 2L)), isNull());
     }
 
     @Test
     void testAddPhase_VersionNotFound() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L));
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L), null);
 
         when(versionRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -164,7 +172,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testAddPhase_TestRunNotFound() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(999L));
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(999L), null);
 
         when(versionRepository.findById(1L)).thenReturn(Optional.of(version));
         when(testRunRepository.findById(999L)).thenReturn(Optional.empty());
@@ -177,7 +185,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testUpdatePhase_ChangeTestRuns() {
         // Given — replace test runs: [1] -> [2]
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(2L));
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(2L), null);
 
         VersionPhaseTestRunEntity newJunction = new VersionPhaseTestRunEntity();
         newJunction.setId(2L);
@@ -210,7 +218,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testUpdatePhase_PhaseNotFound() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L));
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L), null);
 
         when(versionPhaseRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -302,5 +310,62 @@ class VersionPhaseServiceImplTest {
         // When & Then
         assertThrows(EntityNotFoundException.class, () -> service.reorderPhase(999L, 2));
         verify(versionPhaseRepository, never()).findAllByVersionIdOrderByOrderIndex(any());
+    }
+
+    @Test
+    void testAddTestCasesToPhase_CreatesJunctionAndResult() {
+        // Given
+        TestCaseEntity tc1 = new TestCaseEntity();
+        tc1.setId(10L);
+        tc1.setTitle("TC 10");
+        TestCaseEntity tc2 = new TestCaseEntity();
+        tc2.setId(20L);
+        tc2.setTitle("TC 20");
+
+        when(versionPhaseRepository.findById(1L)).thenReturn(Optional.of(phase));
+        when(testCaseRepository.findById(10L)).thenReturn(Optional.of(tc1));
+        when(testCaseRepository.findById(20L)).thenReturn(Optional.of(tc2));
+
+        // When
+        service.addTestCasesToPhase(1L, 1L, List.of(10L, 20L));
+
+        // Then
+        verify(versionPhaseTestCaseRepository, times(2)).save(any(VersionPhaseTestCaseEntity.class));
+        verify(testResultService).createResultForTestCase(1L, 1L, 10L);
+        verify(testResultService).createResultForTestCase(1L, 1L, 20L);
+    }
+
+    @Test
+    void testAddTestCasesToPhase_PhaseNotFound() {
+        // Given
+        when(versionPhaseRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThrows(EntityNotFoundException.class,
+                () -> service.addTestCasesToPhase(1L, 999L, List.of(10L)));
+        verify(versionPhaseTestCaseRepository, never()).save(any());
+    }
+
+    @Test
+    void testAddTestCasesToPhase_TestCaseNotFound() {
+        // Given
+        when(versionPhaseRepository.findById(1L)).thenReturn(Optional.of(phase));
+        when(testCaseRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThrows(EntityNotFoundException.class,
+                () -> service.addTestCasesToPhase(1L, 1L, List.of(999L)));
+    }
+
+    @Test
+    void testRemoveTestCasesFromPhase_DeletesJunctionAndResult() {
+        // When
+        service.removeTestCasesFromPhase(1L, List.of(10L, 20L));
+
+        // Then
+        verify(versionPhaseTestCaseRepository).deleteByVersionPhaseIdAndTestCaseId(1L, 10L);
+        verify(versionPhaseTestCaseRepository).deleteByVersionPhaseIdAndTestCaseId(1L, 20L);
+        verify(testResultRepository).deleteByVersionPhaseIdAndTestCaseId(1L, 10L);
+        verify(testResultRepository).deleteByVersionPhaseIdAndTestCaseId(1L, 20L);
     }
 }

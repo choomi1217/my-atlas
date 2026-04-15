@@ -17,6 +17,8 @@ import {
   RunResultStatus,
   TestResult,
   TestResultComment,
+  Ticket,
+  FailedTestCaseInfo,
 } from '@/types/features';
 // ProgressStats is used indirectly via Version/VersionPhase types
 
@@ -350,8 +352,7 @@ export const versionApi = {
     productId: number,
     name: string,
     description: string,
-    releaseDate: string | null,
-    phases: Array<{ phaseName: string; testRunIds: number[] }>
+    releaseDate: string | null
   ): Promise<Version> => {
     const response = await apiClient.post<ApiResponse<Version>>(
       `/api/products/${productId}/versions`,
@@ -360,8 +361,14 @@ export const versionApi = {
         name,
         description,
         releaseDate,
-        phases,
       }
+    );
+    return response.data.data;
+  },
+
+  getFailedTestCases: async (versionId: number): Promise<FailedTestCaseInfo[]> => {
+    const response = await apiClient.get<ApiResponse<FailedTestCaseInfo[]>>(
+      `/api/versions/${versionId}/failed-test-cases`
     );
     return response.data.data;
   },
@@ -417,16 +424,40 @@ export const versionPhaseApi = {
   addPhase: async (
     versionId: number,
     phaseName: string,
-    testRunIds: number[]
+    testRunIds: number[],
+    testCaseIds?: number[]
   ): Promise<VersionPhase> => {
     const response = await apiClient.post<ApiResponse<VersionPhase>>(
       `/api/versions/${versionId}/phases`,
       {
         phaseName,
         testRunIds,
+        testCaseIds: testCaseIds || [],
       }
     );
     return response.data.data;
+  },
+
+  addTestCases: async (
+    versionId: number,
+    phaseId: number,
+    testCaseIds: number[]
+  ): Promise<void> => {
+    await apiClient.post(
+      `/api/versions/${versionId}/phases/${phaseId}/test-cases`,
+      { testCaseIds }
+    );
+  },
+
+  removeTestCases: async (
+    versionId: number,
+    phaseId: number,
+    testCaseIds: number[]
+  ): Promise<void> => {
+    await apiClient.delete(
+      `/api/versions/${versionId}/phases/${phaseId}/test-cases`,
+      { data: { testCaseIds } }
+    );
   },
 
   updatePhase: async (
@@ -575,5 +606,43 @@ export const testResultCommentApi = {
     await apiClient.delete(
       `/api/versions/${versionId}/results/${resultId}/comments/${commentId}`
     );
+  },
+};
+
+/**
+ * Ticket (Jira issue) API endpoints.
+ */
+export const ticketApi = {
+  create: async (
+    versionId: number,
+    resultId: number,
+    summary: string,
+    description?: string
+  ): Promise<Ticket> => {
+    const response = await apiClient.post<ApiResponse<Ticket>>(
+      `/api/versions/${versionId}/results/${resultId}/tickets`,
+      { summary, description }
+    );
+    return response.data.data;
+  },
+
+  getByResultId: async (versionId: number, resultId: number): Promise<Ticket[]> => {
+    const response = await apiClient.get<ApiResponse<Ticket[]>>(
+      `/api/versions/${versionId}/results/${resultId}/tickets`
+    );
+    return response.data.data;
+  },
+
+  delete: async (versionId: number, resultId: number, ticketId: number): Promise<void> => {
+    await apiClient.delete(
+      `/api/versions/${versionId}/results/${resultId}/tickets/${ticketId}`
+    );
+  },
+
+  refresh: async (versionId: number, resultId: number, ticketId: number): Promise<Ticket> => {
+    const response = await apiClient.post<ApiResponse<Ticket>>(
+      `/api/versions/${versionId}/results/${resultId}/tickets/${ticketId}/refresh`
+    );
+    return response.data.data;
   },
 };

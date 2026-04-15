@@ -90,30 +90,30 @@ test.describe('TestResult Comment API E2E', () => {
     futureDate.setDate(futureDate.getDate() + 30);
     const dateString = futureDate.toISOString().split('T')[0];
 
+    // Create version (v15: no phases in create)
     const versionResponse = await request.post(`/api/products/${productId}/versions`, {
       data: {
         productId,
         name: 'v1.0.0-comment-test',
         releaseDate: dateString,
         description: 'Version for comment testing',
-        phases: [
-          {
-            phaseName: 'Comment Phase',
-            testRunIds: [testRunId],
-            orderIndex: 1,
-          },
-        ],
       },
     });
     expect(versionResponse.status()).toBe(201);
     const versionBody = await versionResponse.json() as any;
     versionId = versionBody.data.id;
 
-    // Get phase ID from created version
-    const phases = versionBody.data.phases;
-    if (Array.isArray(phases) && phases.length > 0) {
-      phaseId = phases[0].id;
-    }
+    // Add phase separately (v15)
+    const phaseResponse = await request.post(`/api/versions/${versionId}/phases`, {
+      data: {
+        phaseName: 'Comment Phase',
+        testRunIds: [testRunId],
+        testCaseIds: [],
+      },
+    });
+    expect(phaseResponse.status()).toBe(201);
+    const phaseBody = await phaseResponse.json() as any;
+    phaseId = phaseBody.data.id;
 
     // Get test result ID
     const resultsResponse = await request.get(`/api/versions/${versionId}/results`);

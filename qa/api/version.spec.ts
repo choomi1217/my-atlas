@@ -97,7 +97,7 @@ test.describe('Version API E2E', () => {
     testRunId = testRunBody.data.id;
   });
 
-  test('POST /api/products/{productId}/versions - 정상 생성 (미래 날짜)', async () => {
+  test('POST /api/products/{productId}/versions - 정상 생성 (미래 날짜, phases 없이)', async () => {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + 30); // 30 days in future
     const dateString = futureDate.toISOString().split('T')[0];
@@ -108,13 +108,6 @@ test.describe('Version API E2E', () => {
         name: 'v1.0.0-future',
         releaseDate: dateString,
         description: 'Future release',
-        phases: [
-          {
-            phaseName: '1차 테스트',
-            testRunIds: [testRunId],
-            orderIndex: 1,
-          },
-        ],
       },
     });
     expect(response.status()).toBe(201);
@@ -124,6 +117,9 @@ test.describe('Version API E2E', () => {
     expect(body.data.releaseDate).toBe(dateString);
     expect(body.data.isReleaseDatePassed).toBe(false);
     expect(body.data.warningMessage).toBeNull();
+    // Simplified create: no phases in request, phases array should be empty
+    expect(Array.isArray(body.data.phases)).toBe(true);
+    expect(body.data.phases.length).toBe(0);
     versionId = body.data.id;
   });
 
@@ -135,7 +131,7 @@ test.describe('Version API E2E', () => {
     expect(body.data.warningMessage).toBeNull();
   });
 
-  test('POST /api/products/{productId}/versions - 과거 날짜 생성', async () => {
+  test('POST /api/products/{productId}/versions - 과거 날짜 생성 (phases 없이)', async () => {
     const pastDate = new Date();
     pastDate.setDate(pastDate.getDate() - 5); // 5 days ago
     const dateString = pastDate.toISOString().split('T')[0];
@@ -146,13 +142,6 @@ test.describe('Version API E2E', () => {
         name: 'v0.9.0-past',
         releaseDate: dateString,
         description: 'Past release date',
-        phases: [
-          {
-            phaseName: '1차 테스트',
-            testRunIds: [testRunId],
-            orderIndex: 1,
-          },
-        ],
       },
     });
     expect(response.status()).toBe(201);
@@ -178,13 +167,6 @@ test.describe('Version API E2E', () => {
         name: 'v2.0.0-unlimited',
         releaseDate: null,
         description: 'No release date limit',
-        phases: [
-          {
-            phaseName: '1차 테스트',
-            testRunIds: [testRunId],
-            orderIndex: 1,
-          },
-        ],
       },
     });
     expect(response.status()).toBe(201);
@@ -260,32 +242,13 @@ test.describe('Version API E2E', () => {
   // skip 사유: DELETE API는 구현되어 있으나, 테스트 실행 시 다른 테스트의 데이터 의존성과
   // 충돌 가능성이 있어 최초 커밋(b95f524)부터 skip 처리. 독립적인 테스트 데이터 설계 후 활성화 필요.
   test.skip('DELETE /api/versions/{id} - 버전 삭제', async () => {
-    // Create a dedicated test run for deletion test
-    const deleteTestRunResponse = await request.post(`/api/products/${productId}/test-runs`, {
-      data: {
-        name: 'E2E Deletion Test Run',
-        description: 'Test run for version deletion',
-        testCaseIds: [testCaseId1],
-      },
-    });
-    expect(deleteTestRunResponse.status()).toBe(201);
-    const deleteTestRunBody = await deleteTestRunResponse.json() as any;
-    const deleteTestRunId = deleteTestRunBody.data.id;
-
-    // Create a version to delete
+    // Create a version to delete (simplified: no phases)
     const response = await request.post(`/api/products/${productId}/versions`, {
       data: {
         productId,
         name: 'v0.5.0-to-delete',
         releaseDate: null,
         description: 'To be deleted',
-        phases: [
-          {
-            phaseName: '1차 테스트',
-            testRunIds: [deleteTestRunId],
-            orderIndex: 1,
-          },
-        ],
       },
     });
     expect(response.status()).toBe(201);
@@ -299,40 +262,18 @@ test.describe('Version API E2E', () => {
     // Verify deletion - version should be gone
     const verifyResponse = await request.get(`/api/versions/${versionToDelete}`);
     expect(verifyResponse.status()).toBe(404);
-
-    // Cleanup: delete the test run we created
-    await request.delete(`/api/test-runs/${deleteTestRunId}`).catch(() => {});
   });
 
   // skip 사유: 백엔드에 버전 이름 중복 방지 로직(unique constraint 또는 existsByName)이
   // 미구현 상태. 해당 기능 구현 후 활성화 필요.
   test.skip('POST /api/products/{productId}/versions - 중복된 이름 방지', async () => {
-    // Create a dedicated test run for duplicate test
-    const dupTestRunResponse = await request.post(`/api/products/${productId}/test-runs`, {
-      data: {
-        name: 'E2E Duplicate Test Run',
-        description: 'Test run for duplicate version test',
-        testCaseIds: [testCaseId2],
-      },
-    });
-    expect(dupTestRunResponse.status()).toBe(201);
-    const dupTestRunBody = await dupTestRunResponse.json() as any;
-    const dupTestRunId = dupTestRunBody.data.id;
-
-    // Create first version
+    // Create first version (simplified: no phases)
     const firstResponse = await request.post(`/api/products/${productId}/versions`, {
       data: {
         productId,
         name: 'v1.1.1-unique',
         releaseDate: null,
         description: 'First version',
-        phases: [
-          {
-            phaseName: '1차 테스트',
-            testRunIds: [dupTestRunId],
-            orderIndex: 1,
-          },
-        ],
       },
     });
     expect(firstResponse.status()).toBe(201);
@@ -344,19 +285,9 @@ test.describe('Version API E2E', () => {
         name: 'v1.1.1-unique',
         releaseDate: null,
         description: 'Duplicate name',
-        phases: [
-          {
-            phaseName: '1차 테스트',
-            testRunIds: [dupTestRunId],
-            orderIndex: 1,
-          },
-        ],
       },
     });
     expect(secondResponse.status()).toBe(400);
-
-    // Cleanup: delete the test run we created
-    await request.delete(`/api/test-runs/${dupTestRunId}`).catch(() => {});
   });
 
   test.afterAll(async () => {

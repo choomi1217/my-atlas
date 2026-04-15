@@ -35,4 +35,9 @@ public interface VersionService {
      * Delete version.
      */
     void delete(Long id);
+
+    /**
+     * Get all test cases that have FAIL status in any phase of this version.
+     */
+    List<VersionDto.FailedTestCaseInfo> getFailedTestCases(Long versionId);
 }

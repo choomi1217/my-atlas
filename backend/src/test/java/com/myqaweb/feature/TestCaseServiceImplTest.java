@@ -55,7 +55,7 @@ class TestCaseServiceImplTest {
                 .thenReturn(List.of());
 
         company = new CompanyEntity(1L, "Test Company", true, LocalDateTime.now());
-        product = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", LocalDateTime.now());
+        product = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", null, LocalDateTime.now());
         testCase = new TestCaseEntity(
                 1L, product, new Long[]{1L, 2L}, "Test social login",
                 "Social login feature", "Allow users to login with social accounts",

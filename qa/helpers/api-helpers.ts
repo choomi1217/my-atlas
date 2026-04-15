@@ -282,13 +282,12 @@ export interface PhaseData {
 }
 
 /**
- * Create a test version with phases
+ * Create a test version (simplified: no phases in creation, add via Phase API)
  */
 export async function createTestVersion(
   productId: number,
   name: string = 'E2E Test Version',
   releaseDate?: string,
-  phases: Array<{ phaseName: string; testRunIds: number[]; orderIndex: number }> = [],
 ): Promise<VersionData> {
   try {
     await ensureAuthenticated();
@@ -297,7 +296,6 @@ export async function createTestVersion(
       name,
       releaseDate: releaseDate ?? null,
       description: `Test version ${name}`,
-      phases,
     });
     return response.data.data as VersionData;
   } catch (error) {

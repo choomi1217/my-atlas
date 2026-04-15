@@ -30,6 +30,9 @@ class TestResultServiceImplTest {
     @Mock
     private TestRunTestCaseRepository testRunTestCaseRepository;
 
+    @Mock
+    private TestCaseRepository testCaseRepository;
+
     @InjectMocks
     private TestResultServiceImpl service;
 
@@ -415,5 +418,103 @@ class TestResultServiceImplTest {
 
         // Then - saveAll should not be called for empty results
         verify(testResultRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void testCreateInitialResults_WithDirectTestCaseIds() {
+        // Given - no test runs, but 2 direct TCs
+        TestCaseEntity tc1 = new TestCaseEntity();
+        tc1.setId(10L);
+        TestCaseEntity tc2 = new TestCaseEntity();
+        tc2.setId(20L);
+
+        when(testCaseRepository.findById(10L)).thenReturn(Optional.of(tc1));
+        when(testCaseRepository.findById(20L)).thenReturn(Optional.of(tc2));
+        when(testResultRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        service.createInitialResults(100L, 200L, List.of(), List.of(10L, 20L));
+
+        // Then
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TestResultEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(testResultRepository).saveAll(captor.capture());
+        List<TestResultEntity> saved = captor.getValue();
+        assertEquals(2, saved.size());
+        assertTrue(saved.stream().allMatch(r -> r.getStatus() == RunResultStatus.UNTESTED));
+        List<Long> tcIds = saved.stream()
+                .map(r -> r.getTestCase().getId())
+                .sorted()
+                .toList();
+        assertEquals(List.of(10L, 20L), tcIds);
+    }
+
+    @Test
+    void testCreateInitialResults_WithRunsAndDirectTCs_Dedup() {
+        // Given - run has tc10, tc20; direct has tc20, tc30 → dedup tc20
+        TestCaseEntity tc10 = new TestCaseEntity();
+        tc10.setId(10L);
+        TestCaseEntity tc20 = new TestCaseEntity();
+        tc20.setId(20L);
+        TestCaseEntity tc30 = new TestCaseEntity();
+        tc30.setId(30L);
+
+        TestRunTestCaseEntity rtc1 = new TestRunTestCaseEntity();
+        rtc1.setTestCase(tc10);
+        TestRunTestCaseEntity rtc2 = new TestRunTestCaseEntity();
+        rtc2.setTestCase(tc20);
+
+        when(testRunTestCaseRepository.findAllByTestRunId(1L))
+                .thenReturn(List.of(rtc1, rtc2));
+        when(testCaseRepository.findById(30L)).thenReturn(Optional.of(tc30));
+        when(testResultRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        service.createInitialResults(100L, 200L, List.of(1L), List.of(20L, 30L));
+
+        // Then - tc20 only once (from run), tc30 from direct
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TestResultEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(testResultRepository).saveAll(captor.capture());
+        List<TestResultEntity> saved = captor.getValue();
+        assertEquals(3, saved.size());
+        List<Long> tcIds = saved.stream()
+                .map(r -> r.getTestCase().getId())
+                .sorted()
+                .toList();
+        assertEquals(List.of(10L, 20L, 30L), tcIds);
+    }
+
+    @Test
+    void testCreateResultForTestCase_CreatesIfNotExists() {
+        // Given
+        TestCaseEntity tc = new TestCaseEntity();
+        tc.setId(10L);
+
+        when(testResultRepository.findByVersionPhaseIdAndTestCaseId(200L, 10L))
+                .thenReturn(Optional.empty());
+        when(testCaseRepository.findById(10L)).thenReturn(Optional.of(tc));
+        when(testResultRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        service.createResultForTestCase(100L, 200L, 10L);
+
+        // Then
+        verify(testResultRepository).save(any(TestResultEntity.class));
+    }
+
+    @Test
+    void testCreateResultForTestCase_NoOpIfExists() {
+        // Given - result already exists
+        TestResultEntity existing = new TestResultEntity();
+        existing.setId(99L);
+        when(testResultRepository.findByVersionPhaseIdAndTestCaseId(200L, 10L))
+                .thenReturn(Optional.of(existing));
+
+        // When
+        service.createResultForTestCase(100L, 200L, 10L);
+
+        // Then - should NOT save a new result
+        verify(testResultRepository, never()).save(any());
     }
 }

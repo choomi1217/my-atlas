@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * DTOs for Version domain.
@@ -18,16 +19,14 @@ public class VersionDto {
             @NotBlank(message = "Version name is required")
             String name,
             String description,
-            LocalDate releaseDate,
-            @NotEmpty(message = "At least one phase is required")
-            List<PhaseRequest> phases
+            LocalDate releaseDate
     ) {}
 
     public record PhaseRequest(
             @NotBlank(message = "Phase name is required")
             String phaseName,
-            @NotEmpty(message = "At least one test run is required")
-            List<Long> testRunIds
+            List<Long> testRunIds,
+            List<Long> testCaseIds
     ) {}
 
     public record UpdateVersionRequest(
@@ -82,6 +81,21 @@ public class VersionDto {
             String warningMessage,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
+    ) {}
+
+    /** Request to add/remove individual TCs from a phase */
+    public record PhaseTestCaseIdsRequest(
+            @NotEmpty(message = "At least one test case ID is required")
+            List<Long> testCaseIds
+    ) {}
+
+    /** Info about a failed TC in a version (for "add failed TCs to phase") */
+    public record FailedTestCaseInfo(
+            Long testCaseId,
+            String testCaseTitle,
+            List<Long> testCasePath,
+            String failedInPhaseName,
+            Integer ticketCount
     ) {}
 
     public record VersionDetail(
