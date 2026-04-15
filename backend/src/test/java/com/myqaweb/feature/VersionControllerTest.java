@@ -51,7 +51,9 @@ class VersionControllerTest {
         );
 
         VersionDto.VersionPhaseDto phaseDto = new VersionDto.VersionPhaseDto(
-                1L, "1차 테스트", 1L, "1차 테스트", 10, 1, progress
+                1L, "1차 테스트",
+                List.of(new VersionDto.TestRunRef(1L, "1차 테스트", 10)),
+                10, 1, progress
         );
 
         versionDetail = new VersionDto.VersionDetail(
@@ -125,7 +127,7 @@ class VersionControllerTest {
     @Test
     void testCreateVersion_Success() throws Exception {
         // Given
-        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", 1L);
+        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", List.of(1L));
         VersionDto.CreateVersionRequest request = new VersionDto.CreateVersionRequest(
                 1L, "v9", "Release v9", LocalDate.of(2026, 5, 1), List.of(phaseRequest)
         );
@@ -147,7 +149,7 @@ class VersionControllerTest {
     @Test
     void testCreateVersion_ValidationFails_MissingName() throws Exception {
         // Given
-        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", 1L);
+        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", List.of(1L));
         VersionDto.CreateVersionRequest request = new VersionDto.CreateVersionRequest(
                 1L, "", "Release v9", LocalDate.of(2026, 5, 1), List.of(phaseRequest)
         );
@@ -185,7 +187,9 @@ class VersionControllerTest {
         );
 
         VersionDto.VersionPhaseDto phaseDto = new VersionDto.VersionPhaseDto(
-                1L, "1차 테스트", 1L, "1차 테스트", 10, 1,
+                1L, "1차 테스트",
+                List.of(new VersionDto.TestRunRef(1L, "1차 테스트", 10)),
+                10, 1,
                 new VersionDto.ProgressStats(10, 10, 8, 2, 0, 0, 0, 0)
         );
 
@@ -243,7 +247,9 @@ class VersionControllerTest {
         );
 
         VersionDto.VersionPhaseDto phaseDto = new VersionDto.VersionPhaseDto(
-                1L, "1차 테스트", 1L, "1차 테스트", 10, 1,
+                1L, "1차 테스트",
+                List.of(new VersionDto.TestRunRef(1L, "1차 테스트", 10)),
+                10, 1,
                 new VersionDto.ProgressStats(10, 0, 0, 0, 0, 0, 0, 10)
         );
 

@@ -275,7 +275,8 @@ export interface VersionData {
 export interface PhaseData {
   id: number;
   phaseName: string;
-  testRunId: number;
+  testRuns: { testRunId: number; testRunName: string; testCaseCount: number }[];
+  totalTestCaseCount: number;
   orderIndex: number;
   versionId: number;
 }
@@ -287,7 +288,7 @@ export async function createTestVersion(
   productId: number,
   name: string = 'E2E Test Version',
   releaseDate?: string,
-  phases: Array<{ phaseName: string; testRunId: number; orderIndex: number }> = [],
+  phases: Array<{ phaseName: string; testRunIds: number[]; orderIndex: number }> = [],
 ): Promise<VersionData> {
   try {
     await ensureAuthenticated();

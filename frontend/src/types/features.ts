@@ -184,14 +184,22 @@ export interface ProgressStats {
 }
 
 /**
- * Version phase interface.
+ * TestRun reference within a phase (1:N).
+ */
+export interface TestRunRef {
+  testRunId: number;
+  testRunName: string;
+  testCaseCount: number;
+}
+
+/**
+ * Version phase interface (Phase:TestRun = 1:N).
  */
 export interface VersionPhase {
   id: number;
   phaseName: string;
-  testRunId: number;
-  testRunName: string;
-  testRunTestCaseCount: number;
+  testRuns: TestRunRef[];
+  totalTestCaseCount: number;
   orderIndex: number;
   phaseProgress: ProgressStats;
 }

@@ -21,6 +21,8 @@ public interface TestResultRepository extends JpaRepository<TestResultEntity, Lo
     List<TestResultEntity> findAllByVersionId(Long versionId);
 
     @Modifying
-    @Query("DELETE FROM TestResultEntity tr WHERE tr.versionPhase.testRun.id = :testRunId")
+    @Query(value = "DELETE FROM test_result WHERE version_phase_id IN " +
+            "(SELECT version_phase_id FROM version_phase_test_run WHERE test_run_id = :testRunId)",
+            nativeQuery = true)
     void deleteByTestRunIdViaPhase(@Param("testRunId") Long testRunId);
 }

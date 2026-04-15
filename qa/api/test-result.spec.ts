@@ -157,7 +157,7 @@ test.describe('Test Result API E2E', () => {
         phases: [
           {
             phaseName: '테스트 Phase',
-            testRunId,
+            testRunIds: [testRunId],
             orderIndex: 1,
           },
         ],

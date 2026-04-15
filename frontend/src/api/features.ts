@@ -351,7 +351,7 @@ export const versionApi = {
     name: string,
     description: string,
     releaseDate: string | null,
-    phases: Array<{ phaseName: string; testRunId: number }>
+    phases: Array<{ phaseName: string; testRunIds: number[] }>
   ): Promise<Version> => {
     const response = await apiClient.post<ApiResponse<Version>>(
       `/api/products/${productId}/versions`,
@@ -417,13 +417,13 @@ export const versionPhaseApi = {
   addPhase: async (
     versionId: number,
     phaseName: string,
-    testRunId: number
+    testRunIds: number[]
   ): Promise<VersionPhase> => {
     const response = await apiClient.post<ApiResponse<VersionPhase>>(
       `/api/versions/${versionId}/phases`,
       {
         phaseName,
-        testRunId,
+        testRunIds,
       }
     );
     return response.data.data;
@@ -433,13 +433,13 @@ export const versionPhaseApi = {
     versionId: number,
     phaseId: number,
     phaseName?: string,
-    testRunId?: number
+    testRunIds?: number[]
   ): Promise<VersionPhase> => {
     const response = await apiClient.patch<ApiResponse<VersionPhase>>(
       `/api/versions/${versionId}/phases/${phaseId}`,
       {
         phaseName,
-        testRunId,
+        testRunIds,
       }
     );
     return response.data.data;

@@ -21,29 +21,33 @@ public class VersionServiceImpl implements VersionService {
     private final ProductRepository productRepository;
     private final TestRunRepository testRunRepository;
     private final TestResultService testResultService;
+    private final VersionPhaseTestRunRepository versionPhaseTestRunRepository;
+    private final TestRunTestCaseRepository testRunTestCaseRepository;
 
     public VersionServiceImpl(VersionRepository versionRepository,
                              VersionPhaseRepository versionPhaseRepository,
                              TestResultRepository testResultRepository,
                              ProductRepository productRepository,
                              TestRunRepository testRunRepository,
-                             TestResultService testResultService) {
+                             TestResultService testResultService,
+                             VersionPhaseTestRunRepository versionPhaseTestRunRepository,
+                             TestRunTestCaseRepository testRunTestCaseRepository) {
         this.versionRepository = versionRepository;
         this.versionPhaseRepository = versionPhaseRepository;
         this.testResultRepository = testResultRepository;
         this.productRepository = productRepository;
         this.testRunRepository = testRunRepository;
         this.testResultService = testResultService;
+        this.versionPhaseTestRunRepository = versionPhaseTestRunRepository;
+        this.testRunTestCaseRepository = testRunTestCaseRepository;
     }
 
     @Override
     @Transactional
     public VersionDto.VersionDetail create(VersionDto.CreateVersionRequest request) {
-        // Validate product exists
         ProductEntity product = productRepository.findById(request.productId())
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + request.productId()));
 
-        // Create version
         VersionEntity version = new VersionEntity();
         version.setProduct(product);
         version.setName(request.name());
@@ -53,22 +57,32 @@ public class VersionServiceImpl implements VersionService {
         VersionEntity savedVersion = versionRepository.save(version);
         log.info("Created version: {}", savedVersion.getId());
 
-        // Create phases
+        // Create phases with 1:N test runs
         int orderIndex = 1;
         for (VersionDto.PhaseRequest phaseReq : request.phases()) {
-            TestRunEntity testRun = testRunRepository.findById(phaseReq.testRunId())
-                    .orElseThrow(() -> new EntityNotFoundException("TestRun not found: " + phaseReq.testRunId()));
+            // Validate all test runs exist
+            List<TestRunEntity> testRuns = phaseReq.testRunIds().stream()
+                    .map(id -> testRunRepository.findById(id)
+                            .orElseThrow(() -> new EntityNotFoundException("TestRun not found: " + id)))
+                    .toList();
 
             VersionPhaseEntity phase = new VersionPhaseEntity();
             phase.setVersion(savedVersion);
             phase.setPhaseName(phaseReq.phaseName());
-            phase.setTestRun(testRun);
             phase.setOrderIndex(orderIndex++);
 
             VersionPhaseEntity savedPhase = versionPhaseRepository.save(phase);
 
-            // Initialize test results for this phase
-            testResultService.createInitialResults(savedVersion.getId(), savedPhase.getId(), testRun.getId());
+            // Create junction entries
+            for (TestRunEntity testRun : testRuns) {
+                VersionPhaseTestRunEntity junction = new VersionPhaseTestRunEntity();
+                junction.setVersionPhase(savedPhase);
+                junction.setTestRun(testRun);
+                versionPhaseTestRunRepository.save(junction);
+            }
+
+            // Initialize test results with dedup across runs
+            testResultService.createInitialResults(savedVersion.getId(), savedPhase.getId(), phaseReq.testRunIds());
         }
 
         return getById(savedVersion.getId());
@@ -120,7 +134,6 @@ public class VersionServiceImpl implements VersionService {
         VersionEntity original = versionRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Version not found: " + id));
 
-        // Create new version
         VersionEntity newVersion = new VersionEntity();
         newVersion.setProduct(original.getProduct());
         newVersion.setName(request.newName());
@@ -131,19 +144,32 @@ public class VersionServiceImpl implements VersionService {
         VersionEntity savedVersion = versionRepository.save(newVersion);
         log.info("Copied version: {} -> {}", original.getId(), savedVersion.getId());
 
-        // Copy phases
+        // Copy phases with junction data
         List<VersionPhaseEntity> originalPhases = versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(original.getId());
         for (VersionPhaseEntity originalPhase : originalPhases) {
             VersionPhaseEntity newPhase = new VersionPhaseEntity();
             newPhase.setVersion(savedVersion);
             newPhase.setPhaseName(originalPhase.getPhaseName());
-            newPhase.setTestRun(originalPhase.getTestRun());
             newPhase.setOrderIndex(originalPhase.getOrderIndex());
 
             VersionPhaseEntity savedPhase = versionPhaseRepository.save(newPhase);
 
-            // Initialize test results (UNTESTED)
-            testResultService.createInitialResults(savedVersion.getId(), savedPhase.getId(), originalPhase.getTestRun().getId());
+            // Copy junction entries from original phase
+            List<VersionPhaseTestRunEntity> originalJunctions =
+                    versionPhaseTestRunRepository.findAllByVersionPhaseId(originalPhase.getId());
+            List<Long> testRunIds = originalJunctions.stream()
+                    .map(j -> j.getTestRun().getId())
+                    .toList();
+
+            for (VersionPhaseTestRunEntity origJunction : originalJunctions) {
+                VersionPhaseTestRunEntity newJunction = new VersionPhaseTestRunEntity();
+                newJunction.setVersionPhase(savedPhase);
+                newJunction.setTestRun(origJunction.getTestRun());
+                versionPhaseTestRunRepository.save(newJunction);
+            }
+
+            // Initialize test results (UNTESTED) with dedup
+            testResultService.createInitialResults(savedVersion.getId(), savedPhase.getId(), testRunIds);
         }
 
         return getById(savedVersion.getId());
@@ -159,12 +185,6 @@ public class VersionServiceImpl implements VersionService {
         log.info("Deleted version: {}", id);
     }
 
-    private void initializeTestResults(VersionEntity version, VersionPhaseEntity phase, TestRunEntity testRun) {
-        // Initialize test results for all test cases in the test run
-        // Note: This assumes a way to get test cases from a test run
-        // In the actual implementation, you would query the test_run_test_case junction table
-    }
-
     private boolean isReleaseDatePassed(VersionEntity version) {
         if (version.getReleaseDate() == null) {
             return false;
@@ -176,7 +196,7 @@ public class VersionServiceImpl implements VersionService {
         if (!isReleaseDatePassed(version)) {
             return null;
         }
-        return "⚠️ 릴리스 예정일(" + version.getReleaseDate() + ")이 지났습니다. 진행 상황을 확인하세요.";
+        return "릴리스 예정일(" + version.getReleaseDate() + ")이 지났습니다. 진행 상황을 확인하세요.";
     }
 
     private VersionDto.VersionSummary toSummary(VersionEntity entity) {
@@ -227,15 +247,23 @@ public class VersionServiceImpl implements VersionService {
 
     private VersionDto.VersionPhaseDto toPhaseDto(VersionPhaseEntity entity) {
         VersionDto.ProgressStats phaseProgress = testResultService.computePhaseProgress(entity.getId());
+        int totalTestCaseCount = testResultRepository.findAllByVersionPhaseId(entity.getId()).size();
 
-        int testCaseCount = testResultRepository.findAllByVersionPhaseId(entity.getId()).size();
+        // Build test run references from junction table
+        List<VersionPhaseTestRunEntity> junctions = versionPhaseTestRunRepository.findAllByVersionPhaseId(entity.getId());
+        List<VersionDto.TestRunRef> testRuns = junctions.stream()
+                .map(j -> new VersionDto.TestRunRef(
+                        j.getTestRun().getId(),
+                        j.getTestRun().getName(),
+                        testRunTestCaseRepository.findAllByTestRunId(j.getTestRun().getId()).size()
+                ))
+                .toList();
 
         return new VersionDto.VersionPhaseDto(
                 entity.getId(),
                 entity.getPhaseName(),
-                entity.getTestRun().getId(),
-                entity.getTestRun().getName(),
-                testCaseCount,
+                testRuns,
+                totalTestCaseCount,
                 entity.getOrderIndex(),
                 phaseProgress
         );

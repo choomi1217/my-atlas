@@ -122,7 +122,7 @@ test.describe('Version Phase API E2E', () => {
         phases: [
           {
             phaseName: '0차 초기 Phase',
-            testRunId: testRunId1,
+            testRunIds: [testRunId1],
             orderIndex: 0,
           },
         ],
@@ -138,7 +138,7 @@ test.describe('Version Phase API E2E', () => {
     const response = await request.post(`/api/versions/${versionId}/phases`, {
       data: {
         phaseName: '1차 테스트',
-        testRunId: testRunId1,
+        testRunIds: [testRunId1],
         orderIndex: 1,
       },
     });
@@ -146,7 +146,8 @@ test.describe('Version Phase API E2E', () => {
     const body = await response.json() as any;
     expect(body.success).toBe(true);
     expect(body.data.phaseName).toBe('1차 테스트');
-    expect(body.data.testRunId).toBe(testRunId1);
+    expect(Array.isArray(body.data.testRuns)).toBe(true);
+    expect(body.data.testRuns[0].testRunId).toBe(testRunId1);
     // Backend may auto-adjust orderIndex, so just check it's a number
     expect(typeof body.data.orderIndex).toBe('number');
     expect(body.data.orderIndex).toBeGreaterThanOrEqual(1);
@@ -158,7 +159,7 @@ test.describe('Version Phase API E2E', () => {
     const response = await request.post(`/api/versions/${versionId}/phases`, {
       data: {
         phaseName: '2차 테스트',
-        testRunId: testRunId2,
+        testRunIds: [testRunId2],
         orderIndex: 2,
       },
     });
@@ -168,6 +169,30 @@ test.describe('Version Phase API E2E', () => {
     expect(typeof body.data.orderIndex).toBe('number');
     expect(body.data.orderIndex).toBeGreaterThan(1);
     phaseId2 = body.data.id;
+  });
+
+  test('POST /api/versions/{versionId}/phases - 다중 testRunIds로 Phase 생성', async () => {
+    const response = await request.post(`/api/versions/${versionId}/phases`, {
+      data: {
+        phaseName: '다중 TestRun Phase',
+        testRunIds: [testRunId1, testRunId2],
+        orderIndex: 10,
+      },
+    });
+    expect(response.status()).toBe(201);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.phaseName).toBe('다중 TestRun Phase');
+    expect(Array.isArray(body.data.testRuns)).toBe(true);
+    expect(body.data.testRuns.length).toBe(2);
+    const runIds = body.data.testRuns.map((r: any) => r.testRunId);
+    expect(runIds).toContain(testRunId1);
+    expect(runIds).toContain(testRunId2);
+    expect(typeof body.data.totalTestCaseCount).toBe('number');
+    expect(body.data.totalTestCaseCount).toBeGreaterThanOrEqual(2);
+
+    // Cleanup: delete the phase we just created
+    await request.delete(`/api/versions/${versionId}/phases/${body.data.id}`).catch(() => {});
   });
 
   test('GET /api/versions/{id} - Phase 목록 포함 조회', async () => {
@@ -189,13 +214,13 @@ test.describe('Version Phase API E2E', () => {
     const response = await request.patch(`/api/versions/${versionId}/phases/${phaseId1}`, {
       data: {
         phaseName: '1차 테스트 (수정됨)',
-        testRunId: testRunId2,
+        testRunIds: [testRunId2],
       },
     });
     expect(response.status()).toBe(200);
     const body = await response.json() as any;
     expect(body.data.phaseName).toBe('1차 테스트 (수정됨)');
-    expect(body.data.testRunId).toBe(testRunId2);
+    expect(body.data.testRuns[0].testRunId).toBe(testRunId2);
   });
 
   test('POST /api/versions/{versionId}/phases/{phaseId}/reorder - 순서 변경 (앞으로)', async () => {
@@ -253,7 +278,7 @@ test.describe('Version Phase API E2E', () => {
     const createResponse = await request.post(`/api/versions/${versionId}/phases`, {
       data: {
         phaseName: 'Phase to Delete',
-        testRunId: testRunId1,
+        testRunIds: [testRunId1],
         orderIndex: 3,
       },
     });

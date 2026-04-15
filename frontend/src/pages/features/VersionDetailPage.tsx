@@ -95,11 +95,11 @@ export default function VersionDetailPage() {
 
   const handleAddPhase = async (data: {
     phaseName: string;
-    testRunId: number;
+    testRunIds: number[];
   }) => {
     if (!version) return;
     try {
-      await versionPhaseApi.addPhase(version.id, data.phaseName, data.testRunId);
+      await versionPhaseApi.addPhase(version.id, data.phaseName, data.testRunIds);
       // Reload version
       const v = await versionApi.getById(version.id);
       setVersion(v);
@@ -347,8 +347,13 @@ export default function VersionDetailPage() {
                       {index + 1}️⃣ {phase.phaseName}
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      TestRun: {phase.testRunName} ({phase.testRunTestCaseCount}{' '}
-                      TC)
+                      TestRun:{' '}
+                      {phase.testRuns
+                        .map(
+                          (tr) => `${tr.testRunName} (${tr.testCaseCount} TC)`
+                        )
+                        .join(', ')}
+                      {' — '}총 {phase.totalTestCaseCount} TC
                     </p>
                   </div>
                   <button
