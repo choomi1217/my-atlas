@@ -40,16 +40,16 @@ export default function PhaseFormModal({
     }
   }, [initialData, isOpen]);
 
-  if (!isOpen) return null;
-
-  const isEdit = !!initialData;
-
   const selectedCount = form.testRunIds.length;
   const totalTcCount = useMemo(() => {
     return availableTestRuns
       .filter((tr) => form.testRunIds.includes(tr.id))
       .reduce((sum, tr) => sum + tr.testCaseCount, 0);
   }, [form.testRunIds, availableTestRuns]);
+
+  if (!isOpen) return null;
+
+  const isEdit = !!initialData;
 
   const toggleTestRun = (id: number) => {
     setForm((prev) => ({
