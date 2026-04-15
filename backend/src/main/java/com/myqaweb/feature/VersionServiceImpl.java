@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,6 +24,8 @@ public class VersionServiceImpl implements VersionService {
     private final TestResultService testResultService;
     private final VersionPhaseTestRunRepository versionPhaseTestRunRepository;
     private final TestRunTestCaseRepository testRunTestCaseRepository;
+    private final VersionPhaseTestCaseRepository versionPhaseTestCaseRepository;
+    private final TicketRepository ticketRepository;
 
     public VersionServiceImpl(VersionRepository versionRepository,
                              VersionPhaseRepository versionPhaseRepository,
@@ -31,7 +34,9 @@ public class VersionServiceImpl implements VersionService {
                              TestRunRepository testRunRepository,
                              TestResultService testResultService,
                              VersionPhaseTestRunRepository versionPhaseTestRunRepository,
-                             TestRunTestCaseRepository testRunTestCaseRepository) {
+                             TestRunTestCaseRepository testRunTestCaseRepository,
+                             VersionPhaseTestCaseRepository versionPhaseTestCaseRepository,
+                             TicketRepository ticketRepository) {
         this.versionRepository = versionRepository;
         this.versionPhaseRepository = versionPhaseRepository;
         this.testResultRepository = testResultRepository;
@@ -40,6 +45,8 @@ public class VersionServiceImpl implements VersionService {
         this.testResultService = testResultService;
         this.versionPhaseTestRunRepository = versionPhaseTestRunRepository;
         this.testRunTestCaseRepository = testRunTestCaseRepository;
+        this.versionPhaseTestCaseRepository = versionPhaseTestCaseRepository;
+        this.ticketRepository = ticketRepository;
     }
 
     @Override
@@ -55,35 +62,7 @@ public class VersionServiceImpl implements VersionService {
         version.setReleaseDate(request.releaseDate());
 
         VersionEntity savedVersion = versionRepository.save(version);
-        log.info("Created version: {}", savedVersion.getId());
-
-        // Create phases with 1:N test runs
-        int orderIndex = 1;
-        for (VersionDto.PhaseRequest phaseReq : request.phases()) {
-            // Validate all test runs exist
-            List<TestRunEntity> testRuns = phaseReq.testRunIds().stream()
-                    .map(id -> testRunRepository.findById(id)
-                            .orElseThrow(() -> new EntityNotFoundException("TestRun not found: " + id)))
-                    .toList();
-
-            VersionPhaseEntity phase = new VersionPhaseEntity();
-            phase.setVersion(savedVersion);
-            phase.setPhaseName(phaseReq.phaseName());
-            phase.setOrderIndex(orderIndex++);
-
-            VersionPhaseEntity savedPhase = versionPhaseRepository.save(phase);
-
-            // Create junction entries
-            for (TestRunEntity testRun : testRuns) {
-                VersionPhaseTestRunEntity junction = new VersionPhaseTestRunEntity();
-                junction.setVersionPhase(savedPhase);
-                junction.setTestRun(testRun);
-                versionPhaseTestRunRepository.save(junction);
-            }
-
-            // Initialize test results with dedup across runs
-            testResultService.createInitialResults(savedVersion.getId(), savedPhase.getId(), phaseReq.testRunIds());
-        }
+        log.info("Created version: {} (phases added separately via detail page)", savedVersion.getId());
 
         return getById(savedVersion.getId());
     }
@@ -168,8 +147,20 @@ public class VersionServiceImpl implements VersionService {
                 versionPhaseTestRunRepository.save(newJunction);
             }
 
-            // Initialize test results (UNTESTED) with dedup
-            testResultService.createInitialResults(savedVersion.getId(), savedPhase.getId(), testRunIds);
+            // Copy direct TC junctions
+            List<VersionPhaseTestCaseEntity> originalDirectTcs =
+                    versionPhaseTestCaseRepository.findAllByVersionPhaseId(originalPhase.getId());
+            List<Long> directTcIds = new ArrayList<>();
+            for (VersionPhaseTestCaseEntity origTc : originalDirectTcs) {
+                VersionPhaseTestCaseEntity newTc = new VersionPhaseTestCaseEntity();
+                newTc.setVersionPhase(savedPhase);
+                newTc.setTestCase(origTc.getTestCase());
+                versionPhaseTestCaseRepository.save(newTc);
+                directTcIds.add(origTc.getTestCase().getId());
+            }
+
+            // Initialize test results (UNTESTED) with dedup across runs + direct TCs
+            testResultService.createInitialResults(savedVersion.getId(), savedPhase.getId(), testRunIds, directTcIds);
         }
 
         return getById(savedVersion.getId());
@@ -183,6 +174,34 @@ public class VersionServiceImpl implements VersionService {
 
         versionRepository.delete(version);
         log.info("Deleted version: {}", id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VersionDto.FailedTestCaseInfo> getFailedTestCases(Long versionId) {
+        List<TestResultEntity> failedResults = testResultRepository.findAllByVersionIdAndStatus(versionId, RunResultStatus.FAIL);
+
+        // Group by testCaseId — pick the first failed phase for display
+        java.util.Map<Long, TestResultEntity> uniqueByTc = new java.util.LinkedHashMap<>();
+        for (TestResultEntity r : failedResults) {
+            uniqueByTc.putIfAbsent(r.getTestCase().getId(), r);
+        }
+
+        return uniqueByTc.values().stream()
+                .map(r -> {
+                    String phaseName = r.getVersionPhase().getPhaseName();
+                    Long[] pathArr = r.getTestCase().getPath();
+                    List<Long> path = pathArr != null ? java.util.Arrays.asList(pathArr) : List.of();
+                    int tickets = ticketRepository.countByTestResultId(r.getId());
+                    return new VersionDto.FailedTestCaseInfo(
+                            r.getTestCase().getId(),
+                            r.getTestCase().getTitle(),
+                            path,
+                            phaseName,
+                            tickets
+                    );
+                })
+                .toList();
     }
 
     private boolean isReleaseDatePassed(VersionEntity version) {

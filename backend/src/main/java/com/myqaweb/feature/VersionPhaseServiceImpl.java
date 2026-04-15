@@ -21,6 +21,8 @@ public class VersionPhaseServiceImpl implements VersionPhaseService {
     private final TestResultService testResultService;
     private final VersionPhaseTestRunRepository versionPhaseTestRunRepository;
     private final TestRunTestCaseRepository testRunTestCaseRepository;
+    private final VersionPhaseTestCaseRepository versionPhaseTestCaseRepository;
+    private final TestCaseRepository testCaseRepository;
 
     public VersionPhaseServiceImpl(VersionPhaseRepository versionPhaseRepository,
                                   VersionRepository versionRepository,
@@ -28,7 +30,9 @@ public class VersionPhaseServiceImpl implements VersionPhaseService {
                                   TestResultRepository testResultRepository,
                                   TestResultService testResultService,
                                   VersionPhaseTestRunRepository versionPhaseTestRunRepository,
-                                  TestRunTestCaseRepository testRunTestCaseRepository) {
+                                  TestRunTestCaseRepository testRunTestCaseRepository,
+                                  VersionPhaseTestCaseRepository versionPhaseTestCaseRepository,
+                                  TestCaseRepository testCaseRepository) {
         this.versionPhaseRepository = versionPhaseRepository;
         this.versionRepository = versionRepository;
         this.testRunRepository = testRunRepository;
@@ -36,6 +40,8 @@ public class VersionPhaseServiceImpl implements VersionPhaseService {
         this.testResultService = testResultService;
         this.versionPhaseTestRunRepository = versionPhaseTestRunRepository;
         this.testRunTestCaseRepository = testRunTestCaseRepository;
+        this.versionPhaseTestCaseRepository = versionPhaseTestCaseRepository;
+        this.testCaseRepository = testCaseRepository;
     }
 
     @Override
@@ -71,8 +77,23 @@ public class VersionPhaseServiceImpl implements VersionPhaseService {
             versionPhaseTestRunRepository.save(junction);
         }
 
-        // Initialize test results for all test runs (with dedup)
-        testResultService.createInitialResults(versionId, savedPhase.getId(), request.testRunIds());
+        // Create direct TC junctions
+        List<Long> directTcIds = request.testCaseIds();
+        if (directTcIds != null) {
+            for (Long tcId : directTcIds) {
+                TestCaseEntity tc = testCaseRepository.findById(tcId)
+                        .orElseThrow(() -> new EntityNotFoundException("TestCase not found: " + tcId));
+                VersionPhaseTestCaseEntity tcJunction = new VersionPhaseTestCaseEntity();
+                tcJunction.setVersionPhase(savedPhase);
+                tcJunction.setTestCase(tc);
+                versionPhaseTestCaseRepository.save(tcJunction);
+            }
+        }
+
+        // Initialize test results for all test runs + direct TCs (with dedup)
+        testResultService.createInitialResults(versionId, savedPhase.getId(),
+                request.testRunIds() != null ? request.testRunIds() : List.of(),
+                directTcIds);
 
         return toPhaseDto(savedPhase);
     }
@@ -230,6 +251,35 @@ public class VersionPhaseServiceImpl implements VersionPhaseService {
         phase.setOrderIndex(newOrderIndex);
         versionPhaseRepository.save(phase);
         log.info("Reordered phase: {} to index: {}", phaseId, newOrderIndex);
+    }
+
+    @Override
+    @Transactional
+    public void addTestCasesToPhase(Long versionId, Long phaseId, List<Long> testCaseIds) {
+        VersionPhaseEntity phase = versionPhaseRepository.findById(phaseId)
+                .orElseThrow(() -> new EntityNotFoundException("Phase not found: " + phaseId));
+
+        for (Long tcId : testCaseIds) {
+            TestCaseEntity tc = testCaseRepository.findById(tcId)
+                    .orElseThrow(() -> new EntityNotFoundException("TestCase not found: " + tcId));
+            VersionPhaseTestCaseEntity junction = new VersionPhaseTestCaseEntity();
+            junction.setVersionPhase(phase);
+            junction.setTestCase(tc);
+            versionPhaseTestCaseRepository.save(junction);
+
+            testResultService.createResultForTestCase(versionId, phaseId, tcId);
+        }
+        log.info("Added {} TCs to phase {}", testCaseIds.size(), phaseId);
+    }
+
+    @Override
+    @Transactional
+    public void removeTestCasesFromPhase(Long phaseId, List<Long> testCaseIds) {
+        for (Long tcId : testCaseIds) {
+            versionPhaseTestCaseRepository.deleteByVersionPhaseIdAndTestCaseId(phaseId, tcId);
+            testResultRepository.deleteByVersionPhaseIdAndTestCaseId(phaseId, tcId);
+        }
+        log.info("Removed {} TCs from phase {}", testCaseIds.size(), phaseId);
     }
 
     private void reorderPhasesAfterDelete(Long versionId) {

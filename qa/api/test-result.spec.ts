@@ -148,40 +148,30 @@ test.describe('Test Result API E2E', () => {
     futureDate.setDate(futureDate.getDate() + 30);
     const dateString = futureDate.toISOString().split('T')[0];
 
+    // Create version (v15: no phases in create)
     const versionResponse = await request.post(`/api/products/${productId}/versions`, {
       data: {
         productId,
         name: 'v1.0.0-result-test',
         releaseDate: dateString,
         description: 'Version for result testing',
-        phases: [
-          {
-            phaseName: '테스트 Phase',
-            testRunIds: [testRunId],
-            orderIndex: 1,
-          },
-        ],
       },
     });
     expect(versionResponse.status()).toBe(201);
     const versionBody = await versionResponse.json() as any;
     versionId = versionBody.data.id;
 
-    // Get phase ID from created version
-    const phases = versionBody.data.phases;
-    if (Array.isArray(phases) && phases.length > 0) {
-      // Get the phase with the highest orderIndex (most recently added)
-      const sortedPhases = [...phases].sort((a: any, b: any) => b.orderIndex - a.orderIndex);
-      phaseId = sortedPhases[0].id;
-    } else {
-      // Fallback: fetch version and get phase
-      const versionFetch = await request.get(`/api/versions/${versionId}`);
-      const versionDetail = await versionFetch.json() as any;
-      if (Array.isArray(versionDetail.data.phases) && versionDetail.data.phases.length > 0) {
-        const sortedPhases = [...versionDetail.data.phases].sort((a: any, b: any) => b.orderIndex - a.orderIndex);
-        phaseId = sortedPhases[0].id;
-      }
-    }
+    // Add phase separately (v15: phases added via Phase API)
+    const phaseResponse = await request.post(`/api/versions/${versionId}/phases`, {
+      data: {
+        phaseName: '테스트 Phase',
+        testRunIds: [testRunId],
+        testCaseIds: [],
+      },
+    });
+    expect(phaseResponse.status()).toBe(201);
+    const phaseBody = await phaseResponse.json() as any;
+    phaseId = phaseBody.data.id;
   });
 
   test('GET /api/versions/{versionId}/results - Option A: Version 전체 결과 조회 (초기 UNTESTED)', async () => {

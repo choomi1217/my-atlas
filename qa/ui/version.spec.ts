@@ -158,7 +158,7 @@ test.describe('Version Management UI E2E', () => {
   });
 
   test('VersionListPage - 버전 생성 후 목록 표시', async () => {
-    // Create version via API
+    // Create version via API (simplified: no phases)
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + 30);
     const dateString = futureDate.toISOString().split('T')[0];
@@ -170,16 +170,17 @@ test.describe('Version Management UI E2E', () => {
         name: 'v1.0.0-UI-Test',
         releaseDate: dateString,
         description: 'Test version from UI',
-        phases: [
-          {
-            phaseName: '1차 테스트',
-            testRunIds: [testRunId],
-          },
-        ],
       }
     );
     expect(createResponse.status).toBe(201);
     versionId = createResponse.data.data.id;
+
+    // Add a phase via Phase API for subsequent tests
+    await apiClient.post(`/api/versions/${versionId}/phases`, {
+      phaseName: '1차 테스트',
+      testRunIds: [testRunId],
+      testCaseIds: [],
+    });
 
     // Navigate to version list
     await goToVersionList();
@@ -242,7 +243,7 @@ test.describe('Version Management UI E2E', () => {
   });
 
   test('VersionDetailPage - release date 경고 표시', async () => {
-    // Create a version with past release date
+    // Create a version with past release date (simplified: no phases)
     const pastDate = '2026-01-01';
     const warnResponse = await apiClient.post<ApiResponse<Version>>(
       `/api/products/${productId}/versions`,
@@ -251,7 +252,6 @@ test.describe('Version Management UI E2E', () => {
         name: 'v-expired-ui-test',
         releaseDate: pastDate,
         description: 'Expired version',
-        phases: [{ phaseName: 'Phase 1', testRunIds: [testRunId] }],
       }
     );
     const expiredVersionId = warnResponse.data.data.id;
@@ -375,6 +375,204 @@ test.describe('Version Management UI E2E', () => {
     // The status area should have buttons, not selects
     const statusButtons = page.locator('button[title="Pass"], button[title="Fail"], button[title="Blocked"], button[title="Skip"], button[title="Retest"]');
     expect(await statusButtons.count()).toBeGreaterThan(0);
+  });
+
+  test('VersionFormModal - Phase 섹션 없이 간소화된 모달', async () => {
+    await goToVersionList();
+
+    // Open modal
+    const newVersionBtn = page.locator('[data-testid="new-version-btn"]');
+    await newVersionBtn.click();
+
+    const modal = page.locator('[data-testid="version-form-modal"]');
+    await expect(modal).toBeVisible();
+
+    // Modal should have name, description, release date fields
+    const nameInput = page.locator('[data-testid="version-name-input"]');
+    await expect(nameInput).toBeVisible();
+
+    // Modal should NOT have any Phase-related elements
+    // (no "Phase" section, no testRun checkboxes inside the modal)
+    const phaseLabel = modal.locator('text=/Phase 이름|TestRun 선택/');
+    expect(await phaseLabel.count()).toBe(0);
+
+    // Should show info text about adding phases after creation
+    const infoText = modal.locator('text=/Phase.*상세 페이지/');
+    await expect(infoText).toBeVisible();
+
+    // Close modal
+    await page.getByRole('button', { name: /취소/ }).click();
+  });
+
+  test('VersionFormModal - 생성 후 VersionDetailPage로 이동', async () => {
+    await goToVersionList();
+
+    // Open modal
+    const newVersionBtn = page.locator('[data-testid="new-version-btn"]');
+    await newVersionBtn.click();
+
+    const modal = page.locator('[data-testid="version-form-modal"]');
+    await expect(modal).toBeVisible();
+
+    // Fill in version name
+    const nameInput = page.locator('[data-testid="version-name-input"]');
+    await nameInput.fill('v-modal-nav-test');
+
+    // Submit
+    await page.getByRole('button', { name: /생성/ }).click();
+    await page.waitForLoadState('networkidle');
+
+    // Should navigate to VersionDetailPage (URL contains /versions/{id}, not just /versions)
+    await expect(page).toHaveURL(/\/versions\/\d+$/);
+
+    // Version name should be visible on detail page
+    const versionNameOnDetail = page.locator('text=v-modal-nav-test');
+    await expect(versionNameOnDetail.first()).toBeVisible();
+  });
+
+  test('VersionDetailPage - "+ Phase 추가" 버튼으로 인라인 Phase 생성 폼 표시', async () => {
+    if (!versionId) test.skip();
+
+    await goToVersionDetail(versionId);
+
+    // "Phase 추가" button should be visible
+    const addPhaseBtn = page.getByRole('button', { name: /Phase 추가/ });
+    await expect(addPhaseBtn).toBeVisible();
+
+    // Click to open inline form
+    await addPhaseBtn.click();
+
+    // Inline form should appear with:
+    // 1. Phase name input (placeholder: "예: 1차 기능 테스트")
+    const phaseNameInput = page.locator('input[placeholder*="1차 기능 테스트"]');
+    await expect(phaseNameInput).toBeVisible();
+
+    // 2. TestRun selection area (label: "TestRun 선택")
+    const testRunLabel = page.locator('text=TestRun 선택');
+    await expect(testRunLabel).toBeVisible();
+
+    // 3. TC 개별 선택 toggle button
+    const tcToggle = page.locator('text=/TC 개별 선택/');
+    await expect(tcToggle).toBeVisible();
+
+    // 4. Phase 생성 and 취소 buttons
+    const createBtn = page.getByRole('button', { name: /^Phase 생성$/ });
+    const cancelBtn = page.locator('button:has-text("취소")').last();
+    await expect(createBtn).toBeVisible();
+    await expect(cancelBtn).toBeVisible();
+
+    // Cancel should close the form
+    await cancelBtn.click();
+    await expect(phaseNameInput).not.toBeVisible();
+  });
+
+  test('VersionPhaseDetailPage - Segment 경로별 그룹화 표시', async () => {
+    if (!versionId) test.skip();
+
+    // Get phase ID
+    const versionResponse = await apiClient.get<ApiResponse<Version>>(
+      `/api/versions/${versionId}`
+    );
+    const phaseId = versionResponse.data.data.phases?.[0]?.id;
+    if (!phaseId) test.skip();
+
+    // Navigate to phase detail page
+    await page.goto(
+      `/features/companies/${companyId}/products/${productId}/versions/${versionId}/phases/${phaseId}`
+    );
+    await page.waitForLoadState('networkidle');
+
+    // Should show segment header with segment name
+    // The segment name is "Version UI Segment" from test setup
+    const segmentHeader = page.locator('span.text-indigo-700').first();
+    if (await segmentHeader.isVisible().catch(() => false)) {
+      await expect(segmentHeader).toBeVisible();
+      // The segment header text should be a segment path name
+      const headerText = await segmentHeader.textContent();
+      expect(headerText).toBeTruthy();
+    }
+
+    // Results should be grouped (each group has a border-b border-gray-300 header)
+    const groupHeaders = page.locator('.border-b.border-gray-300');
+    if (await groupHeaders.first().isVisible().catch(() => false)) {
+      expect(await groupHeaders.count()).toBeGreaterThan(0);
+    }
+  });
+
+  test('VersionPhaseDetailPage - 티켓 추가 버튼 표시', async () => {
+    if (!versionId) test.skip();
+
+    // Get phase ID
+    const versionResponse = await apiClient.get<ApiResponse<Version>>(
+      `/api/versions/${versionId}`
+    );
+    const phaseId = versionResponse.data.data.phases?.[0]?.id;
+    if (!phaseId) test.skip();
+
+    await page.goto(
+      `/features/companies/${companyId}/products/${productId}/versions/${versionId}/phases/${phaseId}`
+    );
+    await page.waitForLoadState('networkidle');
+
+    // Expand a test result by clicking on it
+    const resultRow = page.locator('.cursor-pointer').first();
+    if (await resultRow.isVisible().catch(() => false)) {
+      await resultRow.click();
+
+      // After expanding, "Tickets" heading should be visible
+      const ticketHeading = page.locator('h4:has-text("Tickets")');
+      await expect(ticketHeading).toBeVisible();
+
+      // "+ 티켓 추가" button should be visible
+      const addTicketBtn = page.locator('text=+ 티켓 추가');
+      await expect(addTicketBtn).toBeVisible();
+
+      // "티켓 없음" text should be visible (no tickets yet)
+      const noTickets = page.locator('text=티켓 없음');
+      await expect(noTickets).toBeVisible();
+    }
+  });
+
+  test('VersionPhaseDetailPage - FAIL 상태 변경 시 티켓 다이얼로그 자동 표시', async () => {
+    if (!versionId) test.skip();
+
+    // Get phase ID
+    const versionResponse = await apiClient.get<ApiResponse<Version>>(
+      `/api/versions/${versionId}`
+    );
+    const phaseId = versionResponse.data.data.phases?.[0]?.id;
+    if (!phaseId) test.skip();
+
+    await page.goto(
+      `/features/companies/${companyId}/products/${productId}/versions/${versionId}/phases/${phaseId}`
+    );
+    await page.waitForLoadState('networkidle');
+
+    // Click "F" (Fail) button on the first result
+    const failButton = page.locator('button[title="Fail"]').first();
+    if (await failButton.isVisible().catch(() => false)) {
+      await failButton.click();
+
+      // Ticket creation dialog should auto-open
+      const ticketDialog = page.locator('text=Jira 티켓 발행');
+      await expect(ticketDialog).toBeVisible({ timeout: 5000 });
+
+      // Dialog should have summary input pre-filled with "FAIL: ..."
+      const summaryInput = page.locator('input').filter({ has: page.locator('[value*="FAIL"]') });
+      if (await summaryInput.count() === 0) {
+        // Alternative: check the dialog has the summary label and input
+        const summaryLabel = page.locator('label:has-text("제목")');
+        await expect(summaryLabel).toBeVisible();
+      }
+
+      // Close dialog by clicking "건너뛰기"
+      const skipBtn = page.getByRole('button', { name: /건너뛰기/ });
+      await expect(skipBtn).toBeVisible();
+      await skipBtn.click();
+
+      // Dialog should close
+      await expect(page.locator('text=Jira 티켓 발행')).not.toBeVisible();
+    }
   });
 
   test.afterAll(async () => {

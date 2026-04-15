@@ -77,6 +77,14 @@ kb:
   image:
     upload-dir: ${KB_IMAGE_UPLOAD_DIR:kb-images}
 
+# Jira integration
+jira:
+  base-url: ${JIRA_BASE_URL:}
+  email: ${JIRA_EMAIL:}
+  api-key: ${JIRA_API_KEY:}
+  default-project-key: AT
+  issue-type-id: "10042"
+
 # Convention image upload
 convention:
   image:

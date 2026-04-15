@@ -37,8 +37,8 @@ class ProductServiceImplTest {
     @BeforeEach
     void setUp() {
         company = new CompanyEntity(1L, "Test Company", true, LocalDateTime.now());
-        product1 = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", LocalDateTime.now());
-        product2 = new ProductEntity(2L, company, "Product B", Platform.MOBILE, "Mobile app", LocalDateTime.now());
+        product1 = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", null, LocalDateTime.now());
+        product2 = new ProductEntity(2L, company, "Product B", Platform.MOBILE, "Mobile app", null, LocalDateTime.now());
     }
 
     @Test

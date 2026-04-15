@@ -125,11 +125,10 @@ class VersionControllerTest {
     }
 
     @Test
-    void testCreateVersion_Success() throws Exception {
-        // Given
-        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", List.of(1L));
+    void testCreateVersion_Simplified_Success() throws Exception {
+        // Given — v15: no phases in create request
         VersionDto.CreateVersionRequest request = new VersionDto.CreateVersionRequest(
-                1L, "v9", "Release v9", LocalDate.of(2026, 5, 1), List.of(phaseRequest)
+                1L, "v9", "Release v9", LocalDate.of(2026, 5, 1)
         );
 
         when(versionService.create(any())).thenReturn(versionDetail);
@@ -140,8 +139,7 @@ class VersionControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.name", is("v9")))
-                .andExpect(jsonPath("$.data.phases", hasSize(1)));
+                .andExpect(jsonPath("$.data.name", is("v9")));
 
         verify(versionService).create(any());
     }
@@ -149,9 +147,8 @@ class VersionControllerTest {
     @Test
     void testCreateVersion_ValidationFails_MissingName() throws Exception {
         // Given
-        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", List.of(1L));
         VersionDto.CreateVersionRequest request = new VersionDto.CreateVersionRequest(
-                1L, "", "Release v9", LocalDate.of(2026, 5, 1), List.of(phaseRequest)
+                1L, "", "Release v9", LocalDate.of(2026, 5, 1)
         );
 
         // When & Then
@@ -164,10 +161,10 @@ class VersionControllerTest {
     }
 
     @Test
-    void testCreateVersion_ValidationFails_EmptyPhases() throws Exception {
-        // Given
+    void testCreateVersion_ValidationFails_MissingProductId() throws Exception {
+        // Given — productId is required
         VersionDto.CreateVersionRequest request = new VersionDto.CreateVersionRequest(
-                1L, "v9", "Release v9", LocalDate.of(2026, 5, 1), List.of()
+                null, "v9", "Release v9", LocalDate.of(2026, 5, 1)
         );
 
         // When & Then
@@ -285,5 +282,32 @@ class VersionControllerTest {
                 .andExpect(jsonPath("$.success", is(true)));
 
         verify(versionService).delete(1L);
+    }
+
+    @Test
+    void testGetFailedTestCases_Success() throws Exception {
+        // Given
+        VersionDto.FailedTestCaseInfo info1 = new VersionDto.FailedTestCaseInfo(
+                10L, "Login TC", List.of(1L, 2L), "Regression", 2
+        );
+        VersionDto.FailedTestCaseInfo info2 = new VersionDto.FailedTestCaseInfo(
+                20L, "Search TC", List.of(), "Smoke", 0
+        );
+
+        when(versionService.getFailedTestCases(1L)).thenReturn(List.of(info1, info2));
+
+        // When & Then
+        mockMvc.perform(get("/api/versions/{id}/failed-test-cases", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[0].testCaseId", is(10)))
+                .andExpect(jsonPath("$.data[0].testCaseTitle", is("Login TC")))
+                .andExpect(jsonPath("$.data[0].failedInPhaseName", is("Regression")))
+                .andExpect(jsonPath("$.data[0].ticketCount", is(2)))
+                .andExpect(jsonPath("$.data[1].testCaseId", is(20)))
+                .andExpect(jsonPath("$.data[1].ticketCount", is(0)));
+
+        verify(versionService).getFailedTestCases(1L);
     }
 }

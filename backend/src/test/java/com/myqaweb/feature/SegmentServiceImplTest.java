@@ -34,7 +34,7 @@ class SegmentServiceImplTest {
         segmentService = new SegmentServiceImpl(segmentRepository, productRepository);
 
         company = new CompanyEntity(1L, "Test Company", true, LocalDateTime.now());
-        product = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", LocalDateTime.now());
+        product = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", null, LocalDateTime.now());
         rootSegment = new SegmentEntity(1L, "Main", product, null);
         childSegment = new SegmentEntity(2L, "Login", product, rootSegment);
     }
@@ -93,7 +93,7 @@ class SegmentServiceImplTest {
 
     @Test
     void testCreateParentFromDifferentProduct() {
-        ProductEntity otherProduct = new ProductEntity(2L, company, "Other", Platform.WEB, "Other", LocalDateTime.now());
+        ProductEntity otherProduct = new ProductEntity(2L, company, "Other", Platform.WEB, "Other", null, LocalDateTime.now());
         SegmentEntity otherSegment = new SegmentEntity(10L, "Other Root", otherProduct, null);
 
         SegmentDto.SegmentRequest request = new SegmentDto.SegmentRequest(1L, "Child", 10L);
@@ -166,7 +166,7 @@ class SegmentServiceImplTest {
 
     @Test
     void testReparentDifferentProduct() {
-        ProductEntity otherProduct = new ProductEntity(2L, company, "Other", Platform.WEB, "Other", LocalDateTime.now());
+        ProductEntity otherProduct = new ProductEntity(2L, company, "Other", Platform.WEB, "Other", null, LocalDateTime.now());
         SegmentEntity otherSegment = new SegmentEntity(10L, "Other Root", otherProduct, null);
 
         when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));

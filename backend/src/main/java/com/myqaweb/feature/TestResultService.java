@@ -23,6 +23,18 @@ public interface TestResultService {
     void createInitialResults(Long versionId, Long phaseId, List<Long> testRunIds);
 
     /**
+     * Create initial test results for test runs + direct test case IDs.
+     * Deduplicates across both sources.
+     */
+    void createInitialResults(Long versionId, Long phaseId, List<Long> testRunIds, List<Long> directTestCaseIds);
+
+    /**
+     * Create a single test result for a directly added test case.
+     * No-op if result already exists.
+     */
+    void createResultForTestCase(Long versionId, Long phaseId, Long testCaseId);
+
+    /**
      * Get all results for a version (Option A: total progress).
      */
     List<TestResultEntity> getAllByVersionId(Long versionId);

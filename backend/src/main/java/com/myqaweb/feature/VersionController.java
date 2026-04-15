@@ -73,4 +73,12 @@ public class VersionController {
                 new ApiResponse<>(true, "Version deleted", null)
         );
     }
+
+    @GetMapping("/versions/{id}/failed-test-cases")
+    public ResponseEntity<ApiResponse<List<VersionDto.FailedTestCaseInfo>>> getFailedTestCases(@PathVariable Long id) {
+        List<VersionDto.FailedTestCaseInfo> failedTcs = versionService.getFailedTestCases(id);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Failed test cases retrieved", failedTcs)
+        );
+    }
 }
