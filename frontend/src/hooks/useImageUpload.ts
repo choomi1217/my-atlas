@@ -1,14 +1,11 @@
 import { useCallback } from 'react';
 import { kbApi } from '@/api/senior';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-
 export const useImageUpload = () => {
   const uploadImage = useCallback(async (file: File): Promise<string | null> => {
     try {
       const url = await kbApi.uploadImage(file);
-      return API_BASE_URL + url;
+      return url;
     } catch {
       alert('이미지 업로드에 실패했습니다.');
       return null;
