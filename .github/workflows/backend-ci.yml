@@ -64,25 +64,24 @@ jobs:
           POSTGRES_USER: qa_user
           POSTGRES_PASSWORD: test_password
 
-      # TODO: Add JaCoCo plugin to build.gradle, then uncomment below
-      # - name: Generate Test Coverage Report
-      #   run: |
-      #     cd backend
-      #     ./gradlew test jacocoTestReport --no-daemon
-      #
-      # - name: Verify Test Coverage (70% minimum)
-      #   run: |
-      #     cd backend
-      #     ./gradlew jacocoTestCoverageVerification --no-daemon
-      #   continue-on-error: true
-      #
-      # - name: Upload Coverage to Codecov (optional)
-      #   uses: codecov/codecov-action@v4
-      #   with:
-      #     files: ./backend/build/reports/jacoco/test/jacocoTestReport.xml
-      #     flags: backend
-      #     name: backend-coverage
-      #   continue-on-error: true
+      - name: Generate Test Coverage Report
+        run: |
+          cd backend
+          ./gradlew jacocoTestReport --no-daemon
+
+      - name: Verify Test Coverage (70% minimum)
+        run: |
+          cd backend
+          ./gradlew jacocoTestCoverageVerification --no-daemon
+        continue-on-error: true
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: backend
+          name: backend-coverage
+        continue-on-error: true
 
       - name: Publish Test Results
         if: always()
@@ -92,14 +91,13 @@ jobs:
           path: backend/build/reports/tests/test/
           retention-days: 30
 
-      # TODO: Uncomment when JaCoCo plugin is added to build.gradle
-      # - name: Publish JaCoCo Coverage Report
-      #   if: always()
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: backend-jacoco-reports
-      #     path: backend/build/reports/jacoco/
-      #     retention-days: 30
+      - name: Publish JaCoCo Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jacoco-reports
+          path: backend/build/reports/jacoco/
+          retention-days: 30
 
   build-docker:
     name: Build Backend Docker Image

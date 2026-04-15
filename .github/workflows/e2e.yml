@@ -230,7 +230,7 @@ jobs:
           cd frontend
           npm run build
         env:
-          VITE_API_BASE_URL: http://3.34.154.147:8080
+          VITE_API_BASE_URL: ${{ secrets.BACKEND_API_URL }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -278,6 +278,12 @@ jobs:
             echo "icon=✅" >> $GITHUB_OUTPUT
             echo "status=Passed" >> $GITHUB_OUTPUT
           fi
+          # Commit message: first line only, truncate 72 chars, JSON-escape
+          COMMIT_MSG=$(echo "$COMMIT_MESSAGE" | head -1 | cut -c1-72)
+          COMMIT_MSG=$(echo "$COMMIT_MSG" | sed 's/\\/\\\\/g; s/"/\\"/g')
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
 
       - name: Build deploy status text
         id: deploy-text
@@ -307,7 +313,7 @@ jobs:
                   "type": "section",
                   "fields": [
                     { "type": "mrkdwn", "text": "*Branch:*\n${{ github.ref_name }}" },
-                    { "type": "mrkdwn", "text": "*Commit:*\n${{ github.event.head_commit.message }}" },
+                    { "type": "mrkdwn", "text": "*Commit:*\n${{ steps.results.outputs.commit_msg }}" },
                     { "type": "mrkdwn", "text": "*E2E:*\n${{ steps.results.outputs.e2e == 'passed' && '✅ Passed' || '❌ Failed' }}" },
                     { "type": "mrkdwn", "text": "*Deploy:*\n${{ steps.deploy-text.outputs.text }}" }
                   ]

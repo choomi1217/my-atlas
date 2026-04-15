@@ -65,6 +65,11 @@ logging:
     root: INFO
     com.myqaweb: DEBUG
 
+# CORS configuration
+app:
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://*.cloudfront.net}
+
 # Feature configuration
 feature:
   embedding:
