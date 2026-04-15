@@ -33,6 +33,12 @@ class VersionPhaseServiceImplTest {
     @Mock
     private TestResultService testResultService;
 
+    @Mock
+    private VersionPhaseTestRunRepository versionPhaseTestRunRepository;
+
+    @Mock
+    private TestRunTestCaseRepository testRunTestCaseRepository;
+
     @InjectMocks
     private VersionPhaseServiceImpl service;
 
@@ -63,19 +69,27 @@ class VersionPhaseServiceImplTest {
         phase.setId(1L);
         phase.setVersion(version);
         phase.setPhaseName("Regression");
-        phase.setTestRun(testRun1);
         phase.setOrderIndex(1);
     }
 
     @Test
     void testAddPhase_Success() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", 1L);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(1L));
+
+        VersionPhaseTestRunEntity junction = new VersionPhaseTestRunEntity();
+        junction.setId(1L);
+        junction.setVersionPhase(phase);
+        junction.setTestRun(testRun1);
 
         when(versionRepository.findById(1L)).thenReturn(Optional.of(version));
         when(testRunRepository.findById(1L)).thenReturn(Optional.of(testRun1));
         when(versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(1L)).thenReturn(List.of());
         when(versionPhaseRepository.save(any())).thenReturn(phase);
+        when(versionPhaseTestRunRepository.save(any())).thenReturn(junction);
+        when(versionPhaseTestRunRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of(junction));
+        when(testRunTestCaseRepository.findAllByTestRunId(1L)).thenReturn(List.of());
+        when(testResultRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of());
         when(testResultService.computePhaseProgress(1L))
                 .thenReturn(new VersionDto.ProgressStats(0, 0, 0, 0, 0, 0, 0, 0));
 
@@ -85,15 +99,60 @@ class VersionPhaseServiceImplTest {
         // Then
         assertNotNull(result);
         assertEquals("Regression", result.phaseName());
+        assertNotNull(result.testRuns());
+        assertEquals(1, result.testRuns().size());
+        assertEquals(1L, result.testRuns().get(0).testRunId());
+        assertEquals("Regression", result.testRuns().get(0).testRunName());
         verify(versionRepository).findById(1L);
         verify(testRunRepository).findById(1L);
         verify(versionPhaseRepository).save(any());
+        verify(versionPhaseTestRunRepository).save(any());
+        verify(testResultService).createInitialResults(1L, 1L, List.of(1L));
+    }
+
+    @Test
+    void testAddPhase_MultipleTestRuns() {
+        // Given — 2 test runs assigned to one phase
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Full Regression", List.of(1L, 2L));
+
+        VersionPhaseTestRunEntity junction1 = new VersionPhaseTestRunEntity();
+        junction1.setId(1L);
+        junction1.setVersionPhase(phase);
+        junction1.setTestRun(testRun1);
+
+        VersionPhaseTestRunEntity junction2 = new VersionPhaseTestRunEntity();
+        junction2.setId(2L);
+        junction2.setVersionPhase(phase);
+        junction2.setTestRun(testRun2);
+
+        when(versionRepository.findById(1L)).thenReturn(Optional.of(version));
+        when(testRunRepository.findById(1L)).thenReturn(Optional.of(testRun1));
+        when(testRunRepository.findById(2L)).thenReturn(Optional.of(testRun2));
+        when(versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(1L)).thenReturn(List.of());
+        when(versionPhaseRepository.save(any())).thenReturn(phase);
+        when(versionPhaseTestRunRepository.save(any())).thenReturn(junction1);
+        when(versionPhaseTestRunRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of(junction1, junction2));
+        when(testRunTestCaseRepository.findAllByTestRunId(1L)).thenReturn(List.of());
+        when(testRunTestCaseRepository.findAllByTestRunId(2L)).thenReturn(List.of());
+        when(testResultRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of());
+        when(testResultService.computePhaseProgress(1L))
+                .thenReturn(new VersionDto.ProgressStats(0, 0, 0, 0, 0, 0, 0, 0));
+
+        // When
+        VersionDto.VersionPhaseDto result = service.addPhase(1L, request);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(2, result.testRuns().size());
+        assertEquals(0, result.totalTestCaseCount());
+        verify(versionPhaseTestRunRepository, times(2)).save(any());
+        verify(testResultService).createInitialResults(1L, 1L, List.of(1L, 2L));
     }
 
     @Test
     void testAddPhase_VersionNotFound() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", 1L);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L));
 
         when(versionRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -105,7 +164,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testAddPhase_TestRunNotFound() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", 999L);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(999L));
 
         when(versionRepository.findById(1L)).thenReturn(Optional.of(version));
         when(testRunRepository.findById(999L)).thenReturn(Optional.empty());
@@ -116,20 +175,22 @@ class VersionPhaseServiceImplTest {
     }
 
     @Test
-    void testUpdatePhase_ChangeTestRun() {
-        // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", 2L);
+    void testUpdatePhase_ChangeTestRuns() {
+        // Given — replace test runs: [1] -> [2]
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(2L));
 
-        VersionPhaseEntity updated = new VersionPhaseEntity();
-        updated.setId(1L);
-        updated.setVersion(version);
-        updated.setPhaseName("Regression");
-        updated.setTestRun(testRun2); // Changed test run
-        updated.setOrderIndex(1);
+        VersionPhaseTestRunEntity newJunction = new VersionPhaseTestRunEntity();
+        newJunction.setId(2L);
+        newJunction.setVersionPhase(phase);
+        newJunction.setTestRun(testRun2);
 
         when(versionPhaseRepository.findById(1L)).thenReturn(Optional.of(phase));
         when(testRunRepository.findById(2L)).thenReturn(Optional.of(testRun2));
-        when(versionPhaseRepository.save(any())).thenReturn(updated);
+        when(versionPhaseRepository.save(any())).thenReturn(phase);
+        when(versionPhaseTestRunRepository.save(any())).thenReturn(newJunction);
+        when(versionPhaseTestRunRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of(newJunction));
+        when(testRunTestCaseRepository.findAllByTestRunId(2L)).thenReturn(List.of());
+        when(testResultRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of());
         when(testResultService.computePhaseProgress(1L))
                 .thenReturn(new VersionDto.ProgressStats(0, 0, 0, 0, 0, 0, 0, 0));
 
@@ -138,15 +199,18 @@ class VersionPhaseServiceImplTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(2L, result.testRunId());
+        assertEquals(1, result.testRuns().size());
+        assertEquals(2L, result.testRuns().get(0).testRunId());
+        verify(versionPhaseTestRunRepository).deleteAllByVersionPhaseId(1L);
         verify(testRunRepository).findById(2L);
+        verify(versionPhaseTestRunRepository).save(any());
         verify(versionPhaseRepository).save(any());
     }
 
     @Test
     void testUpdatePhase_PhaseNotFound() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", 1L);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L));
 
         when(versionPhaseRepository.findById(999L)).thenReturn(Optional.empty());
 

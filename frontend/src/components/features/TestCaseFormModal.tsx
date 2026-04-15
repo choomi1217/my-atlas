@@ -24,7 +24,7 @@ interface TestCaseFormData {
 interface TestCaseFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: TestCaseFormData) => Promise<void>;
+  onSubmit: (data: TestCaseFormData) => Promise<TestCase | void>;
   initialData?: TestCase | null;
   pathDisplay: string;
 }
@@ -40,6 +40,105 @@ const emptyForm: TestCaseFormData = {
   steps: [{ order: 1, action: '', expected: '' }],
   expectedResult: '',
 };
+
+/** Dropdown button to insert `image #N` text into an input field */
+function ImageInsertButton({
+  images,
+  onInsert,
+}: {
+  images: TestCaseImage[];
+  onInsert: (text: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  if (images.length === 0) return null;
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="px-1.5 py-1 text-gray-400 hover:text-indigo-600 text-sm flex-shrink-0"
+        title="Insert image reference"
+      >
+        📎
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[200px]">
+          {images.map((img) => (
+            <button
+              key={img.id}
+              type="button"
+              onClick={() => {
+                onInsert(`image #${img.orderIndex}`);
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 flex items-center gap-2"
+            >
+              <span className="font-mono text-indigo-600 flex-shrink-0">
+                image #{img.orderIndex}
+              </span>
+              <span className="text-gray-400 truncate text-xs">
+                {img.originalName}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Render hoverable badges for `image #N` references found in text */
+function ImageRefPreview({
+  text,
+  images,
+  onHover,
+  onLeave,
+}: {
+  text: string;
+  images: TestCaseImage[];
+  onHover: (img: TestCaseImage, e: React.MouseEvent) => void;
+  onLeave: () => void;
+}) {
+  if (!text || images.length === 0) return null;
+  const refs = text.match(/image #(\d+)/g);
+  if (!refs) return null;
+
+  const matched = refs
+    .map((ref) => {
+      const idx = parseInt(ref.replace('image #', ''), 10);
+      return images.find((img) => img.orderIndex === idx);
+    })
+    .filter(Boolean) as TestCaseImage[];
+
+  if (matched.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-0.5">
+      {matched.map((img) => (
+        <span
+          key={img.id}
+          className="text-xs font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded cursor-pointer hover:bg-indigo-100 transition-colors"
+          onMouseEnter={(e) => onHover(img, e)}
+          onMouseLeave={onLeave}
+        >
+          image #{img.orderIndex}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export default function TestCaseFormModal({
   isOpen,
@@ -72,41 +171,58 @@ export default function TestCaseFormModal({
             : [{ order: 1, action: '', expected: '' }],
         expectedResult: initialData.expectedResult || '',
       });
-      setImages(initialData.images || []);
+      // BUG-2 fix: always fetch images from API (not stale initialData.images)
+      if (initialData.id) {
+        testCaseImageApi
+          .getByTestCaseId(initialData.id)
+          .then(setImages)
+          .catch(() => setImages([]));
+      } else {
+        setImages([]);
+      }
     } else {
       setForm(emptyForm);
       setImages([]);
     }
   }, [initialData, isOpen]);
 
-  const handleImageUpload = useCallback(async (files: FileList | null) => {
-    if (!files || files.length === 0 || !initialData?.id) return;
-    setUploadingImage(true);
-    try {
-      for (const file of Array.from(files)) {
-        const uploaded = await featureImageApi.upload(file);
-        const linked = await testCaseImageApi.addImage(
-          initialData.id,
-          uploaded.filename,
-          uploaded.originalName
-        );
-        setImages((prev) => [...prev, linked]);
+  const handleImageUpload = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0 || !initialData?.id) return;
+      setUploadingImage(true);
+      try {
+        for (const file of Array.from(files)) {
+          const uploaded = await featureImageApi.upload(file);
+          const linked = await testCaseImageApi.addImage(
+            initialData.id,
+            uploaded.filename,
+            uploaded.originalName
+          );
+          setImages((prev) => [...prev, linked]);
+        }
+      } finally {
+        setUploadingImage(false);
       }
-    } finally {
-      setUploadingImage(false);
-    }
-  }, [initialData?.id]);
+    },
+    [initialData?.id]
+  );
 
-  const handleRemoveImage = useCallback(async (imageId: number) => {
-    if (!initialData?.id) return;
-    await testCaseImageApi.removeImage(initialData.id, imageId);
-    setImages((prev) => prev.filter((img) => img.id !== imageId));
-  }, [initialData?.id]);
+  const handleRemoveImage = useCallback(
+    async (imageId: number) => {
+      if (!initialData?.id) return;
+      await testCaseImageApi.removeImage(initialData.id, imageId);
+      setImages((prev) => prev.filter((img) => img.id !== imageId));
+    },
+    [initialData?.id]
+  );
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    handleImageUpload(e.dataTransfer.files);
-  }, [handleImageUpload]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      handleImageUpload(e.dataTransfer.files);
+    },
+    [handleImageUpload]
+  );
 
   const handleImageHover = (img: TestCaseImage, e: React.MouseEvent) => {
     setHoveredImage(img);
@@ -121,17 +237,42 @@ export default function TestCaseFormModal({
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await onSubmit(form);
-      onClose();
+      const result = await onSubmit(form);
+      if (!result) {
+        // Edit mode — close modal
+        onClose();
+      }
+      // Create mode — parent sets modalEditData, modal stays open for images
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const updateStep = (idx: number, field: 'action' | 'expected', value: string) => {
+  const updateStep = (
+    idx: number,
+    field: 'action' | 'expected',
+    value: string
+  ) => {
     const updated = [...form.steps];
     updated[idx] = { ...updated[idx], [field]: value };
     setForm({ ...form, steps: updated });
+  };
+
+  const insertImageRef = (
+    idx: number,
+    field: 'action' | 'expected',
+    text: string
+  ) => {
+    const current = form.steps[idx][field];
+    updateStep(idx, field, current ? `${current} ${text}` : text);
+  };
+
+  const insertImageRefToExpectedResult = (text: string) => {
+    const current = form.expectedResult;
+    setForm({
+      ...form,
+      expectedResult: current ? `${current} ${text}` : text,
+    });
   };
 
   const addStep = () => {
@@ -285,8 +426,8 @@ export default function TestCaseFormModal({
               />
             </div>
 
-            {/* Images (only shown in edit mode) */}
-            {isEdit && initialData?.id && (
+            {/* Images — visible when TC has an ID (edit mode or after create) */}
+            {initialData?.id && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Images
@@ -368,24 +509,58 @@ export default function TestCaseFormModal({
                       #{step.order}
                     </span>
                     <div className="flex-1 space-y-1">
-                      <input
-                        type="text"
-                        value={step.action}
-                        onChange={(e) => updateStep(idx, 'action', e.target.value)}
-                        placeholder="Action..."
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm
-                                   focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                      />
-                      <input
-                        type="text"
-                        value={step.expected}
-                        onChange={(e) =>
-                          updateStep(idx, 'expected', e.target.value)
-                        }
-                        placeholder="Expected..."
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm
-                                   focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                      />
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={step.action}
+                            onChange={(e) =>
+                              updateStep(idx, 'action', e.target.value)
+                            }
+                            placeholder="Action..."
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm
+                                       focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                          <ImageInsertButton
+                            images={images}
+                            onInsert={(text) =>
+                              insertImageRef(idx, 'action', text)
+                            }
+                          />
+                        </div>
+                        <ImageRefPreview
+                          text={step.action}
+                          images={images}
+                          onHover={handleImageHover}
+                          onLeave={() => setHoveredImage(null)}
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={step.expected}
+                            onChange={(e) =>
+                              updateStep(idx, 'expected', e.target.value)
+                            }
+                            placeholder="Expected..."
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm
+                                       focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                          <ImageInsertButton
+                            images={images}
+                            onInsert={(text) =>
+                              insertImageRef(idx, 'expected', text)
+                            }
+                          />
+                        </div>
+                        <ImageRefPreview
+                          text={step.expected}
+                          images={images}
+                          onHover={handleImageHover}
+                          onLeave={() => setHoveredImage(null)}
+                        />
+                      </div>
                     </div>
                     {form.steps.length > 1 && (
                       <button
@@ -413,15 +588,27 @@ export default function TestCaseFormModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Expected Result
               </label>
-              <textarea
-                value={form.expectedResult}
-                onChange={(e) =>
-                  setForm({ ...form, expectedResult: e.target.value })
-                }
-                placeholder="Expected result..."
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
-                           focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              <div className="flex items-start gap-1">
+                <textarea
+                  value={form.expectedResult}
+                  onChange={(e) =>
+                    setForm({ ...form, expectedResult: e.target.value })
+                  }
+                  placeholder="Expected result..."
+                  rows={2}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm
+                             focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+                <ImageInsertButton
+                  images={images}
+                  onInsert={insertImageRefToExpectedResult}
+                />
+              </div>
+              <ImageRefPreview
+                text={form.expectedResult}
+                images={images}
+                onHover={handleImageHover}
+                onLeave={() => setHoveredImage(null)}
               />
             </div>
           </div>

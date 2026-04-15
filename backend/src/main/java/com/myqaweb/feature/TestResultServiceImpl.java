@@ -7,7 +7,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Service implementation for TestResult operations.
@@ -30,31 +32,37 @@ public class TestResultServiceImpl implements TestResultService {
     @Override
     @Transactional
     public void createInitialResults(Long versionId, Long phaseId, Long testRunId) {
-        // Fetch all test cases for this test run
-        List<TestRunTestCaseEntity> testRunTestCases = testRunTestCaseRepository.findAllByTestRunId(testRunId);
+        createInitialResults(versionId, phaseId, List.of(testRunId));
+    }
 
-        // Create initial test results for each test case
+    @Override
+    @Transactional
+    public void createInitialResults(Long versionId, Long phaseId, List<Long> testRunIds) {
+        Set<Long> seenTestCaseIds = new HashSet<>();
         List<TestResultEntity> results = new ArrayList<>();
-        for (TestRunTestCaseEntity rtc : testRunTestCases) {
-            TestResultEntity result = new TestResultEntity();
-            // Set entity references
-            result.setVersion(new VersionEntity());
-            result.getVersion().setId(versionId);
-            result.setVersionPhase(new VersionPhaseEntity());
-            result.getVersionPhase().setId(phaseId);
-            result.setTestCase(rtc.getTestCase());
-            // Set status
-            result.setStatus(RunResultStatus.UNTESTED);
-            result.setComment(null);
-            result.setExecutedAt(null);
 
-            results.add(result);
+        for (Long testRunId : testRunIds) {
+            List<TestRunTestCaseEntity> testRunTestCases = testRunTestCaseRepository.findAllByTestRunId(testRunId);
+            for (TestRunTestCaseEntity rtc : testRunTestCases) {
+                if (seenTestCaseIds.add(rtc.getTestCase().getId())) {
+                    TestResultEntity result = new TestResultEntity();
+                    result.setVersion(new VersionEntity());
+                    result.getVersion().setId(versionId);
+                    result.setVersionPhase(new VersionPhaseEntity());
+                    result.getVersionPhase().setId(phaseId);
+                    result.setTestCase(rtc.getTestCase());
+                    result.setStatus(RunResultStatus.UNTESTED);
+                    result.setComment(null);
+                    result.setExecutedAt(null);
+                    results.add(result);
+                }
+            }
         }
 
-        // Bulk save all results
         if (!results.isEmpty()) {
             testResultRepository.saveAll(results);
-            log.info("Created {} initial test results for version {} phase {}", results.size(), versionId, phaseId);
+            log.info("Created {} initial test results for version {} phase {} from {} runs",
+                    results.size(), versionId, phaseId, testRunIds.size());
         }
     }
 

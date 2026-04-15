@@ -19,6 +19,7 @@ import { Breadcrumb } from '@/components/features/Breadcrumb';
 import { SegmentTreeView } from '@/components/features/SegmentTreeView';
 import TestCaseFormModal from '@/components/features/TestCaseFormModal';
 import ConfirmDialog from '@/components/features/ConfirmDialog';
+import ImageRefText from '@/components/features/ImageRefText';
 
 export default function TestCasePage() {
   const { companyId, productId } = useParams<{
@@ -227,7 +228,7 @@ export default function TestCasePage() {
     preconditions: string;
     steps: { order: number; action: string; expected: string }[];
     expectedResult: string;
-  }) => {
+  }): Promise<TestCase | void> => {
     if (!product) return;
 
     if (modalEditData) {
@@ -248,7 +249,7 @@ export default function TestCasePage() {
       );
       setTestCases(testCases.map((tc) => (tc.id === modalEditData.id ? updated : tc)));
     } else {
-      // Create
+      // Create — return TC to keep modal open for image upload
       const tc = await testCaseApi.create(
         product.id,
         data.title,
@@ -263,6 +264,8 @@ export default function TestCasePage() {
         data.expectedResult || undefined
       );
       setTestCases([...testCases, tc]);
+      setModalEditData(tc); // Switch modal to edit mode for image upload
+      return tc;
     }
   };
 
@@ -304,7 +307,7 @@ export default function TestCasePage() {
           {/* Two-column layout: Path tree (left) + TestCase list (right) */}
           <div className="flex gap-6 items-start">
             {/* Left: Path Tree (sticky) */}
-            <div className="w-72 flex-shrink-0 sticky top-0 self-start max-h-[calc(100vh-12rem)] overflow-y-auto">
+            <div className="w-72 flex-shrink-0">
               <div className="bg-white p-4 rounded-lg shadow">
                 <h3 className="font-bold text-sm text-gray-700 mb-3">Path</h3>
                 <SegmentTreeView
@@ -460,11 +463,11 @@ export default function TestCasePage() {
                                       {tc.steps.map((step, idx) => (
                                         <li key={idx}>
                                           <span className="font-semibold">
-                                            {step.action}
+                                            <ImageRefText text={step.action} images={tc.images} />
                                           </span>
                                           <br />
                                           <span className="text-gray-600">
-                                            Expected: {step.expected}
+                                            Expected: <ImageRefText text={step.expected} images={tc.images} />
                                           </span>
                                         </li>
                                       ))}
@@ -478,7 +481,7 @@ export default function TestCasePage() {
                                       Expected Result:
                                     </label>
                                     <p className="mt-1 text-gray-700">
-                                      {tc.expectedResult}
+                                      <ImageRefText text={tc.expectedResult} images={tc.images} />
                                     </p>
                                   </div>
                                 )}

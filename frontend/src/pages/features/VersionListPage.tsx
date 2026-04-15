@@ -57,7 +57,7 @@ export default function VersionListPage() {
     name: string;
     description: string;
     releaseDate: string;
-    phases: Array<{ phaseName: string; testRunId: number }>;
+    phases: Array<{ phaseName: string; testRunIds: number[] }>;
   }) => {
     if (!productId) return;
     try {

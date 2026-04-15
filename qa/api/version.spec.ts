@@ -111,7 +111,7 @@ test.describe('Version API E2E', () => {
         phases: [
           {
             phaseName: '1차 테스트',
-            testRunId: testRunId,
+            testRunIds: [testRunId],
             orderIndex: 1,
           },
         ],
@@ -149,7 +149,7 @@ test.describe('Version API E2E', () => {
         phases: [
           {
             phaseName: '1차 테스트',
-            testRunId: testRunId,
+            testRunIds: [testRunId],
             orderIndex: 1,
           },
         ],
@@ -181,7 +181,7 @@ test.describe('Version API E2E', () => {
         phases: [
           {
             phaseName: '1차 테스트',
-            testRunId: testRunId,
+            testRunIds: [testRunId],
             orderIndex: 1,
           },
         ],
@@ -282,7 +282,7 @@ test.describe('Version API E2E', () => {
         phases: [
           {
             phaseName: '1차 테스트',
-            testRunId: deleteTestRunId,
+            testRunIds: [deleteTestRunId],
             orderIndex: 1,
           },
         ],
@@ -329,7 +329,7 @@ test.describe('Version API E2E', () => {
         phases: [
           {
             phaseName: '1차 테스트',
-            testRunId: dupTestRunId,
+            testRunIds: [dupTestRunId],
             orderIndex: 1,
           },
         ],
@@ -347,7 +347,7 @@ test.describe('Version API E2E', () => {
         phases: [
           {
             phaseName: '1차 테스트',
-            testRunId: dupTestRunId,
+            testRunIds: [dupTestRunId],
             orderIndex: 1,
           },
         ],

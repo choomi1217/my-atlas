@@ -27,10 +27,6 @@ public class VersionPhaseEntity {
     @Column(nullable = false, length = 100)
     private String phaseName;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "test_run_id", nullable = false)
-    private TestRunEntity testRun;
-
     @Column(nullable = false)
     private Integer orderIndex;
 

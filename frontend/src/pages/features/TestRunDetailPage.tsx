@@ -5,6 +5,7 @@ import { testRunApi, testCaseApi, segmentApi, companyApi, productApi } from '@/a
 import { Breadcrumb } from '@/components/features/Breadcrumb';
 import ConfirmDialog from '@/components/features/ConfirmDialog';
 import TestCaseGroupSelector from '@/components/features/TestCaseGroupSelector';
+import ImageRefText from '@/components/features/ImageRefText';
 
 export default function TestRunDetailPage() {
   const { companyId, productId, testRunId } = useParams<{
@@ -31,6 +32,9 @@ export default function TestRunDetailPage() {
 
   // Delete
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  // TC expand
+  const [expandedTcId, setExpandedTcId] = useState<number | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -247,17 +251,126 @@ export default function TestRunDetailPage() {
                           {tcs.map((tc) => (
                             <div
                               key={tc.id}
-                              className="px-4 py-2 flex items-center gap-3"
+                              className={`border-l-4 ${
+                                tc.priority === 'HIGH'
+                                  ? 'border-l-red-400'
+                                  : tc.priority === 'MEDIUM'
+                                  ? 'border-l-yellow-400'
+                                  : 'border-l-gray-300'
+                              }`}
                             >
-                              <span className="text-xs text-gray-400 flex-shrink-0 w-10">
-                                T{tc.id}
-                              </span>
-                              <span className="text-sm text-gray-800">
-                                {tc.title}
-                              </span>
-                              <span className="ml-auto text-xs text-gray-400">
-                                {tc.priority} / {tc.testType}
-                              </span>
+                              <div
+                                onClick={() =>
+                                  setExpandedTcId(
+                                    expandedTcId === tc.id ? null : tc.id
+                                  )
+                                }
+                                className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition"
+                              >
+                                <span className="text-xs text-gray-400 flex-shrink-0 w-10">
+                                  T{tc.id}
+                                </span>
+                                <span className="text-sm text-gray-800 font-medium">
+                                  {tc.title}
+                                </span>
+                                <span className="ml-auto text-xs text-gray-400 flex-shrink-0">
+                                  {tc.priority} / {tc.testType}
+                                </span>
+                                <span className="text-gray-400 text-xs flex-shrink-0">
+                                  {expandedTcId === tc.id ? '▲' : '▼'}
+                                </span>
+                              </div>
+
+                              {/* Expanded Details */}
+                              {expandedTcId === tc.id && (
+                                <div className="px-4 py-3 bg-gray-50 border-t text-sm space-y-2">
+                                  {tc.description && (
+                                    <div>
+                                      <span className="font-semibold text-gray-700">
+                                        Description:
+                                      </span>
+                                      <p className="mt-0.5 text-gray-600">
+                                        {tc.description}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {tc.preconditions && (
+                                    <div>
+                                      <span className="font-semibold text-gray-700">
+                                        Preconditions:
+                                      </span>
+                                      <p className="mt-0.5 text-gray-600">
+                                        {tc.preconditions}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {tc.steps && tc.steps.length > 0 && (
+                                    <div>
+                                      <span className="font-semibold text-gray-700">
+                                        Steps:
+                                      </span>
+                                      <ol className="mt-0.5 ml-4 list-decimal space-y-1">
+                                        {tc.steps.map((step, idx) => (
+                                          <li key={idx}>
+                                            <span className="font-medium">
+                                              <ImageRefText text={step.action} images={tc.images} />
+                                            </span>
+                                            {step.expected && (
+                                              <>
+                                                <br />
+                                                <span className="text-gray-500">
+                                                  Expected: <ImageRefText text={step.expected} images={tc.images} />
+                                                </span>
+                                              </>
+                                            )}
+                                          </li>
+                                        ))}
+                                      </ol>
+                                    </div>
+                                  )}
+
+                                  {tc.expectedResult && (
+                                    <div>
+                                      <span className="font-semibold text-gray-700">
+                                        Expected Result:
+                                      </span>
+                                      <p className="mt-0.5 text-gray-600">
+                                        <ImageRefText text={tc.expectedResult} images={tc.images} />
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {tc.images && tc.images.length > 0 && (
+                                    <div>
+                                      <span className="font-semibold text-gray-700">
+                                        Images:
+                                      </span>
+                                      <div className="flex flex-wrap gap-2 mt-0.5">
+                                        {tc.images.map((img) => (
+                                          <span
+                                            key={img.id}
+                                            className="text-xs font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded"
+                                          >
+                                            image #{img.orderIndex}{' '}
+                                            <span className="text-gray-400">
+                                              {img.originalName}
+                                            </span>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="text-xs text-gray-400 pt-1">
+                                    Created:{' '}
+                                    {new Date(
+                                      tc.createdAt
+                                    ).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

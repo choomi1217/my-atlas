@@ -38,6 +38,12 @@ class VersionServiceImplTest {
     @Mock
     private TestResultService testResultService;
 
+    @Mock
+    private VersionPhaseTestRunRepository versionPhaseTestRunRepository;
+
+    @Mock
+    private TestRunTestCaseRepository testRunTestCaseRepository;
+
     @InjectMocks
     private VersionServiceImpl service;
 
@@ -71,7 +77,7 @@ class VersionServiceImplTest {
     @Test
     void testCreateVersion_Success() {
         // Given
-        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", 1L);
+        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", List.of(1L));
         VersionDto.CreateVersionRequest request = new VersionDto.CreateVersionRequest(
                 1L, "v9", "Release v9", LocalDate.of(2026, 5, 1), List.of(phaseRequest)
         );
@@ -89,15 +95,23 @@ class VersionServiceImplTest {
         savedPhase.setId(1L);
         savedPhase.setVersion(savedVersion);
         savedPhase.setPhaseName("1차 테스트");
-        savedPhase.setTestRun(testRun);
         savedPhase.setOrderIndex(1);
+
+        VersionPhaseTestRunEntity junction = new VersionPhaseTestRunEntity();
+        junction.setId(1L);
+        junction.setVersionPhase(savedPhase);
+        junction.setTestRun(testRun);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(versionRepository.save(any())).thenReturn(savedVersion);
         when(versionRepository.findById(1L)).thenReturn(Optional.of(savedVersion));
         when(testRunRepository.findById(1L)).thenReturn(Optional.of(testRun));
         when(versionPhaseRepository.save(any())).thenReturn(savedPhase);
+        when(versionPhaseTestRunRepository.save(any())).thenReturn(junction);
         when(versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(1L)).thenReturn(List.of(savedPhase));
+        when(versionPhaseTestRunRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of(junction));
+        when(testRunTestCaseRepository.findAllByTestRunId(1L)).thenReturn(List.of());
+        when(testResultRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of());
         when(testResultService.computeVersionProgress(1L))
                 .thenReturn(new VersionDto.ProgressStats(0, 0, 0, 0, 0, 0, 0, 0));
         when(testResultService.computePhaseProgress(1L))
@@ -111,12 +125,13 @@ class VersionServiceImplTest {
         assertEquals("v9", result.name());
         verify(productRepository).findById(1L);
         verify(versionRepository).save(any());
+        verify(versionPhaseTestRunRepository).save(any());
     }
 
     @Test
     void testCreateVersion_ProductNotFound() {
         // Given
-        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", 1L);
+        VersionDto.PhaseRequest phaseRequest = new VersionDto.PhaseRequest("1차 테스트", List.of(1L));
         VersionDto.CreateVersionRequest request = new VersionDto.CreateVersionRequest(
                 999L, "v9", "Release v9", LocalDate.of(2026, 5, 1), List.of(phaseRequest)
         );
@@ -222,8 +237,12 @@ class VersionServiceImplTest {
         originalPhase.setId(1L);
         originalPhase.setVersion(original);
         originalPhase.setPhaseName("1차 테스트");
-        originalPhase.setTestRun(testRun);
         originalPhase.setOrderIndex(1);
+
+        VersionPhaseTestRunEntity originalJunction = new VersionPhaseTestRunEntity();
+        originalJunction.setId(1L);
+        originalJunction.setVersionPhase(originalPhase);
+        originalJunction.setTestRun(testRun);
 
         VersionEntity newVersion = new VersionEntity();
         newVersion.setId(2L);
@@ -239,8 +258,12 @@ class VersionServiceImplTest {
         copiedPhase.setId(2L);
         copiedPhase.setVersion(newVersion);
         copiedPhase.setPhaseName("1차 테스트");
-        copiedPhase.setTestRun(testRun);
         copiedPhase.setOrderIndex(1);
+
+        VersionPhaseTestRunEntity copiedJunction = new VersionPhaseTestRunEntity();
+        copiedJunction.setId(2L);
+        copiedJunction.setVersionPhase(copiedPhase);
+        copiedJunction.setTestRun(testRun);
 
         VersionDto.VersionCopyRequest request = new VersionDto.VersionCopyRequest(
                 "v9-延期", LocalDate.of(2026, 5, 15)
@@ -253,6 +276,11 @@ class VersionServiceImplTest {
                 .thenReturn(List.of(originalPhase));
         when(versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(2L)).thenReturn(List.of(copiedPhase));
         when(versionPhaseRepository.save(any())).thenReturn(copiedPhase);
+        when(versionPhaseTestRunRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of(originalJunction));
+        when(versionPhaseTestRunRepository.findAllByVersionPhaseId(2L)).thenReturn(List.of(copiedJunction));
+        when(versionPhaseTestRunRepository.save(any())).thenReturn(copiedJunction);
+        when(testRunTestCaseRepository.findAllByTestRunId(1L)).thenReturn(List.of());
+        when(testResultRepository.findAllByVersionPhaseId(2L)).thenReturn(List.of());
         when(testResultService.computeVersionProgress(2L))
                 .thenReturn(new VersionDto.ProgressStats(0, 0, 0, 0, 0, 0, 0, 0));
         when(testResultService.computePhaseProgress(2L))
@@ -268,6 +296,7 @@ class VersionServiceImplTest {
         assertEquals(LocalDate.of(2026, 5, 15), result.releaseDate());
         verify(versionRepository).save(any());
         verify(versionPhaseRepository).save(any());
+        verify(versionPhaseTestRunRepository).save(any());
     }
 
     @Test
@@ -326,8 +355,12 @@ class VersionServiceImplTest {
         originalPhase.setId(1L);
         originalPhase.setVersion(original);
         originalPhase.setPhaseName("Regression");
-        originalPhase.setTestRun(testRun);
         originalPhase.setOrderIndex(1);
+
+        VersionPhaseTestRunEntity originalJunction = new VersionPhaseTestRunEntity();
+        originalJunction.setId(1L);
+        originalJunction.setVersionPhase(originalPhase);
+        originalJunction.setTestRun(testRun);
 
         VersionEntity copied = new VersionEntity();
         copied.setId(2L);
@@ -342,8 +375,12 @@ class VersionServiceImplTest {
         copiedPhase.setId(2L);
         copiedPhase.setVersion(copied);
         copiedPhase.setPhaseName("Regression");
-        copiedPhase.setTestRun(testRun);
         copiedPhase.setOrderIndex(1);
+
+        VersionPhaseTestRunEntity copiedJunction = new VersionPhaseTestRunEntity();
+        copiedJunction.setId(2L);
+        copiedJunction.setVersionPhase(copiedPhase);
+        copiedJunction.setTestRun(testRun);
 
         VersionDto.VersionCopyRequest request = new VersionDto.VersionCopyRequest(
                 "v9-copy", LocalDate.of(2026, 5, 15)
@@ -357,6 +394,11 @@ class VersionServiceImplTest {
         when(versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(2L))
                 .thenReturn(List.of(copiedPhase));
         when(versionPhaseRepository.save(any())).thenReturn(copiedPhase);
+        when(versionPhaseTestRunRepository.findAllByVersionPhaseId(1L)).thenReturn(List.of(originalJunction));
+        when(versionPhaseTestRunRepository.findAllByVersionPhaseId(2L)).thenReturn(List.of(copiedJunction));
+        when(versionPhaseTestRunRepository.save(any())).thenReturn(copiedJunction);
+        when(testRunTestCaseRepository.findAllByTestRunId(1L)).thenReturn(List.of());
+        when(testResultRepository.findAllByVersionPhaseId(2L)).thenReturn(List.of());
         when(testResultService.computeVersionProgress(2L))
                 .thenReturn(new VersionDto.ProgressStats(0, 0, 0, 0, 0, 0, 0, 0));
         when(testResultService.computePhaseProgress(2L))
@@ -368,8 +410,9 @@ class VersionServiceImplTest {
         // Then
         assertNotNull(result);
         assertEquals(1, result.phases().size());
-        // Verify phase references same TestRun
-        assertEquals(testRun.getId(), result.phases().get(0).testRunId());
+        // Verify phase references same TestRun via testRuns list
+        assertEquals(1, result.phases().get(0).testRuns().size());
+        assertEquals(testRun.getId(), result.phases().get(0).testRuns().get(0).testRunId());
     }
 
     @Test

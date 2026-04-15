@@ -25,7 +25,8 @@ interface TestRun {
 interface Phase {
   id: number;
   phaseName: string;
-  testRunId: number;
+  testRuns: { testRunId: number; testRunName: string; testCaseCount: number }[];
+  totalTestCaseCount: number;
 }
 
 interface Version {
@@ -172,7 +173,7 @@ test.describe('Version Management UI E2E', () => {
         phases: [
           {
             phaseName: '1차 테스트',
-            testRunId,
+            testRunIds: [testRunId],
           },
         ],
       }
@@ -250,7 +251,7 @@ test.describe('Version Management UI E2E', () => {
         name: 'v-expired-ui-test',
         releaseDate: pastDate,
         description: 'Expired version',
-        phases: [{ phaseName: 'Phase 1', testRunId }],
+        phases: [{ phaseName: 'Phase 1', testRunIds: [testRunId] }],
       }
     );
     const expiredVersionId = warnResponse.data.data.id;
