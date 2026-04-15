@@ -193,13 +193,13 @@ test.describe.serial('TestRun UI E2E', () => {
   test('TestRunDetailPage - TC 행 클릭 → 상세 정보 확장/축소', async () => {
     await goToTestRunDetail(testRunId);
 
-    // Find a test case row and click it to expand
-    const tcRow = page.locator('tr:has-text("E2E TR UI TC"), [data-testid*="tc-row"], li:has-text("E2E TR UI TC")').first();
+    // Find a test case row (rendered as div with TC title) and click to expand
+    const tcRow = page.locator('div.cursor-pointer:has-text("E2E TR UI TC")').first();
     await expect(tcRow).toBeVisible({ timeout: 10000 });
     await tcRow.click();
 
-    // Expanded content should be visible (look for step details, description, or expected result)
-    const expandedContent = page.locator('text=/Steps|Expected Result|Description|Priority|Test Type/i').first();
+    // Expanded content should be visible
+    const expandedContent = page.locator('text=/Steps:|Expected Result:|Description:/').first();
     await expect(expandedContent).toBeVisible({ timeout: 5000 });
 
     // Click again to collapse
