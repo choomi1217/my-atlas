@@ -7,6 +7,172 @@ import ConfirmDialog from '@/components/features/ConfirmDialog';
 import TestCaseGroupSelector from '@/components/features/TestCaseGroupSelector';
 import ImageRefText from '@/components/features/ImageRefText';
 
+interface PathTreeNode {
+  segmentIds: number[];
+  segmentNames: string[];
+  children: PathTreeNode[];
+  testCases: TestCase[];
+  fullPath: number[];
+}
+
+function countTreeTcs(node: PathTreeNode): number {
+  return node.testCases.length + node.children.reduce((sum, c) => sum + countTreeTcs(c), 0);
+}
+
+function RunTcRow({
+  tc,
+  expandedTcId,
+  setExpandedTcId,
+}: {
+  tc: TestCase;
+  expandedTcId: number | null;
+  setExpandedTcId: (id: number | null) => void;
+}) {
+  return (
+    <div
+      className={`border-l-4 ${
+        tc.priority === 'HIGH'
+          ? 'border-l-red-400'
+          : tc.priority === 'MEDIUM'
+          ? 'border-l-yellow-400'
+          : 'border-l-gray-300'
+      }`}
+    >
+      <div
+        onClick={() => setExpandedTcId(expandedTcId === tc.id ? null : tc.id)}
+        className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition"
+      >
+        <span className="text-xs text-gray-400 flex-shrink-0 w-10">T{tc.id}</span>
+        <span className="text-sm text-gray-800 font-medium">{tc.title}</span>
+        <span className="ml-auto text-xs text-gray-400 flex-shrink-0">
+          {tc.priority} / {tc.testType}
+        </span>
+        <span className="text-gray-400 text-xs flex-shrink-0">
+          {expandedTcId === tc.id ? '▲' : '▼'}
+        </span>
+      </div>
+
+      {expandedTcId === tc.id && (
+        <div className="px-4 py-3 bg-gray-50 border-t text-sm space-y-2">
+          {tc.description && (
+            <div>
+              <span className="font-semibold text-gray-700">Description:</span>
+              <p className="mt-0.5 text-gray-600">{tc.description}</p>
+            </div>
+          )}
+          {tc.preconditions && (
+            <div>
+              <span className="font-semibold text-gray-700">Preconditions:</span>
+              <p className="mt-0.5 text-gray-600">{tc.preconditions}</p>
+            </div>
+          )}
+          {tc.steps && tc.steps.length > 0 && (
+            <div>
+              <span className="font-semibold text-gray-700">Steps:</span>
+              <ol className="mt-0.5 ml-4 list-decimal space-y-1">
+                {tc.steps.map((step, idx) => (
+                  <li key={idx}>
+                    <span className="font-medium">
+                      <ImageRefText text={step.action} images={tc.images} />
+                    </span>
+                    {step.expected && (
+                      <>
+                        <br />
+                        <span className="text-gray-500">
+                          Expected: <ImageRefText text={step.expected} images={tc.images} />
+                        </span>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {tc.expectedResult && (
+            <div>
+              <span className="font-semibold text-gray-700">Expected Result:</span>
+              <p className="mt-0.5 text-gray-600">
+                <ImageRefText text={tc.expectedResult} images={tc.images} />
+              </p>
+            </div>
+          )}
+          {tc.images && tc.images.length > 0 && (
+            <div>
+              <span className="font-semibold text-gray-700">Images:</span>
+              <div className="flex flex-wrap gap-2 mt-0.5">
+                {tc.images.map((img) => (
+                  <span key={img.id} className="text-xs font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                    image #{img.orderIndex} <span className="text-gray-400">{img.originalName}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="text-xs text-gray-400 pt-1">
+            Created: {new Date(tc.createdAt).toLocaleDateString()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RunPathTreeGroup({
+  node,
+  depth,
+  expandedTcId,
+  setExpandedTcId,
+}: {
+  node: PathTreeNode;
+  depth: number;
+  expandedTcId: number | null;
+  setExpandedTcId: (id: number | null) => void;
+}) {
+  const displayName = node.segmentNames.join(' > ');
+  const tcCount = countTreeTcs(node);
+
+  return (
+    <div className={depth > 0 ? 'mt-4' : ''}>
+      <div
+        className={`flex items-center gap-2 pb-1 ${
+          depth === 0 ? 'border-b border-gray-300 mb-2' : 'mb-1'
+        }`}
+      >
+        <span className="text-gray-400 text-sm flex-shrink-0">
+          {depth === 0 ? '📁' : '📂'}
+        </span>
+        <span
+          className={`text-sm font-semibold ${
+            depth === 0 ? 'text-indigo-800' : 'text-indigo-600'
+          }`}
+        >
+          {displayName}
+        </span>
+        <span className="text-xs text-gray-400">({tcCount})</span>
+      </div>
+
+      <div className="ml-3 pl-4 border-l-2 border-indigo-200">
+        {node.testCases.length > 0 && (
+          <div className="divide-y divide-gray-100 mb-3">
+            {node.testCases.map((tc) => (
+              <RunTcRow key={tc.id} tc={tc} expandedTcId={expandedTcId} setExpandedTcId={setExpandedTcId} />
+            ))}
+          </div>
+        )}
+        {node.children.map((child) => (
+          <RunPathTreeGroup
+            key={child.fullPath.join('-')}
+            node={child}
+            depth={depth + 1}
+            expandedTcId={expandedTcId}
+            setExpandedTcId={setExpandedTcId}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function TestRunDetailPage() {
   const { companyId, productId, testRunId } = useParams<{
     companyId: string;
@@ -76,11 +242,7 @@ export default function TestRunDetailPage() {
     return map;
   }, [segments]);
 
-  const resolvePath = (path: number[]): string => {
-    return path.map((id) => segmentMap.get(id) || `#${id}`).join(' > ');
-  };
-
-  // Group included test cases by path for display
+  // Group included test cases by numeric path, then build tree
   const groupedTestCases = useMemo(() => {
     if (!testRun?.testCases) return [];
 
@@ -89,14 +251,78 @@ export default function TestRunDetailPage() {
 
     const groups = new Map<string, TestCase[]>();
     included.forEach((tc) => {
-      const key = tc.path && tc.path.length > 0 ? resolvePath(tc.path) : 'Unassigned';
+      const key = tc.path && tc.path.length > 0 ? tc.path.join(',') : '';
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(tc);
     });
 
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [testRun, allTestCases, segmentMap]);
+    const sortedKeys = [...groups.keys()].filter((k) => k !== '').sort();
+    return sortedKeys.map((key) => ({
+      path: key.split(',').map(Number),
+      testCases: groups.get(key)!,
+    }));
+  }, [testRun, allTestCases]);
+
+  const noPathTestCases = useMemo(() => {
+    if (!testRun?.testCases) return [];
+    const includedIds = new Set(testRun.testCases.map((tc) => tc.id));
+    return allTestCases.filter(
+      (tc) => includedIds.has(tc.id) && (!tc.path || tc.path.length === 0)
+    );
+  }, [testRun, allTestCases]);
+
+  // Build path tree with compression
+  const pathTree = useMemo((): PathTreeNode[] => {
+    if (groupedTestCases.length === 0) return [];
+
+    interface TrieNode {
+      segmentId: number;
+      children: Map<number, TrieNode>;
+      testCases: TestCase[];
+    }
+    const rootChildren = new Map<number, TrieNode>();
+
+    for (const group of groupedTestCases) {
+      let children = rootChildren;
+      let node: TrieNode | undefined;
+      for (const segId of group.path) {
+        if (!children.has(segId)) {
+          children.set(segId, { segmentId: segId, children: new Map(), testCases: [] });
+        }
+        node = children.get(segId)!;
+        children = node.children;
+      }
+      if (node) node.testCases = group.testCases;
+    }
+
+    function toNodes(trieChildren: Map<number, TrieNode>, parentPath: number[]): PathTreeNode[] {
+      const result: PathTreeNode[] = [];
+      for (const [segId, trie] of trieChildren) {
+        const fp = [...parentPath, segId];
+        let ptn: PathTreeNode = {
+          segmentIds: [segId],
+          segmentNames: [segmentMap.get(segId) || '?'],
+          children: toNodes(trie.children, fp),
+          testCases: trie.testCases,
+          fullPath: fp,
+        };
+        while (ptn.children.length === 1 && ptn.testCases.length === 0) {
+          const child = ptn.children[0];
+          ptn = {
+            segmentIds: [...ptn.segmentIds, ...child.segmentIds],
+            segmentNames: [...ptn.segmentNames, ...child.segmentNames],
+            children: child.children,
+            testCases: child.testCases,
+            fullPath: child.fullPath,
+          };
+        }
+        result.push(ptn);
+      }
+      return result;
+    }
+
+    return toNodes(rootChildren, []);
+  }, [groupedTestCases, segmentMap]);
 
   const enterEditMode = () => {
     if (!testRun) return;
@@ -223,159 +449,40 @@ export default function TestRunDetailPage() {
                 </span>
               </div>
 
-              {/* Grouped Test Cases */}
+              {/* Grouped Test Cases — hierarchical tree */}
               <div className="mt-6">
                 <h2 className="text-lg font-semibold text-gray-800 mb-3">
                   Included Test Cases
                 </h2>
-                {groupedTestCases.length === 0 ? (
+                {pathTree.length === 0 && noPathTestCases.length === 0 ? (
                   <p className="text-gray-500 text-sm">
                     No test cases included.
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {groupedTestCases.map(([pathName, tcs]) => (
-                      <div
-                        key={pathName}
-                        className="border border-gray-200 rounded-lg overflow-hidden"
-                      >
-                        <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-                          <span className="text-sm font-medium text-gray-600">
-                            {pathName}
-                          </span>
-                          <span className="text-xs text-gray-400 ml-2">
-                            ({tcs.length})
-                          </span>
+                    {pathTree.map((node) => (
+                      <RunPathTreeGroup
+                        key={node.fullPath.join('-')}
+                        node={node}
+                        depth={0}
+                        expandedTcId={expandedTcId}
+                        setExpandedTcId={setExpandedTcId}
+                      />
+                    ))}
+                    {noPathTestCases.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 pb-1 border-b border-gray-300 mb-2">
+                          <span className="text-gray-400 text-sm">📁</span>
+                          <span className="text-sm font-semibold text-gray-800">Unassigned</span>
+                          <span className="text-xs text-gray-400">({noPathTestCases.length})</span>
                         </div>
-                        <div className="divide-y divide-gray-100">
-                          {tcs.map((tc) => (
-                            <div
-                              key={tc.id}
-                              className={`border-l-4 ${
-                                tc.priority === 'HIGH'
-                                  ? 'border-l-red-400'
-                                  : tc.priority === 'MEDIUM'
-                                  ? 'border-l-yellow-400'
-                                  : 'border-l-gray-300'
-                              }`}
-                            >
-                              <div
-                                onClick={() =>
-                                  setExpandedTcId(
-                                    expandedTcId === tc.id ? null : tc.id
-                                  )
-                                }
-                                className="px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition"
-                              >
-                                <span className="text-xs text-gray-400 flex-shrink-0 w-10">
-                                  T{tc.id}
-                                </span>
-                                <span className="text-sm text-gray-800 font-medium">
-                                  {tc.title}
-                                </span>
-                                <span className="ml-auto text-xs text-gray-400 flex-shrink-0">
-                                  {tc.priority} / {tc.testType}
-                                </span>
-                                <span className="text-gray-400 text-xs flex-shrink-0">
-                                  {expandedTcId === tc.id ? '▲' : '▼'}
-                                </span>
-                              </div>
-
-                              {/* Expanded Details */}
-                              {expandedTcId === tc.id && (
-                                <div className="px-4 py-3 bg-gray-50 border-t text-sm space-y-2">
-                                  {tc.description && (
-                                    <div>
-                                      <span className="font-semibold text-gray-700">
-                                        Description:
-                                      </span>
-                                      <p className="mt-0.5 text-gray-600">
-                                        {tc.description}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {tc.preconditions && (
-                                    <div>
-                                      <span className="font-semibold text-gray-700">
-                                        Preconditions:
-                                      </span>
-                                      <p className="mt-0.5 text-gray-600">
-                                        {tc.preconditions}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {tc.steps && tc.steps.length > 0 && (
-                                    <div>
-                                      <span className="font-semibold text-gray-700">
-                                        Steps:
-                                      </span>
-                                      <ol className="mt-0.5 ml-4 list-decimal space-y-1">
-                                        {tc.steps.map((step, idx) => (
-                                          <li key={idx}>
-                                            <span className="font-medium">
-                                              <ImageRefText text={step.action} images={tc.images} />
-                                            </span>
-                                            {step.expected && (
-                                              <>
-                                                <br />
-                                                <span className="text-gray-500">
-                                                  Expected: <ImageRefText text={step.expected} images={tc.images} />
-                                                </span>
-                                              </>
-                                            )}
-                                          </li>
-                                        ))}
-                                      </ol>
-                                    </div>
-                                  )}
-
-                                  {tc.expectedResult && (
-                                    <div>
-                                      <span className="font-semibold text-gray-700">
-                                        Expected Result:
-                                      </span>
-                                      <p className="mt-0.5 text-gray-600">
-                                        <ImageRefText text={tc.expectedResult} images={tc.images} />
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {tc.images && tc.images.length > 0 && (
-                                    <div>
-                                      <span className="font-semibold text-gray-700">
-                                        Images:
-                                      </span>
-                                      <div className="flex flex-wrap gap-2 mt-0.5">
-                                        {tc.images.map((img) => (
-                                          <span
-                                            key={img.id}
-                                            className="text-xs font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded"
-                                          >
-                                            image #{img.orderIndex}{' '}
-                                            <span className="text-gray-400">
-                                              {img.originalName}
-                                            </span>
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  <div className="text-xs text-gray-400 pt-1">
-                                    Created:{' '}
-                                    {new Date(
-                                      tc.createdAt
-                                    ).toLocaleDateString()}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                        <div className="ml-3 pl-4 border-l-2 border-gray-200 divide-y divide-gray-100">
+                          {noPathTestCases.map((tc) => (
+                            <RunTcRow key={tc.id} tc={tc} expandedTcId={expandedTcId} setExpandedTcId={setExpandedTcId} />
                           ))}
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>

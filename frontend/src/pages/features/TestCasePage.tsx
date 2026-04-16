@@ -21,6 +21,207 @@ import TestCaseFormModal from '@/components/features/TestCaseFormModal';
 import ConfirmDialog from '@/components/features/ConfirmDialog';
 import ImageRefText from '@/components/features/ImageRefText';
 
+interface PathTreeNode {
+  segmentIds: number[];
+  segmentNames: string[];
+  children: PathTreeNode[];
+  testCases: TestCase[];
+  fullPath: number[];
+}
+
+function countTreeTcs(node: PathTreeNode): number {
+  return node.testCases.length + node.children.reduce((sum, c) => sum + countTreeTcs(c), 0);
+}
+
+function PathTreeGroup({
+  node,
+  depth,
+  expandedId,
+  setExpandedId,
+  setSelectedPath,
+  handleOpenEditModal,
+  setDeleteTarget,
+}: {
+  node: PathTreeNode;
+  depth: number;
+  expandedId: number | null;
+  setExpandedId: (id: number | null) => void;
+  setSelectedPath: (path: number[]) => void;
+  handleOpenEditModal: (tc: TestCase) => void;
+  setDeleteTarget: (t: { id: number; title: string } | null) => void;
+}) {
+  const displayName = node.segmentNames.join(' > ');
+  const tcCount = countTreeTcs(node);
+
+  return (
+    <div className={depth > 0 ? 'mt-4' : ''}>
+      {/* Segment header */}
+      <div
+        className={`flex items-center gap-2 pb-1 ${
+          depth === 0
+            ? 'border-b border-gray-300 mb-2'
+            : 'mb-1'
+        }`}
+      >
+        <span className="text-gray-400 text-sm flex-shrink-0">
+          {depth === 0 ? '📁' : '📂'}
+        </span>
+        <span
+          className={`text-sm font-semibold ${
+            depth === 0 ? 'text-gray-800' : 'text-gray-600'
+          }`}
+        >
+          {displayName}
+        </span>
+        <span className="text-xs text-gray-400">({tcCount})</span>
+      </div>
+
+      {/* Content with vertical guideline */}
+      <div className="ml-3 pl-4 border-l-2 border-gray-200">
+        {/* TC cards at this path level */}
+        {node.testCases.length > 0 && (
+          <div
+            id={`section-${node.fullPath.join('-')}`}
+            className="space-y-3 mb-3"
+          >
+            {node.testCases.map((tc) => (
+              <div
+                key={tc.id}
+                className={`group bg-white border rounded-lg shadow border-l-4 ${
+                  tc.priority === 'HIGH'
+                    ? 'border-l-red-400'
+                    : tc.priority === 'MEDIUM'
+                    ? 'border-l-yellow-400'
+                    : 'border-l-gray-300'
+                }`}
+              >
+                <div
+                  onClick={() => {
+                    const next = expandedId === tc.id ? null : tc.id;
+                    setExpandedId(next);
+                    if (next !== null) setSelectedPath(tc.path);
+                  }}
+                  className="p-4 cursor-pointer hover:bg-gray-50 transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold">{tc.title}</h4>
+                      <div className="flex gap-2 mt-2">
+                        <span
+                          className={`text-xs px-2 py-1 rounded font-medium ${
+                            tc.priority === 'HIGH'
+                              ? 'bg-red-100 text-red-700'
+                              : tc.priority === 'MEDIUM'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          {tc.priority}
+                        </span>
+                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                          {tc.testType}
+                        </span>
+                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                          {tc.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditModal(tc);
+                        }}
+                        className="px-3 py-1 text-sm bg-blue-100 text-blue-600 hover:bg-blue-200 rounded"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget({ id: tc.id, title: tc.title });
+                        }}
+                        className="px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expanded Details */}
+                {expandedId === tc.id && (
+                  <div className="p-4 bg-gray-50 border-t text-sm">
+                    {tc.description && (
+                      <div className="mb-3">
+                        <label className="font-bold">Description:</label>
+                        <p className="mt-1 text-gray-700">{tc.description}</p>
+                      </div>
+                    )}
+
+                    {tc.preconditions && (
+                      <div className="mb-3">
+                        <label className="font-bold">Preconditions:</label>
+                        <p className="mt-1 text-gray-700">{tc.preconditions}</p>
+                      </div>
+                    )}
+
+                    {tc.steps && tc.steps.length > 0 && (
+                      <div className="mb-3">
+                        <label className="font-bold">Steps:</label>
+                        <ol className="mt-1 ml-4 list-decimal space-y-1">
+                          {tc.steps.map((step, idx) => (
+                            <li key={idx}>
+                              <span className="font-semibold">
+                                <ImageRefText text={step.action} images={tc.images} />
+                              </span>
+                              <br />
+                              <span className="text-gray-600">
+                                Expected: <ImageRefText text={step.expected} images={tc.images} />
+                              </span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+
+                    {tc.expectedResult && (
+                      <div>
+                        <label className="font-bold">Expected Result:</label>
+                        <p className="mt-1 text-gray-700">
+                          <ImageRefText text={tc.expectedResult} images={tc.images} />
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mt-3 text-xs text-gray-500">
+                      Created: {new Date(tc.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Child nodes */}
+        {node.children.map((child) => (
+          <PathTreeGroup
+            key={child.fullPath.join('-')}
+            node={child}
+            depth={depth + 1}
+            expandedId={expandedId}
+            setExpandedId={setExpandedId}
+            setSelectedPath={setSelectedPath}
+            handleOpenEditModal={handleOpenEditModal}
+            setDeleteTarget={setDeleteTarget}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function TestCasePage() {
   const { companyId, productId } = useParams<{
     companyId: string;
@@ -122,6 +323,65 @@ export default function TestCasePage() {
       .map((id) => segments.find((s) => s.id === id)?.name || '?')
       .join(' > ');
   };
+
+  const segmentMap = useMemo(() => {
+    const map = new Map<number, string>();
+    segments.forEach((s) => map.set(s.id, s.name));
+    return map;
+  }, [segments]);
+
+  // Build path tree with common prefix compression
+  const pathTree = useMemo((): PathTreeNode[] => {
+    if (groupedTestCases.length === 0) return [];
+
+    interface TrieNode {
+      segmentId: number;
+      children: Map<number, TrieNode>;
+      testCases: TestCase[];
+    }
+    const rootChildren = new Map<number, TrieNode>();
+
+    for (const group of groupedTestCases) {
+      let children = rootChildren;
+      let node: TrieNode | undefined;
+      for (const segId of group.path) {
+        if (!children.has(segId)) {
+          children.set(segId, { segmentId: segId, children: new Map(), testCases: [] });
+        }
+        node = children.get(segId)!;
+        children = node.children;
+      }
+      if (node) node.testCases = group.testCases;
+    }
+
+    function toNodes(trieChildren: Map<number, TrieNode>, parentPath: number[]): PathTreeNode[] {
+      const result: PathTreeNode[] = [];
+      for (const [segId, trie] of trieChildren) {
+        const fp = [...parentPath, segId];
+        let ptn: PathTreeNode = {
+          segmentIds: [segId],
+          segmentNames: [segmentMap.get(segId) || '?'],
+          children: toNodes(trie.children, fp),
+          testCases: trie.testCases,
+          fullPath: fp,
+        };
+        while (ptn.children.length === 1 && ptn.testCases.length === 0) {
+          const child = ptn.children[0];
+          ptn = {
+            segmentIds: [...ptn.segmentIds, ...child.segmentIds],
+            segmentNames: [...ptn.segmentNames, ...child.segmentNames],
+            children: child.children,
+            testCases: child.testCases,
+            fullPath: child.fullPath,
+          };
+        }
+        result.push(ptn);
+      }
+      return result;
+    }
+
+    return toNodes(rootChildren, []);
+  }, [groupedTestCases, segmentMap]);
 
   // Scroll spy: suppress observer updates during programmatic scroll
   const isScrollingToRef = useRef(false);
@@ -358,144 +618,20 @@ export default function TestCasePage() {
                 </button>
               </div>
 
-              {/* Grouped test cases by path */}
-              {groupedTestCases.length > 0 ? (
+              {/* Grouped test cases by path — hierarchical tree */}
+              {pathTree.length > 0 ? (
                 <div className="space-y-6">
-                  {groupedTestCases.map((group) => (
-                    <div
-                      key={group.path.join('-')}
-                      id={`section-${group.path.join('-')}`}
-                    >
-                      <h3 className="text-sm font-semibold text-gray-600 mb-2 border-b pb-1">
-                        {resolvePathNames(group.path)}
-                      </h3>
-                      <div className="space-y-3">
-                        {group.testCases.map((tc) => (
-                          <div
-                            key={tc.id}
-                            className={`group bg-white border rounded-lg shadow border-l-4 ${
-                              tc.priority === 'HIGH'
-                                ? 'border-l-red-400'
-                                : tc.priority === 'MEDIUM'
-                                ? 'border-l-yellow-400'
-                                : 'border-l-gray-300'
-                            }`}
-                          >
-                            <div
-                              onClick={() => {
-                                const next = expandedId === tc.id ? null : tc.id;
-                                setExpandedId(next);
-                                if (next !== null) setSelectedPath(tc.path);
-                              }}
-                              className="p-4 cursor-pointer hover:bg-gray-50 transition"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-bold">{tc.title}</h4>
-                                  <div className="flex gap-2 mt-2">
-                                    <span
-                                      className={`text-xs px-2 py-1 rounded font-medium ${
-                                        tc.priority === 'HIGH'
-                                          ? 'bg-red-100 text-red-700'
-                                          : tc.priority === 'MEDIUM'
-                                          ? 'bg-yellow-100 text-yellow-700'
-                                          : 'bg-gray-100 text-gray-500'
-                                      }`}
-                                    >
-                                      {tc.priority}
-                                    </span>
-                                    <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                                      {tc.testType}
-                                    </span>
-                                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                                      {tc.status}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenEditModal(tc);
-                                    }}
-                                    className="px-3 py-1 text-sm bg-blue-100 text-blue-600 hover:bg-blue-200 rounded"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteTarget({ id: tc.id, title: tc.title });
-                                    }}
-                                    className="px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Expanded Details */}
-                            {expandedId === tc.id && (
-                              <div className="p-4 bg-gray-50 border-t text-sm">
-                                {tc.description && (
-                                  <div className="mb-3">
-                                    <label className="font-bold">Description:</label>
-                                    <p className="mt-1 text-gray-700">
-                                      {tc.description}
-                                    </p>
-                                  </div>
-                                )}
-
-                                {tc.preconditions && (
-                                  <div className="mb-3">
-                                    <label className="font-bold">Preconditions:</label>
-                                    <p className="mt-1 text-gray-700">
-                                      {tc.preconditions}
-                                    </p>
-                                  </div>
-                                )}
-
-                                {tc.steps && tc.steps.length > 0 && (
-                                  <div className="mb-3">
-                                    <label className="font-bold">Steps:</label>
-                                    <ol className="mt-1 ml-4 list-decimal space-y-1">
-                                      {tc.steps.map((step, idx) => (
-                                        <li key={idx}>
-                                          <span className="font-semibold">
-                                            <ImageRefText text={step.action} images={tc.images} />
-                                          </span>
-                                          <br />
-                                          <span className="text-gray-600">
-                                            Expected: <ImageRefText text={step.expected} images={tc.images} />
-                                          </span>
-                                        </li>
-                                      ))}
-                                    </ol>
-                                  </div>
-                                )}
-
-                                {tc.expectedResult && (
-                                  <div>
-                                    <label className="font-bold">
-                                      Expected Result:
-                                    </label>
-                                    <p className="mt-1 text-gray-700">
-                                      <ImageRefText text={tc.expectedResult} images={tc.images} />
-                                    </p>
-                                  </div>
-                                )}
-
-                                <div className="mt-3 text-xs text-gray-500">
-                                  Created:{' '}
-                                  {new Date(tc.createdAt).toLocaleDateString()}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                  {pathTree.map((node) => (
+                    <PathTreeGroup
+                      key={node.fullPath.join('-')}
+                      node={node}
+                      depth={0}
+                      expandedId={expandedId}
+                      setExpandedId={setExpandedId}
+                      setSelectedPath={setSelectedPath}
+                      handleOpenEditModal={handleOpenEditModal}
+                      setDeleteTarget={setDeleteTarget}
+                    />
                   ))}
                 </div>
               ) : (
