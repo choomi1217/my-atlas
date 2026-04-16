@@ -22,4 +22,3 @@ services:
 volumes:
   pgdata:
     name: my-atlas_pgdata
-    external: true
