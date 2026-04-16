@@ -2,8 +2,8 @@ import apiClient from './client';
 import { ApiResponse } from '@/types/features';
 import { ChatSession, ChatSessionDetail, FaqContext, KbCategory, KbItem, KbRequest, PdfUploadJob } from '@/types/senior';
 
-// 상대 경로 사용 → Vite proxy 경유 (worktree별 포트 자동 대응)
-const API_BASE_URL = '';
+// 프로덕션: VITE_API_BASE_URL 환경변수 사용, 로컬: 빈 문자열 → Vite proxy 경유
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 /**
  * Senior Chat API — uses fetch for SSE streaming (axios doesn't support streaming).
