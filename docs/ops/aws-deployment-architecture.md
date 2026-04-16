@@ -1,7 +1,8 @@
-# AWS 배포 아키텍처 개요
+# ~~AWS 배포 아키텍처 개요~~ (DEPRECATED)
 
+> **상태**: DEPRECATED — ops_v17.md로 대체됨
 > **최종 업데이트**: 2026-04-01
-> **배포 상태**: 🟢 Production
+> **대체 문서**: [`ops_v17.md`](./ops_v17.md) (커스텀 도메인 + HTTPS 배포)
 > **배포 브랜치**: main (develop은 테스트만)
 > **관련 문서**: [`release-v1.md`](./release-v1.md) (배포 절차), [`release-v2.md`](./release-v2.md) (Slack 알림), [`deployment-strategy-analysis.md`](./deployment-strategy-analysis.md) (배포 전략 분석)
 
