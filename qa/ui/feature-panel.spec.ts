@@ -78,8 +78,8 @@ test.describe('Test Case Page', () => {
 
     await featuresPage.gotoTestCases(companyId, productId);
 
-    // Path should be displayed as segment tree group heading
-    const pathHeading = featuresPage.page.locator('span', { hasText: 'Main > Login' });
+    // Path should be displayed as segment tree group heading (PathTreeGroup header)
+    const pathHeading = featuresPage.page.locator('span.font-semibold', { hasText: 'Main > Login' });
     await expect(pathHeading).toBeVisible();
   });
 
