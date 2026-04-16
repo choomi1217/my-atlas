@@ -104,6 +104,7 @@ jobs:
 
       - name: Start Docker Compose stack
         run: |
+          docker volume create my-atlas_pgdata
           docker compose -f docker-compose.db.yml -f docker-compose.yml up -d --build
           echo "Waiting for services to be healthy..."
           timeout 120 bash -c 'until curl -sf http://localhost:8080/actuator/health; do sleep 3; done'

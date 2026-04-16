@@ -24,6 +24,267 @@ import StatusButtonGroup from '@/components/features/StatusButtonGroup';
 import CommentThread from '@/components/features/CommentThread';
 import ImageRefText from '@/components/features/ImageRefText';
 
+interface ResultPathTreeNode {
+  segmentIds: number[];
+  segmentNames: string[];
+  children: ResultPathTreeNode[];
+  results: TestResult[];
+  fullPath: number[];
+}
+
+function countTreeResults(node: ResultPathTreeNode): number {
+  return node.results.length + node.children.reduce((sum, c) => sum + countTreeResults(c), 0);
+}
+
+interface ResultRowProps {
+  result: TestResult;
+  tc: TestCase | undefined;
+  isExpanded: boolean;
+  resultTickets: Ticket[];
+  ticketCount: number;
+  statusColors: Record<RunResultStatus, string>;
+  toggleExpand: (id: number) => void;
+  handleStatusChange: (resultId: number, status: RunResultStatus) => void;
+  setTicketSummary: (s: string) => void;
+  setTicketDescription: (s: string) => void;
+  setTicketDialogResultId: (id: number | null) => void;
+  setTicketError: (e: string | null) => void;
+  handleRefreshTicket: (resultId: number, ticketId: number) => void;
+  getTicketStatusColor: (status: string) => string;
+  loadComments: (resultId: number) => void;
+  comments: Record<number, TestResultComment[]>;
+  versionId: string;
+  phase: { phaseName: string };
+  version: Version | null;
+}
+
+function ResultRow({
+  result, tc, isExpanded, resultTickets, ticketCount, statusColors,
+  toggleExpand, handleStatusChange, setTicketSummary, setTicketDescription,
+  setTicketDialogResultId, setTicketError, handleRefreshTicket,
+  getTicketStatusColor, loadComments, comments, versionId, phase, version,
+}: ResultRowProps) {
+  return (
+    <div className={`border rounded-lg transition ${statusColors[result.status]}`}>
+      <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => toggleExpand(result.id)}>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <span className="text-xs font-mono text-gray-500 shrink-0">T{result.testCaseId}</span>
+          <span className="font-medium text-gray-800 truncate">{result.testCaseTitle}</span>
+          <ResultStatusBadge status={result.status} size="sm" />
+          {ticketCount > 0 && (
+            <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+              {ticketCount} ticket{ticketCount > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 shrink-0 ml-4">
+          <StatusButtonGroup current={result.status} onChange={(s) => handleStatusChange(result.id, s)} />
+          <span className="text-gray-400 text-sm">{isExpanded ? '▲' : '▼'}</span>
+        </div>
+      </div>
+
+      {isExpanded && tc && (
+        <div className="border-t border-gray-200 p-4 bg-white rounded-b-lg">
+          <div className="grid grid-cols-1 gap-4">
+            {tc.preconditions && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">Preconditions</h4>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{tc.preconditions}</p>
+              </div>
+            )}
+            {tc.steps && tc.steps.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Steps</h4>
+                <table className="w-full text-sm border border-gray-200 rounded">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left w-12">#</th>
+                      <th className="px-3 py-2 text-left">Action</th>
+                      <th className="px-3 py-2 text-left">Expected</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tc.steps.map((step) => (
+                      <tr key={step.order} className="border-t border-gray-100">
+                        <td className="px-3 py-2 text-gray-500">{step.order}</td>
+                        <td className="px-3 py-2 text-gray-800"><ImageRefText text={step.action} images={tc.images} /></td>
+                        <td className="px-3 py-2 text-gray-600"><ImageRefText text={step.expected} images={tc.images} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {tc.expectedResult && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">Expected Result</h4>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap"><ImageRefText text={tc.expectedResult} images={tc.images} /></p>
+              </div>
+            )}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-gray-700">Tickets</h4>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTicketSummary(`FAIL: ${result.testCaseTitle}`);
+                    setTicketDescription(`Phase: ${phase.phaseName}\nVersion: ${version?.name || ''}`);
+                    setTicketDialogResultId(result.id);
+                    setTicketError(null);
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-700"
+                >
+                  + 티켓 추가
+                </button>
+              </div>
+              {resultTickets.length === 0 ? (
+                <p className="text-xs text-gray-400">티켓 없음</p>
+              ) : (
+                <div className="space-y-1">
+                  {resultTickets.map((t) => (
+                    <div key={t.id} className="flex items-center gap-2 text-sm p-2 bg-gray-50 rounded">
+                      <span className="font-mono text-xs text-purple-700">{t.jiraKey}</span>
+                      <span className="flex-1 truncate text-gray-700">{t.summary}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${getTicketStatusColor(t.status)}`}>{t.status}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRefreshTicket(result.id, t.id); }}
+                        className="text-xs text-gray-400 hover:text-blue-600" title="상태 새로고침"
+                      >&#x21bb;</button>
+                      <a href={t.jiraUrl} target="_blank" rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-blue-500 hover:text-blue-700" title="Jira에서 보기"
+                      >&#x2197;</a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <CommentThread
+              versionId={Number(versionId)}
+              resultId={result.id}
+              comments={comments[result.id] || []}
+              onRefresh={() => loadComments(result.id)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultTreeGroup({
+  node, depth, getTestCaseDetail, expandedResultId, toggleExpand,
+  tickets, comments, statusColors, handleStatusChange,
+  setTicketSummary, setTicketDescription, setTicketDialogResultId, setTicketError,
+  handleRefreshTicket, getTicketStatusColor, loadComments, versionId, phase, version,
+}: {
+  node: ResultPathTreeNode;
+  depth: number;
+  getTestCaseDetail: (id: number) => TestCase | undefined;
+  expandedResultId: number | null;
+  toggleExpand: (id: number) => void;
+  tickets: Record<number, Ticket[]>;
+  comments: Record<number, TestResultComment[]>;
+  statusColors: Record<RunResultStatus, string>;
+  handleStatusChange: (resultId: number, status: RunResultStatus) => void;
+  setTicketSummary: (s: string) => void;
+  setTicketDescription: (s: string) => void;
+  setTicketDialogResultId: (id: number | null) => void;
+  setTicketError: (e: string | null) => void;
+  handleRefreshTicket: (resultId: number, ticketId: number) => void;
+  getTicketStatusColor: (status: string) => string;
+  loadComments: (resultId: number) => void;
+  versionId: string;
+  phase: { phaseName: string };
+  version: Version | null;
+}) {
+  const displayName = node.segmentNames.join(' > ');
+  const resultCount = countTreeResults(node);
+
+  return (
+    <div className={depth > 0 ? 'mt-4' : ''}>
+      <div
+        className={`flex items-center gap-2 pb-1 ${
+          depth === 0 ? 'border-b border-gray-300 mb-2' : 'mb-1'
+        }`}
+      >
+        <span className="text-gray-400 text-sm flex-shrink-0">
+          {depth === 0 ? '📁' : '📂'}
+        </span>
+        <span
+          className={`text-sm font-semibold ${
+            depth === 0 ? 'text-indigo-800' : 'text-indigo-600'
+          }`}
+        >
+          {displayName}
+        </span>
+        <span className="text-xs text-gray-500">({resultCount})</span>
+      </div>
+
+      <div className="ml-3 pl-4 border-l-2 border-indigo-200">
+        {node.results.length > 0 && (
+          <div className="space-y-2 mb-3">
+            {node.results.map((result) => {
+              const tc = getTestCaseDetail(result.testCaseId);
+              const isExpanded = expandedResultId === result.id;
+              const resultTickets = tickets[result.id] || [];
+              const ticketCount = resultTickets.length;
+              return (
+                <ResultRow
+                  key={result.id}
+                  result={result}
+                  tc={tc}
+                  isExpanded={isExpanded}
+                  resultTickets={resultTickets}
+                  ticketCount={ticketCount}
+                  statusColors={statusColors}
+                  toggleExpand={toggleExpand}
+                  handleStatusChange={handleStatusChange}
+                  setTicketSummary={setTicketSummary}
+                  setTicketDescription={setTicketDescription}
+                  setTicketDialogResultId={setTicketDialogResultId}
+                  setTicketError={setTicketError}
+                  handleRefreshTicket={handleRefreshTicket}
+                  getTicketStatusColor={getTicketStatusColor}
+                  loadComments={loadComments}
+                  comments={comments}
+                  versionId={versionId}
+                  phase={phase}
+                  version={version}
+                />
+              );
+            })}
+          </div>
+        )}
+        {node.children.map((child) => (
+          <ResultTreeGroup
+            key={child.fullPath.join('-')}
+            node={child}
+            depth={depth + 1}
+            getTestCaseDetail={getTestCaseDetail}
+            expandedResultId={expandedResultId}
+            toggleExpand={toggleExpand}
+            tickets={tickets}
+            comments={comments}
+            statusColors={statusColors}
+            handleStatusChange={handleStatusChange}
+            setTicketSummary={setTicketSummary}
+            setTicketDescription={setTicketDescription}
+            setTicketDialogResultId={setTicketDialogResultId}
+            setTicketError={setTicketError}
+            handleRefreshTicket={handleRefreshTicket}
+            getTicketStatusColor={getTicketStatusColor}
+            loadComments={loadComments}
+            versionId={versionId}
+            phase={phase}
+            version={version}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function VersionPhaseDetailPage() {
   const { productId, versionId, phaseId } = useParams<{
     companyId: string;
@@ -85,34 +346,82 @@ export default function VersionPhaseDetailPage() {
     return map;
   }, [segments]);
 
-  const resolvePathNames = useCallback((path: number[]): string => {
-    if (!path || path.length === 0) return '';
-    return path.map((id) => segmentMap.get(id) || `?`).join(' > ');
-  }, [segmentMap]);
+  // Group results by segment path, then build tree
+  const tcMap = useMemo(() => {
+    const map = new Map<number, TestCase>();
+    testCases.forEach((tc) => map.set(tc.id, tc));
+    return map;
+  }, [testCases]);
 
-  // Group results by segment path
-  const groupedResults = useMemo(() => {
-    const tcMap = new Map<number, TestCase>();
-    testCases.forEach((tc) => tcMap.set(tc.id, tc));
+  const noPathResults = useMemo(() => {
+    return results.filter((r) => {
+      const tc = tcMap.get(r.testCaseId);
+      return !tc?.path || tc.path.length === 0;
+    });
+  }, [results, tcMap]);
 
-    const groups = new Map<string, { pathName: string; path: number[]; results: TestResult[] }>();
-
+  const resultPathTree = useMemo((): ResultPathTreeNode[] => {
+    const groupedByPath = new Map<string, TestResult[]>();
     for (const result of results) {
       const tc = tcMap.get(result.testCaseId);
       const path = tc?.path || [];
-      const pathKey = path.length > 0 ? path.join('-') : 'unassigned';
-      const pathName = path.length > 0 ? resolvePathNames(path) : '경로 없음';
-
-      if (!groups.has(pathKey)) {
-        groups.set(pathKey, { pathName, path, results: [] });
-      }
-      groups.get(pathKey)!.results.push(result);
+      if (path.length === 0) continue;
+      const key = path.join(',');
+      if (!groupedByPath.has(key)) groupedByPath.set(key, []);
+      groupedByPath.get(key)!.push(result);
     }
 
-    // Sort groups by path name
-    return Array.from(groups.entries())
-      .sort(([, a], [, b]) => a.pathName.localeCompare(b.pathName));
-  }, [results, testCases, resolvePathNames]);
+    if (groupedByPath.size === 0) return [];
+
+    interface TrieNode {
+      segmentId: number;
+      children: Map<number, TrieNode>;
+      results: TestResult[];
+    }
+    const rootChildren = new Map<number, TrieNode>();
+
+    for (const [key, groupResults] of groupedByPath) {
+      const path = key.split(',').map(Number);
+      let children = rootChildren;
+      let node: TrieNode | undefined;
+      for (const segId of path) {
+        if (!children.has(segId)) {
+          children.set(segId, { segmentId: segId, children: new Map(), results: [] });
+        }
+        node = children.get(segId)!;
+        children = node.children;
+      }
+      if (node) node.results = groupResults;
+    }
+
+    function toNodes(trieChildren: Map<number, TrieNode>, parentPath: number[]): ResultPathTreeNode[] {
+      const result: ResultPathTreeNode[] = [];
+      for (const [segId, trie] of trieChildren) {
+        const fp = [...parentPath, segId];
+        let ptn: ResultPathTreeNode = {
+          segmentIds: [segId],
+          segmentNames: [segmentMap.get(segId) || '?'],
+          children: toNodes(trie.children, fp),
+          results: trie.results,
+          fullPath: fp,
+        };
+        while (ptn.children.length === 1 && ptn.results.length === 0) {
+          const child = ptn.children[0];
+          ptn = {
+            segmentIds: [...ptn.segmentIds, ...child.segmentIds],
+            segmentNames: [...ptn.segmentNames, ...child.segmentNames],
+            children: child.children,
+            results: child.results,
+            fullPath: child.fullPath,
+          };
+        }
+        result.push(ptn);
+      }
+      return result;
+    }
+
+    return toNodes(rootChildren, []);
+  }, [results, tcMap, segmentMap]);
 
   const liveStats = useMemo((): ProgressStats => {
     const total = results.length;
@@ -267,152 +576,75 @@ export default function VersionPhaseDetailPage() {
           Test Execution ({results.length})
         </h2>
 
-        {groupedResults.length === 0 ? (
+        {resultPathTree.length === 0 && noPathResults.length === 0 ? (
           <p className="text-gray-500">No test results for this phase.</p>
         ) : (
           <div className="space-y-6">
-            {groupedResults.map(([pathKey, group]) => (
-              <div key={pathKey}>
-                {/* Segment Header */}
-                <div className="flex items-center gap-2 mb-2 pb-1 border-b border-gray-300">
-                  <span className="text-sm font-semibold text-indigo-700">
-                    {group.pathName}
-                  </span>
-                  <span className="text-xs text-gray-500">({group.results.length})</span>
+            {resultPathTree.map((node) => (
+              <ResultTreeGroup
+                key={node.fullPath.join('-')}
+                node={node}
+                depth={0}
+                getTestCaseDetail={getTestCaseDetail}
+                expandedResultId={expandedResultId}
+                toggleExpand={toggleExpand}
+                tickets={tickets}
+                comments={comments}
+                statusColors={statusColors}
+                handleStatusChange={handleStatusChange}
+                setTicketSummary={setTicketSummary}
+                setTicketDescription={setTicketDescription}
+                setTicketDialogResultId={setTicketDialogResultId}
+                setTicketError={setTicketError}
+                handleRefreshTicket={handleRefreshTicket}
+                getTicketStatusColor={getTicketStatusColor}
+                loadComments={loadComments}
+                versionId={versionId!}
+                phase={phase}
+                version={version}
+              />
+            ))}
+            {noPathResults.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 pb-1 border-b border-gray-300 mb-2">
+                  <span className="text-gray-400 text-sm">📁</span>
+                  <span className="text-sm font-semibold text-indigo-800">경로 없음</span>
+                  <span className="text-xs text-gray-500">({noPathResults.length})</span>
                 </div>
-
-                {/* Results in this segment */}
-                <div className="space-y-2">
-                  {group.results.map((result) => {
+                <div className="ml-3 pl-4 border-l-2 border-indigo-200 space-y-2">
+                  {noPathResults.map((result) => {
                     const tc = getTestCaseDetail(result.testCaseId);
                     const isExpanded = expandedResultId === result.id;
                     const resultTickets = tickets[result.id] || [];
                     const ticketCount = resultTickets.length;
-
                     return (
-                      <div key={result.id} className={`border rounded-lg transition ${statusColors[result.status]}`}>
-                        {/* Row */}
-                        <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => toggleExpand(result.id)}>
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <span className="text-xs font-mono text-gray-500 shrink-0">T{result.testCaseId}</span>
-                            <span className="font-medium text-gray-800 truncate">{result.testCaseTitle}</span>
-                            <ResultStatusBadge status={result.status} size="sm" />
-                            {ticketCount > 0 && (
-                              <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                                {ticketCount} ticket{ticketCount > 1 ? 's' : ''}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0 ml-4">
-                            <StatusButtonGroup current={result.status} onChange={(s) => handleStatusChange(result.id, s)} />
-                            <span className="text-gray-400 text-sm">{isExpanded ? '▲' : '▼'}</span>
-                          </div>
-                        </div>
-
-                        {/* Expanded */}
-                        {isExpanded && tc && (
-                          <div className="border-t border-gray-200 p-4 bg-white rounded-b-lg">
-                            <div className="grid grid-cols-1 gap-4">
-                              {tc.preconditions && (
-                                <div>
-                                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Preconditions</h4>
-                                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{tc.preconditions}</p>
-                                </div>
-                              )}
-
-                              {tc.steps && tc.steps.length > 0 && (
-                                <div>
-                                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Steps</h4>
-                                  <table className="w-full text-sm border border-gray-200 rounded">
-                                    <thead className="bg-gray-50">
-                                      <tr>
-                                        <th className="px-3 py-2 text-left w-12">#</th>
-                                        <th className="px-3 py-2 text-left">Action</th>
-                                        <th className="px-3 py-2 text-left">Expected</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {tc.steps.map((step) => (
-                                        <tr key={step.order} className="border-t border-gray-100">
-                                          <td className="px-3 py-2 text-gray-500">{step.order}</td>
-                                          <td className="px-3 py-2 text-gray-800"><ImageRefText text={step.action} images={tc.images} /></td>
-                                          <td className="px-3 py-2 text-gray-600"><ImageRefText text={step.expected} images={tc.images} /></td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
-
-                              {tc.expectedResult && (
-                                <div>
-                                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Expected Result</h4>
-                                  <p className="text-sm text-gray-600 whitespace-pre-wrap"><ImageRefText text={tc.expectedResult} images={tc.images} /></p>
-                                </div>
-                              )}
-
-                              {/* Tickets */}
-                              <div>
-                                <div className="flex items-center justify-between mb-2">
-                                  <h4 className="text-sm font-semibold text-gray-700">Tickets</h4>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setTicketSummary(`FAIL: ${result.testCaseTitle}`);
-                                      setTicketDescription(`Phase: ${phase.phaseName}\nVersion: ${version.name}`);
-                                      setTicketDialogResultId(result.id);
-                                      setTicketError(null);
-                                    }}
-                                    className="text-xs text-blue-600 hover:text-blue-700"
-                                  >
-                                    + 티켓 추가
-                                  </button>
-                                </div>
-                                {resultTickets.length === 0 ? (
-                                  <p className="text-xs text-gray-400">티켓 없음</p>
-                                ) : (
-                                  <div className="space-y-1">
-                                    {resultTickets.map((t) => (
-                                      <div key={t.id} className="flex items-center gap-2 text-sm p-2 bg-gray-50 rounded">
-                                        <span className="font-mono text-xs text-purple-700">{t.jiraKey}</span>
-                                        <span className="flex-1 truncate text-gray-700">{t.summary}</span>
-                                        <span className={`text-xs px-1.5 py-0.5 rounded ${getTicketStatusColor(t.status)}`}>
-                                          {t.status}
-                                        </span>
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); handleRefreshTicket(result.id, t.id); }}
-                                          className="text-xs text-gray-400 hover:text-blue-600" title="상태 새로고침"
-                                        >
-                                          &#x21bb;
-                                        </button>
-                                        <a href={t.jiraUrl} target="_blank" rel="noopener noreferrer"
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="text-xs text-blue-500 hover:text-blue-700" title="Jira에서 보기"
-                                        >
-                                          &#x2197;
-                                        </a>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Comments */}
-                              <CommentThread
-                                versionId={Number(versionId)}
-                                resultId={result.id}
-                                comments={comments[result.id] || []}
-                                onRefresh={() => loadComments(result.id)}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      <ResultRow
+                        key={result.id}
+                        result={result}
+                        tc={tc}
+                        isExpanded={isExpanded}
+                        resultTickets={resultTickets}
+                        ticketCount={ticketCount}
+                        statusColors={statusColors}
+                        toggleExpand={toggleExpand}
+                        handleStatusChange={handleStatusChange}
+                        setTicketSummary={setTicketSummary}
+                        setTicketDescription={setTicketDescription}
+                        setTicketDialogResultId={setTicketDialogResultId}
+                        setTicketError={setTicketError}
+                        handleRefreshTicket={handleRefreshTicket}
+                        getTicketStatusColor={getTicketStatusColor}
+                        loadComments={loadComments}
+                        comments={comments}
+                        versionId={versionId!}
+                        phase={phase}
+                        version={version}
+                      />
                     );
                   })}
                 </div>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
