@@ -346,3 +346,5 @@ Ops 관련 변경 이력을 시간순으로 기록한다. 각 버전 문서는 `
 | 2026-04-13 | [v12.md](ops_v12.md) | 버그 수정 | Flyway validation 실패 수정. 공유 DB 환경에서 worktree 간 마이그레이션 충돌(description mismatch) 해결. `validate-on-migrate: false` 추가 |
 | 2026-04-13 | [v13.md](ops_v13.md) | 환경 개선 | Worktree Git 워크플로우 표준화. `wt.sh sync/status` 명령 추가, 심링크로 CLAUDE.md 단일화, Git 생명주기 규칙 명문화, Agent-D 4→3 Step 개선 |
 | 2026-04-16 | [v15.md](ops_v15.md) | 버그 수정 | Slack 알림 JSON 파싱 오류 수정. 커밋 메시지를 이스케이프 없이 JSON에 삽입 → 첫 줄만 추출 + 72자 truncate + JSON 이스케이프 처리 |
+| 2026-04-16 | [v16.md](ops_v16.md) | 버그 수정 | DB Compose 프로젝트 완전 독립 분리. `name: myatlas-db`로 프로젝트 이름 분리, `.env` DB 접속 주소를 `host.docker.internal`로 변경 |
+| 2026-04-16 | [v17.md](ops_v17.md) | 환경 개선 | 커스텀 도메인 + HTTPS 프로덕션 배포. `youngmi.works` 도메인, ALB HTTPS, CloudFront 커스텀 도메인, CORS/API URL 환경변수화 |

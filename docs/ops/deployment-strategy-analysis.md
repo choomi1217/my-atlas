@@ -1,8 +1,8 @@
-# Deployment Strategy Analysis: Frontend Docker 통일 검토
+# ~~Deployment Strategy Analysis: Frontend Docker 통일 검토~~ (DEPRECATED)
 
+> **상태**: DEPRECATED — 현재 방식(S3+CloudFront) 유지 결정. ops_v17.md에서 커스텀 도메인 적용
 > **작성일**: 2026-04-01
-> **현재 상태**: 분석 완료
-> **상태**: 의사결정 대기
+> **대체 문서**: [`ops_v17.md`](./ops_v17.md)
 
 ---
 
