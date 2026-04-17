@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   Company,
   Product,
@@ -227,11 +227,27 @@ export default function TestCasePage() {
     companyId: string;
     productId: string;
   }>();
+  const [searchParams] = useSearchParams();
+  const statusFilter = searchParams.get('status');
+  const jobIdFilterRaw = searchParams.get('jobId');
+  const jobIdFilter = jobIdFilterRaw ? Number(jobIdFilterRaw) : null;
 
   const [company, setCompany] = useState<Company | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [allTestCases, setTestCases] = useState<TestCase[]>([]);
+
+  // Apply URL filters (?status=DRAFT&jobId=42); downstream UI reads `testCases`.
+  const testCases = useMemo(() => {
+    let filtered = allTestCases;
+    if (statusFilter) {
+      filtered = filtered.filter((tc) => tc.status === statusFilter);
+    }
+    if (jobIdFilter !== null && !Number.isNaN(jobIdFilter)) {
+      filtered = filtered.filter((tc) => tc.testStudioJobId === jobIdFilter);
+    }
+    return filtered;
+  }, [allTestCases, statusFilter, jobIdFilter]);
   const [selectedPath, setSelectedPath] = useState<number[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -507,7 +523,7 @@ export default function TestCasePage() {
         data.steps.some((s) => s.action) ? data.steps : undefined,
         data.expectedResult || undefined
       );
-      setTestCases(testCases.map((tc) => (tc.id === modalEditData.id ? updated : tc)));
+      setTestCases(allTestCases.map((tc) => (tc.id === modalEditData.id ? updated : tc)));
     } else {
       // Create — return TC to keep modal open for image upload
       const tc = await testCaseApi.create(
@@ -523,7 +539,7 @@ export default function TestCasePage() {
         data.steps.some((s) => s.action) ? data.steps : undefined,
         data.expectedResult || undefined
       );
-      setTestCases([...testCases, tc]);
+      setTestCases([...allTestCases, tc]);
       setModalEditData(tc); // Switch modal to edit mode for image upload
       return tc;
     }
@@ -533,7 +549,7 @@ export default function TestCasePage() {
     if (!deleteTarget) return;
     try {
       await testCaseApi.delete(deleteTarget.id);
-      setTestCases(testCases.filter((tc) => tc.id !== deleteTarget.id));
+      setTestCases(allTestCases.filter((tc) => tc.id !== deleteTarget.id));
     } catch (error) {
       console.error('Failed to delete test case:', error);
     } finally {
@@ -559,9 +575,39 @@ export default function TestCasePage() {
       <div className="flex-1 overflow-auto p-6">
         <div>
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-            <p className="text-gray-600">Test Cases</p>
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
+              <p className="text-gray-600">Test Cases</p>
+              {(statusFilter || jobIdFilter !== null) && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                  <span>필터 적용:</span>
+                  {statusFilter && (
+                    <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded">
+                      status={statusFilter}
+                    </span>
+                  )}
+                  {jobIdFilter !== null && (
+                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded">
+                      jobId={jobIdFilter}
+                    </span>
+                  )}
+                  <Link
+                    to={`/features/companies/${companyId}/products/${productId}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    필터 해제
+                  </Link>
+                </div>
+              )}
+            </div>
+            <Link
+              data-testid="test-studio-nav-link"
+              to={`/features/companies/${companyId}/products/${productId}/test-studio`}
+              className="flex-shrink-0 px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
+            >
+              Test Studio
+            </Link>
           </div>
 
           {/* Two-column layout: Path tree (left) + TestCase list (right) */}

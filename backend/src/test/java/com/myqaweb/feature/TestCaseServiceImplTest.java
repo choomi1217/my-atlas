@@ -62,7 +62,7 @@ class TestCaseServiceImplTest {
                 "User is on login page",
                 List.of(new TestStep(1, "Click social login", "OAuth popup opens")),
                 "Redirected to main page",
-                Priority.HIGH, TestType.FUNCTIONAL, TestStatus.DRAFT,
+                Priority.HIGH, TestType.FUNCTIONAL, TestStatus.DRAFT, null,
                 LocalDateTime.now(), LocalDateTime.now()
         );
     }
@@ -112,7 +112,7 @@ class TestCaseServiceImplTest {
                 "Updated desc", "Updated prompt",
                 "Updated precondition",
                 List.of(), "Updated expected",
-                Priority.LOW, TestType.REGRESSION, TestStatus.ACTIVE,
+                Priority.LOW, TestType.REGRESSION, TestStatus.ACTIVE, null,
                 testCase.getCreatedAt(), LocalDateTime.now()
         );
 
@@ -191,7 +191,7 @@ class TestCaseServiceImplTest {
                 10L, product, new Long[]{1L}, "AI Draft: Login",
                 null, null, null,
                 List.of(new TestStep(1, "Enter valid credentials", "Login succeeds")),
-                null, Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT,
+                null, Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT, null,
                 LocalDateTime.now(), LocalDateTime.now()
         );
         when(testCaseRepository.save(any())).thenReturn(savedEntity);
@@ -224,7 +224,7 @@ class TestCaseServiceImplTest {
         TestCaseEntity savedEntity = new TestCaseEntity(
                 11L, product, new Long[]{}, "AI Draft: ",
                 null, null, null, List.of(), null,
-                Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT,
+                Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT, null,
                 LocalDateTime.now(), LocalDateTime.now()
         );
         when(testCaseRepository.save(any())).thenReturn(savedEntity);

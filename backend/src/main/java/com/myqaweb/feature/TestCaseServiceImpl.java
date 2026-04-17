@@ -191,7 +191,8 @@ public class TestCaseServiceImpl implements TestCaseService {
                 entity.getStatus(),
                 images,
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getTestStudioJobId()
         );
     }
 }
