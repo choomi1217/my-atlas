@@ -180,7 +180,53 @@ curl -sI "https://youngmi.works/images/convention/xxx.png"
 
 ---
 
-## 4. 변경 파일
+## 4. E2E 이미지 테스트 CI Skip 사유
+
+### 변경 전 (로컬 파일시스템)
+
+```
+[CI 환경]
+백엔드 → 로컬 디스크에 이미지 저장 → 같은 서버에서 GET으로 서빙
+→ S3 불필요, CI에서 업로드/조회 모두 테스트 가능 ✅
+```
+
+### 변경 후 (S3)
+
+```
+[CI 환경]
+백엔드 → S3에 이미지 업로드 시도 → AWS 자격증명 필요
+→ CI 러너에 S3 자격증명 없음 → 업로드 500 에러 ❌
+
+[이미지 조회]
+브라우저 → CloudFront → S3 (백엔드 경유 안 함)
+→ 백엔드 GET 서빙 엔드포인트 자체가 제거됨 → 테스트 대상 없음 ❌
+```
+
+### Skip하는 테스트와 이유
+
+| 테스트 | Skip 이유 |
+|--------|-----------|
+| `POST /api/convention-images` (업로드) | S3 자격증명이 CI에 없음. 업로드 시 `S3Client` 호출 실패 |
+| `POST /api/kb/images` (업로드) | 동일 |
+| `GET /api/kb/images/{filename}` (조회) | 백엔드 GET 엔드포인트 제거됨. 이미지는 CloudFront(S3)에서 서빙 |
+| `GET /api/kb/images/nonexistent.png` (404) | 동일 |
+
+### 대안 검토
+
+| 방안 | 채택 | 이유 |
+|------|:---:|------|
+| CI에 S3 자격증명 추가 | ❌ | 테스트마다 S3에 실제 파일이 쌓임, 비용 발생, 테스트 격리 어려움 |
+| LocalStack(S3 에뮬레이터) | ❌ | Docker-in-Docker 필요, CI 복잡도 증가, 현재 규모에 과함 |
+| CI에서만 skip | ✅ | `test.skip(!!process.env.CI)` — 로컬/운영에서는 실행 가능 |
+
+### 보완
+
+- 유닛 테스트(`ConventionImageControllerTest`, `KbImageControllerTest`)에서 S3ImageService를 Mock하여 업로드 로직을 검증 중
+- 이미지 서빙은 CloudFront + S3 인프라 레벨이므로 `curl https://youngmi.works/images/...`로 수동 검증
+
+---
+
+## 5. 변경 파일
 
 | 파일 | 변경 |
 |------|------|
