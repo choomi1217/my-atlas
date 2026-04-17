@@ -1,7 +1,7 @@
 > 변경 유형: 환경 개선  
 > 작성일: 2026-04-17  
 > 버전: v18  
-> 상태: 진행 중
+> 상태: 완료
 
 ---
 
@@ -255,15 +255,21 @@ curl -sI "https://youngmi.works/images/convention/xxx.png"
 
 ## Steps
 
-- [ ] Step 1: S3 버킷 생성
-- [ ] Step 2: CloudFront에 S3 Origin 추가
-- [ ] Step 3: CloudFront `/images/*` Behavior 추가
-- [ ] Step 4: S3 버킷 정책 설정
-- [ ] Step 5: build.gradle S3 SDK 추가
-- [ ] Step 6: S3ImageService 생성
-- [ ] Step 7: 이미지 컨트롤러 3개 수정
-- [ ] Step 8: SecurityConfig 이미지 permitAll 제거
-- [ ] Step 9: Flyway 마이그레이션 (기존 URL 변환)
-- [ ] Step 10: 기존 이미지 S3 이관
-- [ ] Step 11: 배포
-- [ ] Step 12: 검증
+- [x] Step 1: S3 버킷 생성
+- [x] Step 2: CloudFront에 S3 Origin 추가
+- [x] Step 3: CloudFront `/images/*` Behavior 추가
+- [x] Step 4: S3 버킷 정책 설정
+- [x] Step 5: build.gradle S3 SDK 추가
+- [x] Step 6: S3ImageService 생성
+- [x] Step 7: 이미지 컨트롤러 3개 수정
+- [x] Step 8: SecurityConfig 이미지 permitAll 제거
+- [x] Step 9: Flyway 마이그레이션 (기존 URL 변환)
+- [x] Step 10: 기존 이미지 S3 이관
+- [x] Step 11: 배포
+- [x] Step 12: 검증
+
+---
+
+## [최종 요약]
+
+이미지 저장소를 EC2 로컬 파일시스템에서 S3(`my-atlas-images`)로 전환했다. CloudFront에 `/images/*` Behavior를 추가하여 프론트엔드와 같은 도메인(`youngmi.works`)에서 이미지를 CDN 서빙한다. 백엔드의 이미지 GET 엔드포인트를 제거하고 S3ImageService로 업로드를 통합했다. Flyway 마이그레이션으로 기존 URL을 변환하고, EC2의 이미지를 S3로 이관하여 배포 완료. E2E 이미지 테스트는 S3 자격증명 의존으로 CI에서 skip 처리하고 사유를 문서화했다.
