@@ -58,3 +58,6 @@ qa/test-results/
 scripts/start-all.sh
 scripts/stop-all.sh
 scripts/prompts/
+
+# Portfolio (personal study notes)
+docs/qa/portfolio/

@@ -200,9 +200,17 @@ jobs:
             git pull origin main
             docker compose up -d --build backend
             echo "Waiting for backend to start..."
-            sleep 15
-            curl -f http://localhost:8080/actuator/health || exit 1
-            echo "Backend deployed successfully!"
+            for i in 1 2 3 4 5 6; do
+              sleep 10
+              if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
+                echo "Backend deployed successfully!"
+                exit 0
+              fi
+              echo "Attempt $i: backend not ready yet..."
+            done
+            echo "Backend failed to start within 60s"
+            docker logs myqaweb-backend --tail 30
+            exit 1
 
   deploy-frontend:
     name: Deploy Frontend to S3/CloudFront
