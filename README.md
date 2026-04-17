@@ -192,12 +192,12 @@ my-atlas/
 
 ### 3-Layer 테스트 피라미드
 
-| 레이어 | 도구 | 대상 |
-|--------|------|------|
-| Unit | JUnit 5 + Mockito | Service, Controller 전 도메인 |
-| Integration | Testcontainers (pgvector) | 벡터 검색, PDF 파이프라인, FAQ 검색 |
-| E2E | Playwright | API 65 + UI 33 (Chromium) |
-| Frontend Unit | Vitest + Testing Library | Hooks, Components |
+| 레이어 | 도구 | 테스트 수 | 대상 |
+|--------|------|-----------|------|
+| Unit | JUnit 5 + Mockito | 179+ | Service, Controller 전 도메인 |
+| Integration | Testcontainers (pgvector) | 포함 | 벡터 검색, PDF 파이프라인, FAQ 검색 |
+| E2E | Playwright | 98 | API 65 + UI 33 (Chromium) |
+| Frontend Unit | Vitest + Testing Library | 33 | Hooks, Components |
 
 ### E2E 테스트 커버리지
 
