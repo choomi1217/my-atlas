@@ -1,84 +1,47 @@
-# Platform — Feature 상세 페이지 스크린샷 + Notion MCP (v7)
-
-> 변경 유형: 기능 개선  
+> 변경 유형: 문서 개선  
 > 작성일: 2026-04-17  
 > 버전: v7  
-> 상태: 진행 중
+> 상태: 완료
 
 ---
 
-## 요구사항
+# Platform 문서 개선 — QA 시니어 관점 보강
 
-### [FEAT-3] Feature 상세 페이지에 운영서버 스크린샷 삽입
-v6에서 About(왜/무엇/QA이점) 섹션을 추가했으나, 이미지가 없어 시각적 임팩트가 부족하다.
-운영서버(youngmi.works)에서 각 기능의 실제 UI를 캡처하여 상세 페이지에 삽입한다.
+## 변경 목적
 
-### [FEAT-2] Notion MCP 연결 (v6에서 이월)
-Resume과 자기소개서 내용을 Notion에 옮겨 적어야 한다.
+Platform 메인 명세서(`platform.md`)가 구현 현황표 중심의 기술 문서로만 작성되어 있어, QA 시니어 관점에서 "이 기능이 왜 중요한지"가 드러나지 않았다. QA 자산 보호, 역할 분리, 실무 활용 시나리오를 추가하여 문서의 실용성을 높였다.
 
----
+## 변경 내용
 
-## 설계
+### 1. `## 개요` 재작성
 
-### FEAT-3: 스크린샷 캡처 및 삽입
+- **기존**: "횡단 관심사를 담당하는 영역" (기술적 서술)
+- **변경**: QA 팀 자산(TC, KB, Convention) 보호 필요성을 먼저 제시하고, Platform이 이를 어떻게 해결하는지 서술
 
-**캡처 대상:**
+### 2. `## QA 시니어가 이 기능을 중요하게 봐야 하는 이유` 신규 섹션 추가
 
-| Feature | URL | 캡처 포인트 |
-|---------|-----|------------|
-| My Senior | youngmi.works/senior | FAQ 카드뷰 + Chat SSE 스트리밍 화면 |
-| Knowledge Base | youngmi.works/kb | KB 목록 + Markdown 에디터 |
-| Word Conventions | youngmi.works/conventions | 용어 카드 그리드 + 이미지 첨부 |
-| Product Test Suite | youngmi.works/features | Company → Product → TestCase 드릴다운 |
-| QA Strategy | — | 테스트 파이프라인 다이어그램 (직접 제작 또는 CI 결과 캡처) |
+- QA 자산 보호 (JWT 인증, 특히 KB PDF 임베딩의 API 비용 보호)
+- 역할 분리로 실수 방지 (ADMIN/USER Role 테이블)
+- 일관된 작업 환경 (사이드바 네비게이션으로 4개 기능 통합)
 
-**저장 위치:** `frontend/public/screenshots/{slug}.png`
+### 3. `## 실무 활용 시나리오` 신규 섹션 추가
 
-**삽입 위치:** FeatureDetailPage의 About 섹션 하단 (`feature.about.screenshot` 필드)
+- 시나리오 1: 신규 QA 온보딩 — USER 권한으로 안전한 학습
+- 시나리오 2: 리드 QA의 팀 지식 큐레이션 — ADMIN 권한으로 KB Pin, Convention 정리
 
-**구현:**
-1. Playwright 스크립트로 youngmi.works 각 페이지 스크린샷 캡처
-2. `frontend/public/screenshots/`에 저장
-3. `featureDetails.ts`의 각 feature에 `screenshot: '/screenshots/{slug}.png'` 추가
-4. FeatureDetailPage에서 이미지 렌더링 (이미 구현됨, 데이터만 추가하면 됨)
+### 4. `## 다른 기능과의 연계` 신규 섹션 추가
 
-### FEAT-2: Notion MCP
+- JWT 인증 → 전체 API 보호
+- Role 기반 권한 → 역할별 실수 방지
+- Layout → 4개 기능 통합 네비게이션
 
-Claude 세션에서 Notion MCP 도구를 사용하여:
-1. Resume 컴포넌트 텍스트 추출
-2. 자기소개서 컴포넌트 텍스트 추출
-3. Notion 페이지 생성/업데이트
+### 5. 기존 기술 섹션 유지
 
----
+- 담당 범위 (인증/보안, 공통 UI/UX, API 인프라, 상태 관리, 기타 횡단 관심사)
+- 기존 공유 코드 맵
+- 향후 개발 로드맵
+- 버전 히스토리
 
-## 구현 순서
+## 변경 파일
 
-| Step | 작업 | 파일 |
-|------|------|------|
-| 1 | Playwright로 youngmi.works 스크린샷 캡처 | `frontend/public/screenshots/*.png` |
-| 2 | featureDetails.ts에 screenshot 경로 추가 | `frontend/src/data/featureDetails.ts` |
-| 3 | Notion MCP 동기화 | — (코드 변경 없음) |
-
----
-
-### Step 1 — 스크린샷 캡처
-
-- [ ] youngmi.works 배포 확인
-- [ ] Playwright 스크립트로 5개 페이지 캡처
-- [ ] `frontend/public/screenshots/`에 저장
-
-### Step 2 — 데이터 연결
-
-- [ ] featureDetails.ts 각 feature에 `screenshot` 경로 추가
-- [ ] Docker 빌드 + 확인
-
-### Step 3 — Notion MCP 동기화
-
-- [ ] Notion MCP API 개요 확인
-- [ ] Resume/자기소개서 Notion 페이지 생성
-
----
-
-## [최종 요약]
-
-(모든 Step 완료 후 작성)
+- `docs/features/platform/platform.md` — 메인 명세서 갱신
