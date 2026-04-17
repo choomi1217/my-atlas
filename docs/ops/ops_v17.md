@@ -1,7 +1,7 @@
 > 변경 유형: 환경 개선  
 > 작성일: 2026-04-16  
 > 버전: v17  
-> 상태: 진행 중
+> 상태: 완료
 
 ---
 
@@ -400,11 +400,17 @@ curl -X OPTIONS https://api.youngmi.works/api/kb \
 
 ## Steps
 
-- [ ] Phase 0: Route 53 도메인 구매 (`youngmi.works`)
-- [ ] Phase 1: ACM 인증서 발급 (us-east-1 + ap-northeast-2)
-- [ ] Phase 2: ALB HTTPS 리스너 추가
-- [ ] Phase 3: Route 53 DNS 레코드 설정
-- [ ] Phase 4: CloudFront 커스텀 도메인 연결
-- [ ] Phase 5: 코드 변경 (4개 파일)
-- [ ] Phase 6: 배포 + 검증
-- [ ] 문서 업데이트 (ops.md 버전 히스토리, ops-issues.md)
+- [x] Phase 0: Route 53 도메인 구매 (`youngmi.works`)
+- [x] Phase 1: ACM 인증서 발급 (us-east-1 + ap-northeast-2)
+- [x] Phase 2: ALB HTTPS 리스너 추가
+- [x] Phase 3: Route 53 DNS 레코드 설정
+- [x] Phase 4: CloudFront 커스텀 도메인 연결
+- [x] Phase 5: 코드 변경 (4개 파일)
+- [x] Phase 6: 배포 + 검증
+- [x] 문서 업데이트 (ops.md 버전 히스토리, ops-issues.md)
+
+---
+
+## [최종 요약]
+
+`youngmi.works` 도메인을 Route 53에서 구매하고, ACM 와일드카드 인증서를 us-east-1(CloudFront용) + ap-northeast-2(ALB용)에 발급했다. ALB에 HTTPS:443 리스너를 추가하고 HTTP→HTTPS 리다이렉트를 설정했다. Route 53에 `youngmi.works` → CloudFront, `api.youngmi.works` → ALB A 레코드를 등록했다. 프론트엔드 API URL을 환경변수화하고 CORS에 `youngmi.works`를 추가하여 배포 완료. 프로덕션에서 HTTPS로 프론트엔드/백엔드 모두 정상 동작 확인됨.
