@@ -1,7 +1,7 @@
 > 변경 유형: 환경 개선  
 > 작성일: 2026-04-13  
 > 버전: v14  
-> 상태: 진행 중
+> 상태: 완료
 
 ---
 
@@ -16,6 +16,7 @@ ops-issues.md의 미해결 이슈 중 즉시 실행 가능한 3개 번들을 묶
 | A. 로깅 개선 | #8 로그 로테이션, #4 로그 JSON 포맷 | 디스크 풀 예방 + 로그 파싱 가능 |
 | B. 빌드 품질 게이트 | #6 JaCoCo | Backend 코드 커버리지 측정/강제 |
 | C. 환경 변수 정리 | #7 API URL 하드코딩 | IP 하드코딩 제거, 환경별 분리 |
+| D. Dockerfile Gradle 캐싱 | CI 간헐적 실패 | Gradle 배포판 다운로드 타임아웃 방지 |
 
 ---
 
@@ -155,7 +156,44 @@ CORS_ALLOWED_ORIGIN_PATTERNS: "http://localhost:*,http://127.0.0.1:*,https://*.c
 
 > **GitHub Secret 추가 필요:** `BACKEND_API_URL` (값: `http://3.34.154.147:8080`, 추후 도메인 연결 시 변경)
 
-### Step 6: 검증
+### Step 6: Dockerfile Gradle 캐싱 (CI 안정성)
+
+**변경 파일:** `backend/Dockerfile`
+
+#### 문제
+Docker 빌드 시 `./gradlew bootJar`가 매번 Gradle 배포판을 인터넷에서 다운로드한다. GitHub Actions 네트워크가 불안정하면 `SocketTimeoutException: Read timed out`으로 CI가 간헐적 실패한다.
+
+**실제 사례:**
+- PR #50 (develop → main): `Start Docker Compose stack` 스텝에서 Gradle 다운로드 타임아웃으로 실패
+- PR #46도 동일 패턴 (1번 실패 → rerun 성공)
+
+#### 해결
+Gradle Wrapper + 배포판 다운로드를 별도 Docker 레이어로 분리하여 캐싱한다. 소스 코드가 변경되어도 이 레이어는 재실행되지 않는다.
+
+```dockerfile
+# Before — 소스 복사 후 빌드 (매번 Gradle 다운로드)
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /app
+COPY gradlew .
+COPY gradle gradle
+COPY build.gradle .
+COPY settings.gradle .
+COPY src src
+RUN chmod +x ./gradlew && ./gradlew bootJar -x test --no-daemon
+
+# After — Gradle 배포판을 별도 레이어로 캐싱
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /app
+COPY gradlew .
+COPY gradle gradle
+RUN chmod +x ./gradlew && ./gradlew --version --no-daemon
+COPY build.gradle .
+COPY settings.gradle .
+COPY src src
+RUN ./gradlew bootJar -x test --no-daemon
+```
+
+### Step 7: 검증
 
 | 항목 | 검증 방법 |
 |------|-----------|
@@ -166,10 +204,10 @@ CORS_ALLOWED_ORIGIN_PATTERNS: "http://localhost:*,http://127.0.0.1:*,https://*.c
 | API URL | `e2e.yml`에 Secret 참조 확인, `WebConfig`에 IP 직접 참조 없음 확인 |
 | CORS | 로컬 환경에서 API 호출 정상 동작 확인 |
 
-### Step 7: 문서 업데이트
+### Step 8: 문서 업데이트
 
-- [ ] ops_v13.md 최종 요약 작성
-- [ ] ops.md 버전 히스토리에 v13 추가
+- [ ] ops_v14.md 최종 요약 작성
+- [ ] ops.md 버전 히스토리에 v14 추가
 - [ ] ops-issues.md에서 #4, #6, #7, #8 상태 업데이트
 
 ---
@@ -184,6 +222,7 @@ CORS_ALLOWED_ORIGIN_PATTERNS: "http://localhost:*,http://127.0.0.1:*,https://*.c
 | `.github/workflows/e2e.yml` | VITE_API_BASE_URL → GitHub Secret 참조 |
 | `backend/src/main/java/com/myqaweb/config/WebConfig.java` | CORS origin 환경변수화 |
 | `backend/src/main/resources/application.yml` | CORS allowed-origins 설정 추가 |
+| `backend/Dockerfile` | Gradle 배포판 다운로드를 별도 Docker 레이어로 캐싱 |
 
 ---
 
@@ -194,5 +233,6 @@ CORS_ALLOWED_ORIGIN_PATTERNS: "http://localhost:*,http://127.0.0.1:*,https://*.c
 - [ ] Step 3: JaCoCo 플러그인 추가
 - [ ] Step 4: CI JaCoCo 스텝 활성화
 - [ ] Step 5: API URL 환경변수화
-- [ ] Step 6: 검증
-- [ ] Step 7: 문서 업데이트
+- [ ] Step 6: Dockerfile Gradle 캐싱
+- [ ] Step 7: 검증
+- [ ] Step 8: 문서 업데이트

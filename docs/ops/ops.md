@@ -1,6 +1,6 @@
 # my-atlas Ops 현황 종합
 
-> **최종 업데이트**: 2026-04-07
+> **최종 업데이트**: 2026-04-17
 
 ## 개요
 
@@ -14,16 +14,20 @@ CI/CD, Docker, 클라우드 인프라, 모니터링, 데이터베이스, 빌드 
 ### 현재 구성
 
 ```
-[사용자]
-   │
-   ├─ Frontend ──→ CloudFront (EVMWQ4ZH85AXV) ──→ S3 (my-atlas-frontend)
-   │                d1tr7ozyf0jrsl.cloudfront.net
-   │
-   └─ API 요청 ──→ EC2 (3.34.154.147:8080)
-                    t3.small / Amazon Linux
-                    ├── Backend Container (Spring Boot, port 8080)
-                    └── PostgreSQL Container (pgvector:pg15, port 5432)
-                        └── pgdata volume
+[사용자 브라우저]
+  │
+  ├─ https://youngmi.works
+  │     → Route 53 (A Alias)
+  │     → CloudFront (EVMWQ4ZH85AXV)
+  │     ├─ /* → S3 (my-atlas-frontend)        # React SPA
+  │     └─ /images/* → S3 (my-atlas-images)   # 이미지 CDN 서빙
+  │
+  └─ https://api.youngmi.works
+        → Route 53 (A Alias)
+        → ALB (my-atlas-alb, HTTPS:443)
+        → EC2:8080 (Spring Boot Docker)
+              └── PostgreSQL (Docker, 내부 5432)
+                  └── pgdata volume
 ```
 
 ### AWS 리소스 목록
@@ -31,23 +35,27 @@ CI/CD, Docker, 클라우드 인프라, 모니터링, 데이터베이스, 빌드 
 | 리소스 | 타입 | ID | 상태 |
 |--------|------|----|----|
 | VPC | Network | vpc-0dd2d80dcf32b9926 | Active |
-| Public Subnet | Network | subnet-0a65868480a1cd1f0 | Active |
+| Public Subnet (2a) | Network | subnet-0a65868480a1cd1f0 | Active |
+| Public Subnet (2b) | Network | (ALB용 추가) | Active |
 | Internet Gateway | Network | igw-07bc7f096f422f570 | Active |
-| Security Group | Network | sg-0c9c6e4934a014ce7 | Active |
+| Security Group (EC2) | Network | sg-0c9c6e4934a014ce7 | Active |
 | EC2 | Compute | i-0242a794b86668829 (t3.small) | Active |
 | Elastic IP | Network | 3.34.154.147 | Active |
+| ALB | Load Balancer | my-atlas-alb | Active |
+| Target Group | Load Balancer | my-atlas-backend (EC2:8080) | Healthy |
+| Route 53 | DNS | youngmi.works Hosted Zone | Active |
+| ACM (us-east-1) | Certificate | *.youngmi.works (CloudFront용) | ISSUED |
+| ACM (ap-northeast-2) | Certificate | *.youngmi.works (ALB용) | ISSUED |
 | S3 | Storage | my-atlas-frontend | Active |
+| S3 | Storage | my-atlas-images | Active |
 | CloudFront | CDN | EVMWQ4ZH85AXV | Active |
 | Key Pair | Auth | my-atlas-key | Active |
 
 ### 미구성 항목
-- ALB/NLB (로드밸런서 없음)
 - Auto Scaling Group 없음
-- 백엔드 HTTPS 미적용 (HTTP 8080 직접 노출)
-- 커스텀 도메인 미연결
 - Staging 환경 없음
 
-### 예상 월 비용: ~$20-25 (t3.small 상시 가동 기준)
+### 예상 월 비용: ~$36-41 (t3.small + ALB 상시 가동 기준)
 
 ---
 
@@ -57,31 +65,30 @@ CI/CD, Docker, 클라우드 인프라, 모니터링, 데이터베이스, 빌드 
 
 | 워크플로우 | 트리거 | 상태 | 비고 |
 |-----------|--------|------|------|
-| `backend-ci.yml` | Push/PR (main, develop) | 정상 | JaCoCo 비활성, Docker push 주석처리 |
-| `frontend-ci.yml` | Push/PR (main, develop) | 부분 동작 | lint/test가 continue-on-error |
-| `e2e.yml` | Push/PR + manual | 정상 | 98개 테스트 전부 통과 (API 65 + UI 33) |
-| `deploy-backend.yml` | Push to main (backend/**) | 구성 완료 | SSH → git pull → docker compose rebuild |
-| `deploy-frontend.yml` | Push to main (frontend/**) | 구성 완료 | npm build → S3 sync → CloudFront invalidation |
+| `backend-ci.yml` | Push/PR (main, develop) | 정상 | JaCoCo 활성 (70% 커버리지 강제) |
+| `frontend-ci.yml` | Push/PR (main, develop) | 정상 | lint/test 실패 시 빌드 차단 (v9) |
+| `e2e.yml` | Push/PR + manual | 정상 | E2E + 배포 통합 파이프라인 (v8) |
 
 ### 배포 흐름
 
 ```
 feature/* → develop (PR) → main (PR)
                                 │
-                    ┌───────────┼───────────┐
-                    ▼                       ▼
-            deploy-backend          deploy-frontend
-            (SSH → EC2)             (S3 + CloudFront)
+                          e2e.yml (통합)
+                     ┌──────────┼──────────┐
+                     ▼          ▼          ▼
+                  E2E 테스트  deploy-backend  deploy-frontend
+                              (SSH → EC2)   (S3 + CloudFront)
 ```
 
 ### CI/CD 주요 이슈
 
 | 이슈 | 심각도 | 설명 |
 |------|--------|------|
-| 배포 게이트 없음 | 높음 | E2E 통과 여부와 무관하게 main push 시 바로 배포됨 |
-| ~~Frontend CI 미강제~~ | ~~중간~~ | ~~lint/test 실패해도 빌드 통과~~ → **v9에서 해결** (ESLint 설정 + continue-on-error 제거) |
-| JaCoCo 미적용 | 중간 | 백엔드 코드 커버리지 측정/강제 안됨 |
-| 프론트엔드 API URL 하드코딩 | 중간 | deploy-frontend에서 EC2 IP 직접 참조 |
+| ~~배포 게이트 없음~~ | ~~높음~~ | → **v8에서 해결** (e2e.yml에 배포 job 통합) |
+| ~~Frontend CI 미강제~~ | ~~중간~~ | → **v9에서 해결** (ESLint + continue-on-error 제거) |
+| ~~JaCoCo 미적용~~ | ~~중간~~ | → **v14에서 해결** (70% line coverage 강제) |
+| ~~API URL 하드코딩~~ | ~~중간~~ | → **v14/v17에서 해결** (CORS 환경변수화 + 커스텀 도메인) |
 | 롤백 전략 없음 | 중간 | 배포 실패 시 수동 대응만 가능 |
 
 ### Slack 알림
@@ -92,13 +99,14 @@ feature/* → develop (PR) → main (PR)
 
 ## 3. Docker 구성
 
-### docker-compose.yml 서비스
+### Docker Compose 구성 (v16)
 
-| 서비스 | 이미지 | 포트 | Health Check | 상태 |
-|--------|--------|------|-------------|------|
-| db | pgvector/pgvector:pg15 | 5432:5432 | pg_isready | 정상 |
-| backend | 자체 빌드 (multi-stage) | 8080:8080 | 없음 | 정상 |
-| frontend | 자체 빌드 (dev mode) | 5173:5173 | 없음 | 개발용 |
+**DB와 App은 별도 Compose 프로젝트로 완전 분리:**
+
+| Compose 파일 | 프로젝트 이름 | 서비스 | 포트 |
+|-------------|-------------|--------|------|
+| `docker-compose.db.yml` | `myatlas-db` | db (pgvector:pg15) | 5432 |
+| `docker-compose.yml` | `my-atlas` | backend, frontend | 8080, 5173 |
 
 ### Dockerfile 상태
 
@@ -227,19 +235,19 @@ Mode: npm run dev (Vite dev server)
 | 영역 | 구현 여부 | 현황 |
 |------|-----------|------|
 | 헬스체크 | 부분 | DB: pg_isready / Backend: /actuator/health |
-| 로깅 | 로컬만 | logback → ./logs/backend_{session}.log |
+| 로깅 | 적용 | RollingFileAppender + JSON 포맷 (v14) |
 | 메트릭 | 없음 | Actuator metrics 미노출 |
 | 대시보드 | 없음 | Grafana/CloudWatch 없음 |
 | 알림 | CI/CD만 | Slack 알림 (파이프라인 결과만) |
 | APM | 없음 | 트레이싱/성능 모니터링 없음 |
 | 로그 집계 | 없음 | EC2 로컬 파일만 존재 |
 
-### 로깅 설정 (logback-spring.xml)
-- Console + File 출력
-- 세션별 파일명 (`backend_{SESSION_TS}.log`)
+### 로깅 설정 (logback-spring.xml, v14)
+- Console + File(텍스트) + File(JSON) 3중 출력
+- `RollingFileAppender` — 일별 로테이션, 100MB 분할, 30일 보관, 1GB 총 용량 제한
+- 텍스트 로그: `backend.log` (사람 읽기용)
+- JSON 로그: `backend-json.log` (기계 파싱용, `logstash-logback-encoder`)
 - com.myqaweb: DEBUG / root: INFO
-- **로그 로테이션 없음** — 파일이 무한히 커짐
-- **JSON 포맷 없음** — 로그 집계 시 파싱 필요
 
 ---
 
@@ -256,7 +264,8 @@ Mode: npm run dev (Vite dev server)
 | 빌드 명령 | `./gradlew clean build` |
 | 테스트 JVM | -Xmx1g |
 
-미적용: JaCoCo, SpotBugs, 의존성 취약점 스캔
+JaCoCo 적용 (v14): 70% line coverage 강제, CI에서 자동 리포트 생성
+미적용: SpotBugs, 의존성 취약점 스캔
 
 ### Frontend (npm + Vite)
 
@@ -288,11 +297,11 @@ Mode: npm run dev (Vite dev server)
 | 항목 | 상태 | 설명 |
 |------|------|------|
 | API 키 관리 | 주의 필요 | .env에 실 키 존재, .gitignore 적용됨 |
-| HTTPS (프론트엔드) | 적용 | CloudFront SSL |
-| HTTPS (백엔드) | 미적용 | HTTP 8080 직접 노출 |
+| HTTPS (프론트엔드) | 적용 | CloudFront + ACM (`youngmi.works`) |
+| HTTPS (백엔드) | 적용 | ALB + ACM (`api.youngmi.works`) (v17) |
 | Security Group | 과다 개방 | SSH 22번 포트 0.0.0.0/0 허용 |
 | DB 접근 | 내부만 | Docker 네트워크 내 통신 |
-| CORS | 미설정 | application.yml에 CORS 설정 없음 |
+| CORS | 적용 | 환경변수화 완료 (`CORS_ALLOWED_ORIGIN_PATTERNS`) (v14) |
 | 입력 검증 | 적용 | spring-boot-starter-validation |
 
 ---
@@ -301,24 +310,30 @@ Mode: npm run dev (Vite dev server)
 
 ### 강점
 - 모던 기술 스택 (Spring Boot 3.3, React 18, Vite, Docker)
-- CI/CD 5개 파이프라인 자동화 완료
+- CI/CD 통합 파이프라인 (E2E + 배포 + Slack 알림)
 - E2E 테스트 98개 전부 통과
-- 운영 문서화 우수 (AWS 배포 가이드, CI 최적화 이력)
-- Flyway 마이그레이션으로 스키마 관리
-- Slack 알림 연동
+- 커스텀 도메인 + HTTPS 전면 적용 (`youngmi.works` / `api.youngmi.works`)
+- 이미지 S3 + CloudFront CDN 서빙
+- JaCoCo 70% 커버리지 강제
+- 로그 로테이션 + JSON 포맷 병행
+- CORS/API URL 환경변수화 (IP 하드코딩 제거)
+- Flyway 마이그레이션으로 스키마 관리 (타임스탬프 기반)
+- Slack 알림 연동 (CI/CD + Claude Code 세션)
+- 운영 문서화 우수 (19개 버전 문서)
 
 ### 개선 필요
 
 | 우선순위 | 항목 | 현재 | 목표 |
 |----------|------|------|------|
-| 높음 | 배포 게이트 | E2E와 배포 분리되지 않음 | E2E 통과 시에만 배포 허용 |
-| 높음 | 백엔드 HTTPS | HTTP 직접 노출 | ALB + ACM 인증서 적용 |
-| 높음 | 프론트엔드 CI 강제 | lint/test continue-on-error | 실패 시 빌드 차단 |
+| ~~높음~~ | ~~배포 게이트~~ | ~~E2E와 배포 분리~~ | ✅ **v8에서 해결** |
+| ~~높음~~ | ~~백엔드 HTTPS~~ | ~~HTTP 직접 노출~~ | ✅ **v17에서 해결** (ALB + ACM) |
+| ~~높음~~ | ~~프론트엔드 CI 강제~~ | ~~continue-on-error~~ | ✅ **v9에서 해결** |
+| ~~중간~~ | ~~JaCoCo~~ | ~~비활성~~ | ✅ **v14에서 해결** (70% 강제) |
+| ~~중간~~ | ~~API URL 하드코딩~~ | ~~IP 직접 참조~~ | ✅ **v14/v17에서 해결** |
+| ~~낮음~~ | ~~로그 로테이션~~ | ~~없음~~ | ✅ **v14에서 해결** |
 | 중간 | 모니터링 | 없음 | CloudWatch 또는 Prometheus + Grafana |
 | 중간 | 로그 집계 | EC2 로컬 파일 | CloudWatch Logs 또는 ELK |
 | 중간 | DB 자동 백업 | 수동 pg_dump | 자동 스케줄 백업 |
-| 중간 | JaCoCo | 비활성 | build.gradle에 플러그인 추가, 70% 강제 |
-| 낮음 | 로그 로테이션 | 없음 | logback RollingFileAppender |
 | 낮음 | Security Group | SSH 전체 개방 | 특정 IP만 허용 |
 | 낮음 | Staging 환경 | 없음 | develop 브랜치용 별도 환경 |
 
@@ -345,6 +360,9 @@ Ops 관련 변경 이력을 시간순으로 기록한다. 각 버전 문서는 `
 | 2026-04-10 | [v11.md](v11.md) | 환경 개선 | Worktree 개발 환경 개선. (1) 문서 가시성: CLAUDE.md에 메인 레포 양쪽 작성 규칙 추가. (2) DB 독립 분리: docker-compose.db.yml로 DB 라이프사이클 분리, app compose down 시에도 DB 유지 |
 | 2026-04-13 | [v12.md](ops_v12.md) | 버그 수정 | Flyway validation 실패 수정. 공유 DB 환경에서 worktree 간 마이그레이션 충돌(description mismatch) 해결. `validate-on-migrate: false` 추가 |
 | 2026-04-13 | [v13.md](ops_v13.md) | 환경 개선 | Worktree Git 워크플로우 표준화. `wt.sh sync/status` 명령 추가, 심링크로 CLAUDE.md 단일화, Git 생명주기 규칙 명문화, Agent-D 4→3 Step 개선 |
+| 2026-04-16 | [v14.md](ops_v14.md) | 환경 개선 | 로깅 개선(로테이션 + JSON), JaCoCo 70% 강제, CORS 환경변수화, Dockerfile Gradle 캐싱 |
 | 2026-04-16 | [v15.md](ops_v15.md) | 버그 수정 | Slack 알림 JSON 파싱 오류 수정. 커밋 메시지를 이스케이프 없이 JSON에 삽입 → 첫 줄만 추출 + 72자 truncate + JSON 이스케이프 처리 |
 | 2026-04-16 | [v16.md](ops_v16.md) | 버그 수정 | DB Compose 프로젝트 완전 독립 분리. `name: myatlas-db`로 프로젝트 이름 분리, `.env` DB 접속 주소를 `host.docker.internal`로 변경 |
 | 2026-04-16 | [v17.md](ops_v17.md) | 환경 개선 | 커스텀 도메인 + HTTPS 프로덕션 배포. `youngmi.works` 도메인, ALB HTTPS, CloudFront 커스텀 도메인, CORS/API URL 환경변수화 |
+| 2026-04-17 | [v18.md](ops_v18.md) | 환경 개선 | 이미지 저장소 S3 전환. EC2 로컬 파일시스템 → S3(`my-atlas-images`) + CloudFront CDN 서빙. S3ImageService 통합, 이미지 GET 엔드포인트 제거 |
+| 2026-04-17 | [v19.md](ops_v19.md) | 버그 수정 | Deploy health check 재시도 방식 전환. `sleep 15` + 1회 → 10초 간격 최대 60초 재시도 루프. 실패 시 컨테이너 로그 출력 |
