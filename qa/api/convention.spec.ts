@@ -166,8 +166,10 @@ test.describe('Convention API E2E', () => {
 });
 
 test.describe('Convention Image API E2E', () => {
+  // 이미지 업로드는 S3 의존 — CI에서는 S3 자격증명 없으므로 로컬/운영에서만 테스트
+  test.skip(!!process.env.CI, 'S3 credentials not available in CI');
+
   test('POST /api/convention-images - upload image', async () => {
-    // Create a minimal 1x1 PNG in-memory
     const pngBuffer = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
       'base64'
@@ -186,6 +188,6 @@ test.describe('Convention Image API E2E', () => {
     const body = await response.json() as any;
     expect(body.success).toBe(true);
     expect(body.data.url).toBeTruthy();
-    expect(body.data.url).toContain('convention-images');
+    expect(body.data.url).toContain('images/convention');
   });
 });

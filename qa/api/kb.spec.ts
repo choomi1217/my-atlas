@@ -181,7 +181,8 @@ test.describe('Knowledge Base Category API', () => {
 });
 
 test.describe('Knowledge Base Image API E2E', () => {
-  let uploadedImageUrl: string;
+  // 이미지 업로드는 S3 의존 — CI에서는 S3 자격증명 없으므로 로컬/운영에서만 테스트
+  test.skip(!!process.env.CI, 'S3 credentials not available in CI');
 
   test('POST /api/kb/images - upload valid PNG image', async () => {
     const pngHeader = Buffer.from([
@@ -209,16 +210,7 @@ test.describe('Knowledge Base Image API E2E', () => {
     const body = await response.json() as any;
     expect(body.success).toBe(true);
     expect(body.data.url).toBeDefined();
-    expect(body.data.url).toContain('/api/kb/images/');
-    uploadedImageUrl = body.data.url;
-  });
-
-  test('GET /api/kb/images/{filename} - serve uploaded image', async () => {
-    expect(uploadedImageUrl).toBeDefined();
-    const response = await request.get(uploadedImageUrl);
-    expect(response.status()).toBe(200);
-    const contentType = response.headers()['content-type'];
-    expect(contentType).toContain('image/png');
+    expect(body.data.url).toContain('/images/kb/');
   });
 
   test('POST /api/kb/images - empty file returns 400', async () => {
@@ -234,10 +226,5 @@ test.describe('Knowledge Base Image API E2E', () => {
     expect(response.status()).toBe(400);
     const body = await response.json() as any;
     expect(body.success).toBe(false);
-  });
-
-  test('GET /api/kb/images/nonexistent.png - returns 404', async () => {
-    const response = await request.get('/api/kb/images/nonexistent-file.png');
-    expect(response.status()).toBe(404);
   });
 });
