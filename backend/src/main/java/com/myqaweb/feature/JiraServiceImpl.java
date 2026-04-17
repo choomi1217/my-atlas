@@ -39,17 +39,19 @@ public class JiraServiceImpl implements JiraService {
     }
 
     @Override
-    public JiraIssueInfo createIssue(String projectKey, String summary, String description) {
+    public JiraIssueInfo createIssue(String projectKey, String summary, String description, String priority) {
         String url = config.getBaseUrl() + "/rest/api/2/issue";
 
-        Map<String, Object> body = Map.of(
-                "fields", Map.of(
-                        "project", Map.of("key", projectKey),
-                        "summary", summary,
-                        "description", description != null ? description : "",
-                        "issuetype", Map.of("id", config.getIssueTypeId())
-                )
-        );
+        java.util.HashMap<String, Object> fields = new java.util.HashMap<>();
+        fields.put("project", Map.of("key", projectKey));
+        fields.put("summary", summary);
+        fields.put("description", description != null ? description : "");
+        fields.put("issuetype", Map.of("id", config.getIssueTypeId()));
+        if (priority != null) {
+            fields.put("priority", Map.of("name", priority));
+        }
+
+        Map<String, Object> body = Map.of("fields", fields);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, createHeaders());
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);

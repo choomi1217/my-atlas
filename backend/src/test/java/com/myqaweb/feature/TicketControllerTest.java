@@ -50,7 +50,7 @@ class TicketControllerTest {
     void testCreateTicket_Success() throws Exception {
         // Given
         TicketDto.CreateTicketRequest request = new TicketDto.CreateTicketRequest(
-                "Login fails on invalid input", "Steps to reproduce..."
+                "Login fails on invalid input", "Steps to reproduce...", null
         );
 
         when(ticketService.createTicket(eq(1L), any())).thenReturn(ticketResponse);
@@ -71,7 +71,7 @@ class TicketControllerTest {
     @Test
     void testCreateTicket_ValidationFails_MissingSummary() throws Exception {
         // Given - empty summary
-        TicketDto.CreateTicketRequest request = new TicketDto.CreateTicketRequest("", null);
+        TicketDto.CreateTicketRequest request = new TicketDto.CreateTicketRequest("", null, null);
 
         // When & Then
         mockMvc.perform(post("/api/versions/{versionId}/results/{resultId}/tickets", 1L, 1L)

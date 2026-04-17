@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Version, TestRun, TestCase, Segment, FailedTestCaseInfo } from '@/types/features';
+import { Version, TestRun, TestCase, Segment, FailedTestCaseInfo, Dashboard } from '@/types/features';
 import {
   versionApi,
   testRunApi,
@@ -8,10 +8,16 @@ import {
   productApi,
   testCaseApi,
   segmentApi,
+  statisticsApi,
 } from '@/api/features';
 import VersionCopyModal from '@/components/features/VersionCopyModal';
 import ProgressStats from '@/components/features/ProgressStats';
 import TestCaseGroupSelector from '@/components/features/TestCaseGroupSelector';
+import { ReleaseReadinessCard } from '@/components/features/statistics/ReleaseReadinessCard';
+import { TrendChartSection } from '@/components/features/statistics/TrendChartSection';
+import { AgingBugList } from '@/components/features/statistics/AgingBugList';
+import { BlockedTcList } from '@/components/features/statistics/BlockedTcList';
+import { DailyReportModal } from '@/components/features/statistics/DailyReportModal';
 
 export default function VersionDetailPage() {
   const { companyId, productId, versionId } = useParams<{
@@ -46,6 +52,12 @@ export default function VersionDetailPage() {
   const [showTcSelector, setShowTcSelector] = useState(false);
   const [showFailedTcs, setShowFailedTcs] = useState(false);
 
+  // Dashboard state
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<number | null>(null);
+  const [dailyReportDate, setDailyReportDate] = useState<string | null>(null);
+  const [dailyReportPhaseId, setDailyReportPhaseId] = useState<number | null>(null);
+
   const loadData = useCallback(async () => {
     if (!versionId || !productId) return;
     try {
@@ -73,6 +85,14 @@ export default function VersionDetailPage() {
         setFailedTcs(failed);
       } catch {
         setFailedTcs([]);
+      }
+
+      // Load dashboard
+      try {
+        const dashboardData = await statisticsApi.getDashboard(Number(versionId));
+        setDashboard(dashboardData);
+      } catch {
+        setDashboard(null);
       }
 
       if (v.copiedFrom) {
@@ -256,6 +276,58 @@ export default function VersionDetailPage() {
         <div className="mb-4 p-4 bg-orange-100 border border-orange-300 text-orange-800 rounded-lg">
           <p className="font-semibold">{version.warningMessage}</p>
         </div>
+      )}
+
+      {/* Dashboard Section */}
+      {dashboard && (
+        <div className="mb-6 space-y-4">
+          <ReleaseReadinessCard releaseReadiness={dashboard.releaseReadiness} />
+
+          {/* Phase Filter Tabs */}
+          {version.phases.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {version.phases.map(phase => (
+                <button
+                  key={phase.id}
+                  onClick={() => setSelectedPhaseFilter(
+                    selectedPhaseFilter === phase.id ? null : phase.id
+                  )}
+                  className={`px-3 py-1.5 rounded text-sm font-medium border ${
+                    selectedPhaseFilter === phase.id
+                      ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                      : 'text-gray-500 border-gray-200 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {phase.phaseName}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <TrendChartSection
+            phaseTrends={dashboard.phaseTrends}
+            selectedPhaseId={selectedPhaseFilter || (version.phases[0]?.id ?? null)}
+            onDateClick={(phaseId, date) => {
+              setDailyReportPhaseId(phaseId);
+              setDailyReportDate(date);
+            }}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <AgingBugList agingBugs={dashboard.agingBugs} />
+            <BlockedTcList blockedTcs={dashboard.blockedTcs} segments={segments} />
+          </div>
+        </div>
+      )}
+
+      {/* Daily Report Modal */}
+      {dailyReportPhaseId && dailyReportDate && (
+        <DailyReportModal
+          isOpen={!!dailyReportDate}
+          onClose={() => { setDailyReportDate(null); setDailyReportPhaseId(null); }}
+          phaseId={dailyReportPhaseId}
+          date={dailyReportDate}
+        />
       )}
 
       {/* Version Info */}

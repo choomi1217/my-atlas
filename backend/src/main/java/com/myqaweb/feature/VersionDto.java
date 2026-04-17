@@ -26,7 +26,10 @@ public class VersionDto {
             @NotBlank(message = "Phase name is required")
             String phaseName,
             List<Long> testRunIds,
-            List<Long> testCaseIds
+            List<Long> testCaseIds,
+            PhaseType phaseType,
+            LocalDate startDate,
+            LocalDate endDate
     ) {}
 
     public record UpdateVersionRequest(
