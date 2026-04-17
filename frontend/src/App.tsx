@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import LoginPage from '@/pages/LoginPage'
@@ -18,6 +18,9 @@ import VersionListPage from '@/pages/features/VersionListPage'
 import VersionDetailPage from '@/pages/features/VersionDetailPage'
 import VersionPhaseDetailPage from '@/pages/features/VersionPhaseDetailPage'
 import ResumePage from '@/pages/ResumePage'
+import OverviewPage from '@/pages/OverviewPage'
+import FeatureDetailPage from '@/pages/FeatureDetailPage'
+import FeatureVersionPage from '@/pages/FeatureVersionPage'
 
 export default function App() {
   return (
@@ -29,7 +32,7 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <Routes>
-                <Route path="/" element={<Navigate to="/senior" replace />} />
+                <Route path="/" element={<OverviewPage />} />
                 <Route path="/senior" element={<SeniorPage />} />
                 <Route path="/kb" element={<KnowledgeBasePage />} />
                 <Route path="/kb/write" element={<KbWritePage />} />
@@ -46,6 +49,8 @@ export default function App() {
                 <Route path="/features/companies/:companyId/products/:productId/versions" element={<VersionListPage />} />
                 <Route path="/features/companies/:companyId/products/:productId/versions/:versionId" element={<VersionDetailPage />} />
                 <Route path="/features/companies/:companyId/products/:productId/versions/:versionId/phases/:phaseId" element={<VersionPhaseDetailPage />} />
+                <Route path="/feature/:slug/:version" element={<FeatureVersionPage />} />
+                <Route path="/feature/:slug" element={<FeatureDetailPage />} />
                 <Route path="/resume" element={<ResumePage />} />
               </Routes>
             </Layout>

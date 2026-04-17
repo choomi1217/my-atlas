@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Spoqa Han Sans Neo"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+      },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-in-out',
       },

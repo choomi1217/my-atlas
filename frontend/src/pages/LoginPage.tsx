@@ -18,7 +18,7 @@ export default function LoginPage() {
 
     try {
       await login({ username, password });
-      navigate('/senior', { replace: true });
+      navigate('/', { replace: true });
     } catch {
       setError('Invalid username or password');
     } finally {
