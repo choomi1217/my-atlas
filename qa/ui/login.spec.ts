@@ -31,7 +31,7 @@ test.describe('Login Page UI E2E', () => {
 
   // --- Successful login ---
 
-  test('should redirect to /senior after successful login', async ({ page }) => {
+  test('should redirect to / after successful login', async ({ page }) => {
     await page.locator('#username').fill('admin');
     await page.locator('#password').fill('admin');
 
@@ -41,12 +41,10 @@ test.describe('Login Page UI E2E', () => {
     await page.getByRole('button', { name: 'Login' }).click();
     await loginResponse;
 
-    // Should redirect to /senior (main page)
-    await expect(page).toHaveURL(/\/senior/);
-    // Layout sidebar should be visible with navigation
-    await expect(page.locator('h1').filter({ hasText: 'my-atlas' })).toBeVisible();
-    // My Senior heading in main content
-    await expect(page.locator('h2').filter({ hasText: 'My Senior' })).toBeVisible();
+    // Should redirect to / (overview page)
+    await expect(page).toHaveURL(/\/$/);
+    // GNB should be visible with logo
+    await expect(page.locator('header').getByText('my-atlas')).toBeVisible();
   });
 
   // --- Failed login ---
@@ -70,9 +68,9 @@ test.describe('Login Page UI E2E', () => {
     await page.locator('#username').fill('admin');
     await page.locator('#password').fill('admin');
     await page.getByRole('button', { name: 'Login' }).click();
-    await expect(page).toHaveURL(/\/senior/);
+    await expect(page).toHaveURL(/\/$/);
 
-    // Click Logout button in sidebar
+    // Click Logout button in GNB
     await page.getByRole('button', { name: 'Logout' }).click();
 
     // Should redirect to login page
