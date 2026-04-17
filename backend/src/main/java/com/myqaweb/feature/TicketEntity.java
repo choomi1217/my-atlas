@@ -36,6 +36,16 @@ public class TicketEntity {
     @Column(nullable = false, length = 50)
     private String status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TicketPriority priority = TicketPriority.MEDIUM;
+
+    @Column(name = "closed_at")
+    private LocalDateTime closedAt;
+
+    @Column(name = "reopen_count", nullable = false)
+    private Integer reopenCount = 0;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

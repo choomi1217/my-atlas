@@ -248,6 +248,119 @@ export interface FailedTestCaseInfo {
 }
 
 /**
+ * Priority levels for bug tickets (aligned with Jira).
+ */
+export enum TicketPriority {
+  HIGHEST = 'HIGHEST',
+  HIGH = 'HIGH',
+  MEDIUM = 'MEDIUM',
+  LOW = 'LOW',
+  LOWEST = 'LOWEST',
+}
+
+/**
+ * Phase type classification.
+ */
+export enum PhaseType {
+  FIRST = 'FIRST',
+  SECOND = 'SECOND',
+  REGRESSION = 'REGRESSION',
+}
+
+/**
+ * Daily report for a specific phase on a specific date.
+ */
+export interface DailyReport {
+  phaseId: number;
+  phaseName: string;
+  snapshotDate: string;
+  totalTc: number;
+  passCount: number;
+  failCount: number;
+  blockedCount: number;
+  skippedCount: number;
+  retestCount: number;
+  untestedCount: number;
+  newBugCritical: number;
+  newBugMajor: number;
+  newBugMinor: number;
+  newBugTrivial: number;
+  closedBugCount: number;
+  openBugCount: number;
+  agingBugCount: number;
+  passRate: number;
+  progressRate: number;
+}
+
+/**
+ * Trend data for a phase over a date range.
+ */
+export interface TrendData {
+  phaseId: number;
+  phaseName: string;
+  from: string;
+  to: string;
+  dailyReports: DailyReport[];
+}
+
+/**
+ * Release readiness evaluation result.
+ */
+export interface ReleaseReadiness {
+  ready: boolean;
+  verdict: 'GO' | 'NO_GO';
+  criteria: ReadinessCriterion[];
+  progress: VersionProgressSummary;
+}
+
+export interface ReadinessCriterion {
+  name: string;
+  threshold: string;
+  actual: string;
+  passed: boolean;
+}
+
+export interface VersionProgressSummary {
+  totalTc: number;
+  completed: number;
+  pass: number;
+  fail: number;
+  blocked: number;
+  overallPassRate: number;
+  overallProgressRate: number;
+}
+
+/**
+ * Dashboard data for a version.
+ */
+export interface Dashboard {
+  releaseReadiness: ReleaseReadiness;
+  phaseTrends: TrendData[];
+  agingBugs: AgingBugInfo[];
+  blockedTcs: BlockedTcInfo[];
+}
+
+export interface AgingBugInfo {
+  ticketId: number;
+  jiraKey: string;
+  jiraUrl: string;
+  summary: string;
+  priority: TicketPriority;
+  phaseName: string;
+  testCaseTitle: string;
+  createdAt: string;
+  agingDays: number;
+}
+
+export interface BlockedTcInfo {
+  testResultId: number;
+  testCaseId: number;
+  testCaseTitle: string;
+  testCasePath: number[];
+  phaseName: string;
+}
+
+/**
  * Test result comment interface (threaded).
  */
 export interface TestResultComment {

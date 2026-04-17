@@ -19,6 +19,10 @@ import {
   TestResultComment,
   Ticket,
   FailedTestCaseInfo,
+  DailyReport,
+  TrendData,
+  ReleaseReadiness,
+  Dashboard,
 } from '@/types/features';
 // ProgressStats is used indirectly via Version/VersionPhase types
 
@@ -617,11 +621,12 @@ export const ticketApi = {
     versionId: number,
     resultId: number,
     summary: string,
-    description?: string
+    description?: string,
+    priority?: string
   ): Promise<Ticket> => {
     const response = await apiClient.post<ApiResponse<Ticket>>(
       `/api/versions/${versionId}/results/${resultId}/tickets`,
-      { summary, description }
+      { summary, description, priority }
     );
     return response.data.data;
   },
@@ -644,5 +649,51 @@ export const ticketApi = {
       `/api/versions/${versionId}/results/${resultId}/tickets/${ticketId}/refresh`
     );
     return response.data.data;
+  },
+
+  refreshAllByPhase: async (versionId: number, phaseId: number): Promise<number> => {
+    const response = await apiClient.post<ApiResponse<number>>(
+      `/api/versions/${versionId}/phases/${phaseId}/tickets/refresh-all`
+    );
+    return response.data.data;
+  },
+};
+
+/**
+ * Statistics API endpoints.
+ */
+export const statisticsApi = {
+  getDailyReport: async (phaseId: number, date: string): Promise<DailyReport> => {
+    const response = await apiClient.get<ApiResponse<DailyReport>>(
+      `/api/phases/${phaseId}/reports/daily`,
+      { params: { date } }
+    );
+    return response.data.data;
+  },
+
+  getTrend: async (phaseId: number, from: string, to: string): Promise<TrendData> => {
+    const response = await apiClient.get<ApiResponse<TrendData>>(
+      `/api/phases/${phaseId}/reports/trend`,
+      { params: { from, to } }
+    );
+    return response.data.data;
+  },
+
+  getReleaseReadiness: async (versionId: number): Promise<ReleaseReadiness> => {
+    const response = await apiClient.get<ApiResponse<ReleaseReadiness>>(
+      `/api/versions/${versionId}/release-readiness`
+    );
+    return response.data.data;
+  },
+
+  getDashboard: async (versionId: number): Promise<Dashboard> => {
+    const response = await apiClient.get<ApiResponse<Dashboard>>(
+      `/api/versions/${versionId}/dashboard`
+    );
+    return response.data.data;
+  },
+
+  runSnapshot: async (date: string): Promise<void> => {
+    await apiClient.post('/api/admin/snapshots/run', null, { params: { date } });
   },
 };

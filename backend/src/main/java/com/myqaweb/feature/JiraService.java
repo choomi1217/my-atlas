@@ -16,9 +16,10 @@ public interface JiraService {
      * @param projectKey Jira project key (e.g., "AT")
      * @param summary    issue summary
      * @param description issue description
+     * @param priority   Jira priority name (e.g., "Highest", "High", "Medium", "Low", "Lowest")
      * @return created issue info
      */
-    JiraIssueInfo createIssue(String projectKey, String summary, String description);
+    JiraIssueInfo createIssue(String projectKey, String summary, String description, String priority);
 
     /**
      * Get the current status of a Jira issue.

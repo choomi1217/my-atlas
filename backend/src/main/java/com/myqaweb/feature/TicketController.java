@@ -56,4 +56,12 @@ public class TicketController {
         TicketDto.TicketResponse ticket = ticketService.refreshTicketStatus(ticketId);
         return ResponseEntity.ok(new ApiResponse<>(true, "Ticket status refreshed", ticket));
     }
+
+    @PostMapping("/versions/{versionId}/phases/{phaseId}/tickets/refresh-all")
+    public ResponseEntity<ApiResponse<Integer>> refreshAllTickets(
+            @PathVariable Long versionId,
+            @PathVariable Long phaseId) {
+        int count = ticketService.refreshAllByPhaseId(phaseId);
+        return ResponseEntity.ok(new ApiResponse<>(true, count + "개 티켓 상태 갱신 완료", count));
+    }
 }
