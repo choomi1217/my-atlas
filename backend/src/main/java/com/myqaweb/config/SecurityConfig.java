@@ -35,10 +35,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         // 계정 생성은 ADMIN만
                         .requestMatchers("/api/auth/register").hasRole("ADMIN")
-                        // 이미지 서빙은 인증 없이 허용 (<img> 태그는 Authorization 헤더 미포함)
-                        .requestMatchers(HttpMethod.GET, "/api/kb/images/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/convention-images/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/feature-images/**").permitAll()
+                        // 이미지는 S3+CloudFront에서 서빙 (백엔드 GET 엔드포인트 제거됨)
                         // GET 요청은 ADMIN, USER 모두 허용
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
                         // 쓰기 요청(POST/PUT/PATCH/DELETE)은 ADMIN만
