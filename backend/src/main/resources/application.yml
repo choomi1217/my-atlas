@@ -90,6 +90,14 @@ jira:
   default-project-key: AT
   issue-type-id: "10042"
 
+# Statistics configuration
+statistics:
+  readiness:
+    max-highest-open: 0
+    max-high-open: 2
+    min-regression-pass-rate: 98.0
+    aging-threshold-days: 3
+
 # Convention image upload
 convention:
   image:

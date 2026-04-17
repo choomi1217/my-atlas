@@ -66,6 +66,10 @@ public class VersionPhaseServiceImpl implements VersionPhaseService {
         phase.setPhaseName(request.phaseName());
         phase.setOrderIndex(nextOrderIndex);
 
+        phase.setPhaseType(request.phaseType() != null ? request.phaseType() : PhaseType.FIRST);
+        phase.setStartDate(request.startDate() != null ? request.startDate() : java.time.LocalDate.now());
+        phase.setEndDate(request.endDate());
+
         VersionPhaseEntity savedPhase = versionPhaseRepository.save(phase);
         log.info("Added phase: {} to version: {}", savedPhase.getId(), versionId);
 

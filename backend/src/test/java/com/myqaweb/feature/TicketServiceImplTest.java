@@ -73,13 +73,13 @@ class TicketServiceImplTest {
     void testCreateTicket_JiraConfigured_Success() {
         // Given
         TicketDto.CreateTicketRequest request = new TicketDto.CreateTicketRequest(
-                "Login fails on invalid input", "Steps to reproduce..."
+                "Login fails on invalid input", "Steps to reproduce...", null
         );
 
         when(jiraService.isConfigured()).thenReturn(true);
         when(testResultRepository.findById(1L)).thenReturn(Optional.of(testResult));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(jiraService.createIssue("TP", "Login fails on invalid input", "Steps to reproduce..."))
+        when(jiraService.createIssue(eq("TP"), eq("Login fails on invalid input"), eq("Steps to reproduce..."), any()))
                 .thenReturn(new JiraService.JiraIssueInfo("TP-1", "https://jira.example.com/browse/TP-1"));
         when(ticketRepository.save(any())).thenReturn(ticket);
 
@@ -93,7 +93,7 @@ class TicketServiceImplTest {
         assertEquals("Login fails on invalid input", response.summary());
         assertEquals("OPEN", response.status());
         verify(jiraService).isConfigured();
-        verify(jiraService).createIssue("TP", "Login fails on invalid input", "Steps to reproduce...");
+        verify(jiraService).createIssue(eq("TP"), eq("Login fails on invalid input"), eq("Steps to reproduce..."), any());
         verify(ticketRepository).save(any());
     }
 
@@ -101,7 +101,7 @@ class TicketServiceImplTest {
     void testCreateTicket_JiraNotConfigured_ThrowsException() {
         // Given
         TicketDto.CreateTicketRequest request = new TicketDto.CreateTicketRequest(
-                "Bug summary", null
+                "Bug summary", null, null
         );
 
         when(jiraService.isConfigured()).thenReturn(false);
@@ -130,13 +130,13 @@ class TicketServiceImplTest {
         resultWithoutKey.setId(2L);
         resultWithoutKey.setVersion(version);
 
-        TicketDto.CreateTicketRequest request = new TicketDto.CreateTicketRequest("Bug", null);
+        TicketDto.CreateTicketRequest request = new TicketDto.CreateTicketRequest("Bug", null, null);
 
         when(jiraService.isConfigured()).thenReturn(true);
         when(testResultRepository.findById(2L)).thenReturn(Optional.of(resultWithoutKey));
         when(productRepository.findById(2L)).thenReturn(Optional.of(productWithoutKey));
         when(jiraConfig.getDefaultProjectKey()).thenReturn("DEFAULT");
-        when(jiraService.createIssue(eq("DEFAULT"), any(), any()))
+        when(jiraService.createIssue(eq("DEFAULT"), any(), any(), any()))
                 .thenReturn(new JiraService.JiraIssueInfo("DEFAULT-1", "https://jira.example.com/browse/DEFAULT-1"));
         when(ticketRepository.save(any())).thenReturn(ticket);
 
@@ -145,7 +145,7 @@ class TicketServiceImplTest {
 
         // Then
         verify(jiraConfig).getDefaultProjectKey();
-        verify(jiraService).createIssue(eq("DEFAULT"), any(), any());
+        verify(jiraService).createIssue(eq("DEFAULT"), any(), any(), any());
     }
 
     @Test

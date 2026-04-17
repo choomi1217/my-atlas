@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -29,6 +30,16 @@ public class VersionPhaseEntity {
 
     @Column(nullable = false)
     private Integer orderIndex;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "phase_type", nullable = false, length = 20)
+    private PhaseType phaseType = PhaseType.FIRST;
+
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
+    @Column(name = "end_date")
+    private LocalDate endDate;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
