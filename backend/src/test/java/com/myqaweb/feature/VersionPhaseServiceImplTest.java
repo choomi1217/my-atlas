@@ -83,7 +83,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testAddPhase_Success() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(1L), null);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(1L), null, null, null, null);
 
         VersionPhaseTestRunEntity junction = new VersionPhaseTestRunEntity();
         junction.setId(1L);
@@ -121,7 +121,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testAddPhase_MultipleTestRuns() {
         // Given — 2 test runs assigned to one phase
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Full Regression", List.of(1L, 2L), null);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Full Regression", List.of(1L, 2L), null, null, null, null);
 
         VersionPhaseTestRunEntity junction1 = new VersionPhaseTestRunEntity();
         junction1.setId(1L);
@@ -160,7 +160,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testAddPhase_VersionNotFound() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L), null);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L), null, null, null, null);
 
         when(versionRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -172,7 +172,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testAddPhase_TestRunNotFound() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(999L), null);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(999L), null, null, null, null);
 
         when(versionRepository.findById(1L)).thenReturn(Optional.of(version));
         when(testRunRepository.findById(999L)).thenReturn(Optional.empty());
@@ -185,7 +185,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testUpdatePhase_ChangeTestRuns() {
         // Given — replace test runs: [1] -> [2]
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(2L), null);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Regression", List.of(2L), null, null, null, null);
 
         VersionPhaseTestRunEntity newJunction = new VersionPhaseTestRunEntity();
         newJunction.setId(2L);
@@ -218,7 +218,7 @@ class VersionPhaseServiceImplTest {
     @Test
     void testUpdatePhase_PhaseNotFound() {
         // Given
-        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L), null);
+        VersionDto.PhaseRequest request = new VersionDto.PhaseRequest("Phase", List.of(1L), null, null, null, null);
 
         when(versionPhaseRepository.findById(999L)).thenReturn(Optional.empty());
 

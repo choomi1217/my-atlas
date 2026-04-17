@@ -12,7 +12,8 @@ public class TicketDto {
     public record CreateTicketRequest(
             @NotBlank(message = "Ticket summary is required")
             String summary,
-            String description
+            String description,
+            TicketPriority priority
     ) {}
 
     public record TicketResponse(

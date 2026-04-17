@@ -48,8 +48,10 @@ public class TicketServiceImpl implements TicketService {
 
         String projectKey = resolveProjectKey(result);
 
+        TicketPriority priority = request.priority() != null ? request.priority() : TicketPriority.MEDIUM;
+
         JiraService.JiraIssueInfo issue = jiraService.createIssue(
-                projectKey, request.summary(), request.description());
+                projectKey, request.summary(), request.description(), toJiraPriorityName(priority));
 
         TicketEntity ticket = new TicketEntity();
         ticket.setTestResult(result);
@@ -57,6 +59,7 @@ public class TicketServiceImpl implements TicketService {
         ticket.setJiraUrl(issue.url());
         ticket.setSummary(request.summary());
         ticket.setStatus("OPEN");
+        ticket.setPriority(priority);
 
         TicketEntity saved = ticketRepository.save(ticket);
         log.info("Ticket created: {} for result {}", issue.key(), resultId);
@@ -89,9 +92,21 @@ public class TicketServiceImpl implements TicketService {
         }
 
         String freshStatus = jiraService.getIssueStatus(ticket.getJiraKey());
+        String oldStatus = ticket.getStatus();
+
+        // Detect closure: open → done
+        if (isDoneStatus(freshStatus) && ticket.getClosedAt() == null) {
+            ticket.setClosedAt(java.time.LocalDateTime.now());
+        }
+        // Detect reopen: done → open
+        if (isDoneStatus(oldStatus) && !isDoneStatus(freshStatus)) {
+            ticket.setReopenCount(ticket.getReopenCount() + 1);
+            ticket.setClosedAt(null);
+        }
+
         ticket.setStatus(freshStatus);
         TicketEntity updated = ticketRepository.save(ticket);
-        log.info("Ticket {} status refreshed: {}", ticket.getJiraKey(), freshStatus);
+        log.info("Ticket {} status refreshed: {} → {}", ticket.getJiraKey(), oldStatus, freshStatus);
         return toResponse(updated);
     }
 
@@ -99,6 +114,46 @@ public class TicketServiceImpl implements TicketService {
     @Transactional(readOnly = true)
     public int getTicketCount(Long resultId) {
         return ticketRepository.countByTestResultId(resultId);
+    }
+
+    @Override
+    @Transactional
+    public int refreshAllByPhaseId(Long phaseId) {
+        if (!jiraService.isConfigured()) {
+            throw new IllegalStateException("Jira 연동이 설정되지 않았습니다.");
+        }
+
+        List<Long> resultIds = testResultRepository.findAllByVersionPhaseId(phaseId)
+                .stream().map(TestResultEntity::getId).toList();
+
+        if (resultIds.isEmpty()) return 0;
+
+        List<TicketEntity> tickets = ticketRepository.findAllByTestResultIdIn(resultIds);
+        int refreshed = 0;
+
+        for (TicketEntity ticket : tickets) {
+            try {
+                String freshStatus = jiraService.getIssueStatus(ticket.getJiraKey());
+                String oldStatus = ticket.getStatus();
+
+                if (isDoneStatus(freshStatus) && ticket.getClosedAt() == null) {
+                    ticket.setClosedAt(java.time.LocalDateTime.now());
+                }
+                if (isDoneStatus(oldStatus) && !isDoneStatus(freshStatus)) {
+                    ticket.setReopenCount(ticket.getReopenCount() + 1);
+                    ticket.setClosedAt(null);
+                }
+
+                ticket.setStatus(freshStatus);
+                ticketRepository.save(ticket);
+                refreshed++;
+            } catch (Exception e) {
+                log.warn("Failed to refresh ticket {}: {}", ticket.getJiraKey(), e.getMessage());
+            }
+        }
+
+        log.info("Refreshed {}/{} tickets for phase {}", refreshed, tickets.size(), phaseId);
+        return refreshed;
     }
 
     private String resolveProjectKey(TestResultEntity result) {
@@ -110,6 +165,22 @@ public class TicketServiceImpl implements TicketService {
             return product.getJiraProjectKey();
         }
         return jiraConfig.getDefaultProjectKey();
+    }
+
+    private String toJiraPriorityName(TicketPriority priority) {
+        return switch (priority) {
+            case HIGHEST -> "Highest";
+            case HIGH -> "High";
+            case MEDIUM -> "Medium";
+            case LOW -> "Low";
+            case LOWEST -> "Lowest";
+        };
+    }
+
+    private boolean isDoneStatus(String status) {
+        if (status == null) return false;
+        String upper = status.toUpperCase();
+        return upper.equals("DONE") || upper.equals("CLOSED") || upper.equals("RESOLVED");
     }
 
     private TicketDto.TicketResponse toResponse(TicketEntity entity) {

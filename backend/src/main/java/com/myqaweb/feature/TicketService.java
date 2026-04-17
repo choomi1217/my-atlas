@@ -31,4 +31,11 @@ public interface TicketService {
      * Get ticket count for a test result.
      */
     int getTicketCount(Long resultId);
+
+    /**
+     * Refresh all ticket statuses for a given phase from Jira.
+     *
+     * @return number of tickets refreshed
+     */
+    int refreshAllByPhaseId(Long phaseId);
 }

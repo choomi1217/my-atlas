@@ -9,6 +9,7 @@ import {
   Ticket,
   RunResultStatus,
   ProgressStats,
+  TicketPriority,
 } from '@/types/features';
 import {
   versionApi,
@@ -308,8 +309,10 @@ export default function VersionPhaseDetailPage() {
   const [ticketDialogResultId, setTicketDialogResultId] = useState<number | null>(null);
   const [ticketSummary, setTicketSummary] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
+  const [ticketPriority, setTicketPriority] = useState<TicketPriority>(TicketPriority.MEDIUM);
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!versionId || !phaseId || !productId) return;
@@ -483,11 +486,12 @@ export default function VersionPhaseDetailPage() {
     setIsCreatingTicket(true);
     setTicketError(null);
     try {
-      await ticketApi.create(Number(versionId), ticketDialogResultId, ticketSummary.trim(), ticketDescription.trim());
+      await ticketApi.create(Number(versionId), ticketDialogResultId, ticketSummary.trim(), ticketDescription.trim(), ticketPriority);
       await loadTickets(ticketDialogResultId);
       setTicketDialogResultId(null);
       setTicketSummary('');
       setTicketDescription('');
+      setTicketPriority(TicketPriority.MEDIUM);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Jira 티켓 생성 실패';
       setTicketError(`Jira 연결을 확인하세요: ${msg}`);
@@ -506,6 +510,31 @@ export default function VersionPhaseDetailPage() {
       }));
     } catch (err) {
       console.error('Failed to refresh ticket:', err);
+    }
+  };
+
+  const handleRefreshAllTickets = async () => {
+    if (!versionId || !phaseId) return;
+    setIsRefreshingAll(true);
+    try {
+      const count = await ticketApi.refreshAllByPhase(Number(versionId), Number(phaseId));
+      alert(`${count}개 티켓 상태가 갱신되었습니다.`);
+      // Reload tickets for all expanded results
+      const allResultIds = results.map(r => r.id);
+      const ticketUpdates: Record<number, Ticket[]> = {};
+      for (const rid of allResultIds) {
+        try {
+          ticketUpdates[rid] = await ticketApi.getByResultId(Number(versionId), rid);
+        } catch {
+          // skip
+        }
+      }
+      setTickets(prev => ({ ...prev, ...ticketUpdates }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Refresh 실패';
+      alert(`티켓 갱신 실패: ${msg}`);
+    } finally {
+      setIsRefreshingAll(false);
     }
   };
 
@@ -554,12 +583,21 @@ export default function VersionPhaseDetailPage() {
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
           {version.name} &gt; {phase.phaseName}
         </h1>
-        <p className="text-gray-600">
-          {phase.testRuns.length > 0 && (
-            <>TestRun: {phase.testRuns.map((tr) => `${tr.testRunName} (${tr.testCaseCount} TC)`).join(', ')} — </>
-          )}
-          총 {phase.totalTestCaseCount} TC
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-gray-600">
+            {phase.testRuns.length > 0 && (
+              <>TestRun: {phase.testRuns.map((tr) => `${tr.testRunName} (${tr.testCaseCount} TC)`).join(', ')} — </>
+            )}
+            총 {phase.totalTestCaseCount} TC
+          </p>
+          <button
+            onClick={handleRefreshAllTickets}
+            disabled={isRefreshingAll}
+            className="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-300 rounded-lg hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isRefreshingAll ? '갱신 중...' : 'Refresh All Tickets'}
+          </button>
+        </div>
       </div>
 
       {error && <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg">{error}</div>}
@@ -671,6 +709,18 @@ export default function VersionPhaseDetailPage() {
                   onChange={(e) => setTicketSummary(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <select
+                  value={ticketPriority}
+                  onChange={(e) => setTicketPriority(e.target.value as TicketPriority)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  {Object.values(TicketPriority).map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">설명 (선택)</label>
