@@ -69,6 +69,11 @@ logging:
 app:
   cors:
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://*.cloudfront.net,https://youngmi.works}
+  s3:
+    image-bucket: ${S3_IMAGE_BUCKET:my-atlas-images}
+    region: ${AWS_REGION:ap-northeast-2}
+    access-key: ${AWS_ACCESS_KEY_ID:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
 
 # Feature configuration
 feature:

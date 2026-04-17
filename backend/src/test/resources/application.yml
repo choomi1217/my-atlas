@@ -26,3 +26,10 @@ jwt:
 feature:
   embedding:
     enabled: true
+
+app:
+  s3:
+    image-bucket: test-bucket
+    region: ap-northeast-2
+    access-key: test
+    secret-key: test
