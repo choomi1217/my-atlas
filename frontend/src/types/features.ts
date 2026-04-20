@@ -108,6 +108,7 @@ export interface TestCase {
   images?: TestCaseImage[];
   createdAt: string;
   updatedAt: string;
+  testStudioJobId?: number;
 }
 
 /**

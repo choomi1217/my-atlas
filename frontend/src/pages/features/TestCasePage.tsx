@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   Company,
   Product,
@@ -227,11 +227,27 @@ export default function TestCasePage() {
     companyId: string;
     productId: string;
   }>();
+  const [searchParams] = useSearchParams();
+  const statusFilter = searchParams.get('status');
+  const jobIdFilterRaw = searchParams.get('jobId');
+  const jobIdFilter = jobIdFilterRaw ? Number(jobIdFilterRaw) : null;
 
   const [company, setCompany] = useState<Company | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [allTestCases, setTestCases] = useState<TestCase[]>([]);
+
+  // Apply URL filters (?status=DRAFT&jobId=42); downstream UI reads `testCases`.
+  const testCases = useMemo(() => {
+    let filtered = allTestCases;
+    if (statusFilter) {
+      filtered = filtered.filter((tc) => tc.status === statusFilter);
+    }
+    if (jobIdFilter !== null && !Number.isNaN(jobIdFilter)) {
+      filtered = filtered.filter((tc) => tc.testStudioJobId === jobIdFilter);
+    }
+    return filtered;
+  }, [allTestCases, statusFilter, jobIdFilter]);
   const [selectedPath, setSelectedPath] = useState<number[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -294,6 +310,14 @@ export default function TestCasePage() {
     dfs(null, []);
     return order;
   }, [childrenMap]);
+
+  // TCs without a Segment path assigned — typically Test Studio DRAFTs
+  // waiting for the reviewer to pick a Segment. These are rendered separately
+  // because the path tree view requires a non-empty path.
+  const unassignedTestCases = useMemo(
+    () => testCases.filter((tc) => !tc.path || tc.path.length === 0),
+    [testCases]
+  );
 
   // Group test cases by their exact path, sorted by DFS tree order
   const groupedTestCases = useMemo(() => {
@@ -507,7 +531,7 @@ export default function TestCasePage() {
         data.steps.some((s) => s.action) ? data.steps : undefined,
         data.expectedResult || undefined
       );
-      setTestCases(testCases.map((tc) => (tc.id === modalEditData.id ? updated : tc)));
+      setTestCases(allTestCases.map((tc) => (tc.id === modalEditData.id ? updated : tc)));
     } else {
       // Create — return TC to keep modal open for image upload
       const tc = await testCaseApi.create(
@@ -523,7 +547,7 @@ export default function TestCasePage() {
         data.steps.some((s) => s.action) ? data.steps : undefined,
         data.expectedResult || undefined
       );
-      setTestCases([...testCases, tc]);
+      setTestCases([...allTestCases, tc]);
       setModalEditData(tc); // Switch modal to edit mode for image upload
       return tc;
     }
@@ -533,7 +557,7 @@ export default function TestCasePage() {
     if (!deleteTarget) return;
     try {
       await testCaseApi.delete(deleteTarget.id);
-      setTestCases(testCases.filter((tc) => tc.id !== deleteTarget.id));
+      setTestCases(allTestCases.filter((tc) => tc.id !== deleteTarget.id));
     } catch (error) {
       console.error('Failed to delete test case:', error);
     } finally {
@@ -559,9 +583,39 @@ export default function TestCasePage() {
       <div className="flex-1 overflow-auto p-6">
         <div>
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-            <p className="text-gray-600">Test Cases</p>
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
+              <p className="text-gray-600">Test Cases</p>
+              {(statusFilter || jobIdFilter !== null) && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                  <span>필터 적용:</span>
+                  {statusFilter && (
+                    <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded">
+                      status={statusFilter}
+                    </span>
+                  )}
+                  {jobIdFilter !== null && (
+                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded">
+                      jobId={jobIdFilter}
+                    </span>
+                  )}
+                  <Link
+                    to={`/features/companies/${companyId}/products/${productId}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    필터 해제
+                  </Link>
+                </div>
+              )}
+            </div>
+            <Link
+              data-testid="test-studio-nav-link"
+              to={`/features/companies/${companyId}/products/${productId}/test-studio`}
+              className="flex-shrink-0 px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
+            >
+              Test Studio
+            </Link>
           </div>
 
           {/* Two-column layout: Path tree (left) + TestCase list (right) */}
@@ -618,6 +672,67 @@ export default function TestCasePage() {
                 </button>
               </div>
 
+              {/* Unassigned TCs (Test Studio DRAFT without Segment) */}
+              {unassignedTestCases.length > 0 && (
+                <div
+                  data-testid="unassigned-tc-section"
+                  className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm font-semibold text-amber-800">
+                      📦 Segment 미지정 ({unassignedTestCases.length})
+                    </span>
+                    <span className="text-xs text-amber-700">
+                      TestCase 를 열어 Segment 경로를 지정해주세요.
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {unassignedTestCases.map((tc) => (
+                      <div
+                        key={tc.id}
+                        data-testid="unassigned-tc-card"
+                        className={`group bg-white border rounded-lg shadow-sm border-l-4 ${
+                          tc.priority === 'HIGH'
+                            ? 'border-l-red-400'
+                            : tc.priority === 'MEDIUM'
+                            ? 'border-l-yellow-400'
+                            : 'border-l-gray-300'
+                        }`}
+                      >
+                        <div
+                          onClick={() => handleOpenEditModal(tc)}
+                          className="p-3 cursor-pointer hover:bg-gray-50 transition flex items-center justify-between"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm truncate">{tc.title}</h4>
+                            <div className="flex gap-2 mt-1">
+                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                                {tc.status}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                                {tc.priority}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                                {tc.testType}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget({ id: tc.id, title: tc.title });
+                            }}
+                            className="opacity-0 group-hover:opacity-100 text-xs text-red-500 hover:text-red-700 px-2 py-1 flex-shrink-0"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Grouped test cases by path — hierarchical tree */}
               {pathTree.length > 0 ? (
                 <div className="space-y-6">
@@ -634,13 +749,13 @@ export default function TestCasePage() {
                     />
                   ))}
                 </div>
-              ) : (
+              ) : unassignedTestCases.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-500 text-lg">
                     No test cases yet. Create one to get started.
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
