@@ -36,7 +36,8 @@ public class TestCaseDto {
         TestStatus status,
         List<TestCaseImageResponse> images,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Long testStudioJobId
     ) {}
 
     public record TestCaseImageResponse(

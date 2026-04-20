@@ -49,7 +49,7 @@ class TestCaseControllerTest {
         List<TestCaseDto.TestCaseResponse> testCases = List.of(
                 new TestCaseDto.TestCaseResponse(1L, 10L, new Long[]{1L, 2L}, "Login test",
                         "Verify login", null, "User exists", List.of(new TestStep(1, "Click login", "Form shown")),
-                        "Login success", Priority.HIGH, TestType.FUNCTIONAL, TestStatus.ACTIVE, List.of(), now, now)
+                        "Login success", Priority.HIGH, TestType.FUNCTIONAL, TestStatus.ACTIVE, List.of(), now, now, null)
         );
         when(testCaseService.getByProductId(10L)).thenReturn(testCases);
 
@@ -71,7 +71,7 @@ class TestCaseControllerTest {
         // Arrange
         TestCaseDto.TestCaseResponse created = new TestCaseDto.TestCaseResponse(
                 1L, 10L, new Long[]{1L}, "New TC", "Desc", null, null,
-                List.of(), "Expected", Priority.MEDIUM, TestType.SMOKE, TestStatus.DRAFT, List.of(), now, now);
+                List.of(), "Expected", Priority.MEDIUM, TestType.SMOKE, TestStatus.DRAFT, List.of(), now, now, null);
         when(testCaseService.create(any(TestCaseDto.TestCaseRequest.class))).thenReturn(created);
 
         // Act & Assert
@@ -118,7 +118,7 @@ class TestCaseControllerTest {
         // Arrange
         TestCaseDto.TestCaseResponse updated = new TestCaseDto.TestCaseResponse(
                 1L, 10L, new Long[]{1L}, "Updated TC", "Updated", null, null,
-                List.of(), "Updated Expected", Priority.HIGH, TestType.REGRESSION, TestStatus.ACTIVE, List.of(), now, now);
+                List.of(), "Updated Expected", Priority.HIGH, TestType.REGRESSION, TestStatus.ACTIVE, List.of(), now, now, null);
         when(testCaseService.update(eq(1L), any(TestCaseDto.TestCaseRequest.class))).thenReturn(updated);
 
         // Act & Assert
@@ -164,7 +164,7 @@ class TestCaseControllerTest {
         List<TestCaseDto.TestCaseResponse> drafts = List.of(
                 new TestCaseDto.TestCaseResponse(1L, 10L, new Long[]{1L}, "AI Draft 1",
                         "AI generated", null, null, List.of(), "Pass",
-                        Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT, List.of(), now, now)
+                        Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT, List.of(), now, now, null)
         );
         when(testCaseService.generateDraft(any(TestCaseDto.GenerateDraftRequest.class))).thenReturn(drafts);
 

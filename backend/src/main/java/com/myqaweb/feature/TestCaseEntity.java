@@ -59,6 +59,9 @@ public class TestCaseEntity {
     @Column(nullable = false)
     private TestStatus status = TestStatus.DRAFT;
 
+    @Column(name = "test_studio_job_id")
+    private Long testStudioJobId;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
