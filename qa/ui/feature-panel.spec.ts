@@ -32,8 +32,7 @@ test.describe('Test Case Page', () => {
   test('should display empty tree state with Root Path button', async () => {
     await featuresPage.gotoTestCases(companyId, productId);
 
-    const isEmpty = await featuresPage.isEmptyTreeState();
-    expect(isEmpty).toBe(true);
+    await expect(featuresPage.page.getByRole('button', { name: /Root Path 등록/i })).toBeVisible({ timeout: 5000 });
   });
 
   test('should display test cases created via API', async () => {
@@ -42,8 +41,7 @@ test.describe('Test Case Page', () => {
 
     await featuresPage.gotoTestCases(companyId, productId);
 
-    const tcExists = await featuresPage.isTestCaseVisible('API Created TC');
-    expect(tcExists).toBe(true);
+    await expect(featuresPage.page.locator('h4:has-text("API Created TC")').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should show segments in tree view', async () => {
@@ -52,8 +50,7 @@ test.describe('Test Case Page', () => {
 
     await featuresPage.gotoTestCases(companyId, productId);
 
-    const mainVisible = await featuresPage.isSegmentVisible('Main');
-    expect(mainVisible).toBe(true);
+    await expect(featuresPage.page.locator('.bg-white.border.rounded.p-2').locator('text=Main')).toBeVisible({ timeout: 5000 });
   });
 
   test('should delete a test case via confirm dialog', async () => {
@@ -62,13 +59,11 @@ test.describe('Test Case Page', () => {
 
     await featuresPage.gotoTestCases(companyId, productId);
 
-    let tcExists = await featuresPage.isTestCaseVisible('E2E Delete TC');
-    expect(tcExists).toBe(true);
+    await expect(featuresPage.page.locator('h4:has-text("E2E Delete TC")').first()).toBeVisible({ timeout: 5000 });
 
     await featuresPage.deleteTestCase('E2E Delete TC');
 
-    tcExists = await featuresPage.isTestCaseVisible('E2E Delete TC');
-    expect(tcExists).toBe(false);
+    await expect(featuresPage.page.locator('h4:has-text("E2E Delete TC")')).not.toBeVisible({ timeout: 5000 });
   });
 
   test('should show path on test case card', async () => {
@@ -98,8 +93,7 @@ test.describe('Test Case Page', () => {
     // Add test case via modal - should use the selected path
     await featuresPage.addTestCase('TC With Selected Path');
 
-    const tcExists = await featuresPage.isTestCaseVisible('TC With Selected Path');
-    expect(tcExists).toBe(true);
+    await expect(featuresPage.page.locator('h4:has-text("TC With Selected Path")').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should highlight selected segment node in tree', async ({ page }) => {
