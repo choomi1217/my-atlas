@@ -96,14 +96,9 @@ test.describe('Convention UI E2E', () => {
     const body = await resp.json() as any;
     if (body.data?.id) createdIds.push(body.data.id);
 
-    // Should redirect back to list
+    // Should redirect back to list and card should be visible
     await expect(page).toHaveURL(/\/conventions$/);
-
-    // Wait for list to load then verify card is visible
-    await page.waitForResponse(
-      resp => resp.url().includes('/api/conventions') && resp.request().method() === 'GET'
-    );
-    await expect(page.getByText(termName)).toBeVisible();
+    await expect(page.getByText(termName)).toBeVisible({ timeout: 5000 });
   });
 
   // --- Edit flow ---
@@ -208,14 +203,9 @@ test.describe('Convention UI E2E', () => {
     await page.getByRole('button', { name: 'Delete' }).click();
     await deleteResponse;
 
-    // Should redirect back to list
+    // Should redirect back to list and term should no longer appear
     await expect(page).toHaveURL(/\/conventions$/);
-
-    // Term should no longer appear
-    await page.waitForResponse(
-      resp => resp.url().includes('/api/conventions') && resp.request().method() === 'GET'
-    );
-    await expect(page.getByText(termName)).not.toBeVisible();
+    await expect(page.getByText(termName)).not.toBeVisible({ timeout: 5000 });
   });
 
   // --- Category autocomplete ---
@@ -229,9 +219,13 @@ test.describe('Convention UI E2E', () => {
     const createBody = await createResp.json() as any;
     createdIds.push(createBody.data.id);
 
-    // Navigate to create form
+    // Navigate to create form and wait for category API to load
+    const categoryLoadPromise = page.waitForResponse(
+      resp => resp.url().includes('/api/conventions/categories') && resp.status() === 200
+    );
     await page.getByRole('button', { name: '+ Add Word' }).click();
     await expect(page).toHaveURL(/\/conventions\/new/);
+    await categoryLoadPromise;
 
     // Focus on category input
     const catInput = page.locator('input[placeholder="카테고리 (선택)"]');
@@ -250,9 +244,13 @@ test.describe('Convention UI E2E', () => {
     const seedBody = await seedResp.json() as any;
     createdIds.push(seedBody.data.id);
 
-    // Navigate to create form
+    // Navigate to create form and wait for category API to load
+    const categoryLoadPromise = page.waitForResponse(
+      resp => resp.url().includes('/api/conventions/categories') && resp.status() === 200
+    );
     await page.getByRole('button', { name: '+ Add Word' }).click();
     await expect(page).toHaveURL(/\/conventions\/new/);
+    await categoryLoadPromise;
 
     // Type partial category name
     const catInput = page.locator('input[placeholder="카테고리 (선택)"]');
