@@ -13,6 +13,10 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 
@@ -106,20 +110,28 @@ class TestStudioIntegrationTest extends BaseIntegrationTest {
 
         // Mock embedding (fast, no API call)
         float[] zeros = new float[1536];
-        when(embeddingService.embed(anyString())).thenReturn(zeros);
+        when(embeddingService.embed(anyString(), any())).thenReturn(zeros);
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[" + "0," .repeat(1535) + "0]");
 
-        // Mock chatClient fluent chain
+        // Mock chatClient fluent chain → chatResponse()
         ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
         ChatClient.ChatClientRequest.CallResponseSpec callSpec =
                 mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
+
+        Generation generation = new Generation(VALID_RESPONSE);
+        Usage usage = mock(Usage.class);
+        lenient().when(usage.getPromptTokens()).thenReturn(200L);
+        lenient().when(usage.getGenerationTokens()).thenReturn(100L);
+        ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
+        lenient().when(metadata.getUsage()).thenReturn(usage);
+        ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);
+
         when(chatClient.prompt()).thenReturn(clientRequest);
         when(clientRequest.user(anyString())).thenReturn(clientRequest);
-        // Production now overrides max-tokens via .options(AnthropicChatOptions)
         when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.class)))
                 .thenReturn(clientRequest);
         when(clientRequest.call()).thenReturn(callSpec);
-        when(callSpec.content()).thenReturn(VALID_RESPONSE);
+        when(callSpec.chatResponse()).thenReturn(chatResponse);
     }
 
     @Test
