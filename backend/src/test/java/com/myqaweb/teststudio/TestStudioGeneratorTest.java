@@ -15,6 +15,7 @@ import com.myqaweb.feature.TestStatus;
 import com.myqaweb.feature.TestType;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
+import com.myqaweb.monitoring.AiUsageLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,6 +71,9 @@ class TestStudioGeneratorTest {
     @Mock
     private ChatClient chatClient;
 
+    @Mock
+    private AiUsageLogService aiUsageLogService;
+
     private TestStudioGenerator generator;
 
     private TestStudioJobEntity job;
@@ -102,6 +106,7 @@ class TestStudioGeneratorTest {
     void setUp() {
         generator = new TestStudioGenerator(
                 jobRepository,
+                aiUsageLogService,
                 kbRepository,
                 conventionRepository,
                 testCaseRepository,

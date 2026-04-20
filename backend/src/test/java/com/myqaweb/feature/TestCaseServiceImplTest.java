@@ -1,6 +1,7 @@
 package com.myqaweb.feature;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.myqaweb.monitoring.AiUsageLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +34,9 @@ class TestCaseServiceImplTest {
     @Mock
     private ChatClient chatClient;
 
+    @Mock
+    private AiUsageLogService aiUsageLogService;
+
     private TestCaseServiceImpl testCaseService;
 
     private CompanyEntity company;
@@ -47,7 +51,8 @@ class TestCaseServiceImplTest {
                 segmentRepository,
                 testCaseImageRepository,
                 chatClient,
-                new ObjectMapper()
+                new ObjectMapper(),
+                aiUsageLogService
         );
 
         // Default stub: return empty images for any test case (lenient because not all tests invoke toResponse)

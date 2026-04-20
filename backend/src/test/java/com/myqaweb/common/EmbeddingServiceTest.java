@@ -1,5 +1,6 @@
 package com.myqaweb.common;
 
+import com.myqaweb.monitoring.AiUsageLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,11 +26,14 @@ class EmbeddingServiceTest {
     @Mock
     private EmbeddingModel embeddingModel;
 
+    @Mock
+    private AiUsageLogService aiUsageLogService;
+
     private EmbeddingService embeddingService;
 
     @BeforeEach
     void setUp() {
-        embeddingService = new EmbeddingService(Optional.of(embeddingModel));
+        embeddingService = new EmbeddingService(Optional.of(embeddingModel), aiUsageLogService);
     }
 
     // --- embed ---
