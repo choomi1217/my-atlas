@@ -2,9 +2,13 @@ package com.myqaweb.feature;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.myqaweb.monitoring.AiFeature;
+import com.myqaweb.monitoring.AiUsageLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,12 +23,16 @@ import java.util.stream.Collectors;
 @Transactional
 @Slf4j
 public class TestCaseServiceImpl implements TestCaseService {
+    private static final String PROVIDER = "ANTHROPIC";
+    private static final String MODEL = "claude-haiku-4-5-20251001";
+
     private final TestCaseRepository testCaseRepository;
     private final ProductRepository productRepository;
     private final SegmentRepository segmentRepository;
     private final TestCaseImageRepository testCaseImageRepository;
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private final AiUsageLogService aiUsageLogService;
 
     @Override
     @Transactional(readOnly = true)
@@ -107,9 +115,20 @@ public class TestCaseServiceImpl implements TestCaseService {
         String prompt = context + "\n\n위 경로에 대한 Test Case를 JSON 배열 형식으로 생성해주세요. " +
                 "[{\"order\": 1, \"action\": \"...\", \"expected\": \"...\"}, ...]";
 
+        long startMs = System.currentTimeMillis();
         try {
-            String response = chatClient.prompt().user(prompt).call().content();
+            ChatResponse chatResponse = chatClient.prompt().user(prompt).call().chatResponse();
+            long durationMs = System.currentTimeMillis() - startMs;
+            String response = chatResponse.getResult().getOutput().getContent();
             log.info("AI Draft response received for product: {}, path: {}", request.productId(), pathNames);
+
+            // Log AI usage
+            Usage usage = chatResponse.getMetadata() != null ? chatResponse.getMetadata().getUsage() : null;
+            if (usage != null) {
+                aiUsageLogService.logUsage(AiFeature.TC_DRAFT, PROVIDER, MODEL,
+                        usage.getPromptTokens().intValue(), usage.getGenerationTokens().intValue(),
+                        durationMs, true, null);
+            }
 
             List<TestStep> steps = parseSteps(response);
 
@@ -125,6 +144,9 @@ public class TestCaseServiceImpl implements TestCaseService {
             TestCaseEntity saved = testCaseRepository.save(entity);
             return List.of(toResponse(saved));
         } catch (Exception e) {
+            long durationMs = System.currentTimeMillis() - startMs;
+            aiUsageLogService.logUsage(AiFeature.TC_DRAFT, PROVIDER, MODEL,
+                    null, null, durationMs, false, e.getMessage());
             log.error("Failed to generate test case draft for product: {}, path: {}", request.productId(), pathNames, e);
             return List.of();
         }

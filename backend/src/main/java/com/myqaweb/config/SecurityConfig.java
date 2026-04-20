@@ -35,6 +35,8 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         // 계정 생성은 ADMIN만
                         .requestMatchers("/api/auth/register").hasRole("ADMIN")
+                        // 모니터링 API는 ADMIN만
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 이미지는 S3+CloudFront에서 서빙 (백엔드 GET 엔드포인트 제거됨)
                         // GET 요청은 ADMIN, USER 모두 허용
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()

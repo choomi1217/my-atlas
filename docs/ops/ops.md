@@ -368,3 +368,4 @@ Ops 관련 변경 이력을 시간순으로 기록한다. 각 버전 문서는 `
 | 2026-04-17 | [v19.md](ops_v19.md) | 버그 수정 | Deploy health check 재시도 방식 전환. `sleep 15` + 1회 → 10초 간격 최대 60초 재시도 루프. 실패 시 컨테이너 로그 출력 |
 | 2026-04-17 | [v20.md](ops_v20.md) | 버그 수정 | Jira 환경변수 누락 수정 + CI 경로 필터 추가. EC2 `.env`에 Jira 변수 추가, `e2e.yml`에 `paths` 필터 |
 | 2026-04-17 | [v21.md](ops_v21.md) | 문서 개선 | 기능 문서 QA 시니어 관점 보강. Platform 명세서에 QA 가치/실무 시나리오/기능 연계 섹션 추가 |
+| 2026-04-20 | [v22.md](ops_v22.md) | 기능 추가 | AI 사용량 모니터링. `ai_usage_log`/`api_access_log` 테이블, Claude/OpenAI 토큰 캡처(6곳), 비용 계산, 통계 API 4개(ADMIN), Recharts 대시보드(`/monitoring`) |

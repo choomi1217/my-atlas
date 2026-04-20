@@ -50,6 +50,20 @@ export default function Layout({ children }: LayoutProps) {
                 {label}
               </NavLink>
             ))}
+            {user?.role === 'ADMIN' && (
+              <NavLink
+                to="/monitoring"
+                className={({ isActive }) =>
+                  `px-3 py-1.5 rounded-md text-sm transition-colors ${
+                    isActive
+                      ? 'text-indigo-600 font-semibold bg-indigo-50'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  }`
+                }
+              >
+                Monitoring
+              </NavLink>
+            )}
           </nav>
 
           {/* User */}
