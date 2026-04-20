@@ -5,10 +5,14 @@ import com.myqaweb.knowledgebase.KnowledgeBaseDto;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
 import com.myqaweb.knowledgebase.KnowledgeBaseService;
+import com.myqaweb.monitoring.AiFeature;
+import com.myqaweb.monitoring.AiUsageLogService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -16,6 +20,7 @@ import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Implementation of SeniorService.
@@ -30,11 +35,15 @@ public class SeniorServiceImpl implements SeniorService {
     private static final int KB_MANUAL_TOP_K = 3;
     private static final int KB_PDF_TOP_K = 2;
 
+    private static final String PROVIDER = "ANTHROPIC";
+    private static final String MODEL = "claude-haiku-4-5-20251001";
+
     private final ChatClient chatClient;
     private final EmbeddingService embeddingService;
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeBaseService knowledgeBaseService;
     private final ChatSessionService chatSessionService;
+    private final AiUsageLogService aiUsageLogService;
 
     @Override
     public SseEmitter chat(ChatDto.ChatRequest request) {
@@ -47,18 +56,31 @@ public class SeniorServiceImpl implements SeniorService {
 
         // Stream Claude response, collecting full response for DB persistence
         StringBuilder fullResponse = new StringBuilder();
+        long startMs = System.currentTimeMillis();
+        AtomicReference<Usage> usageRef = new AtomicReference<>();
 
-        Flux<String> stream = chatClient.prompt()
+        Flux<ChatResponse> stream = chatClient.prompt()
                 .system(systemPrompt)
                 .user(userMessage)
                 .stream()
-                .content();
+                .chatResponse();
 
         stream.subscribe(
-                chunk -> {
+                chatResponse -> {
                     try {
-                        fullResponse.append(chunk);
-                        emitter.send(SseEmitter.event().data(chunk));
+                        String text = chatResponse.getResult() != null
+                                ? chatResponse.getResult().getOutput().getContent()
+                                : null;
+                        if (text != null) {
+                            fullResponse.append(text);
+                            emitter.send(SseEmitter.event().data(text));
+                        }
+                        // Capture usage from last chunk (Anthropic sends it on message_stop)
+                        if (chatResponse.getMetadata() != null
+                                && chatResponse.getMetadata().getUsage() != null
+                                && chatResponse.getMetadata().getUsage().getTotalTokens() > 0) {
+                            usageRef.set(chatResponse.getMetadata().getUsage());
+                        }
                     } catch (IOException e) {
                         log.warn("Failed to send SSE chunk", e);
                         emitter.completeWithError(e);
@@ -66,9 +88,27 @@ public class SeniorServiceImpl implements SeniorService {
                 },
                 error -> {
                     log.error("Chat streaming error", error);
+                    long durationMs = System.currentTimeMillis() - startMs;
+                    aiUsageLogService.logUsage(AiFeature.SENIOR_CHAT, PROVIDER, MODEL,
+                            null, null, durationMs, false, error.getMessage());
                     emitter.completeWithError(error);
                 },
                 () -> {
+                    // Log AI usage
+                    long durationMs = System.currentTimeMillis() - startMs;
+                    Usage usage = usageRef.get();
+                    if (usage != null) {
+                        aiUsageLogService.logUsage(AiFeature.SENIOR_CHAT, PROVIDER, MODEL,
+                                usage.getPromptTokens().intValue(), usage.getGenerationTokens().intValue(),
+                                durationMs, true, null);
+                    } else {
+                        // Fallback: estimate tokens from character count
+                        int estimatedInput = systemPrompt.length() / 4;
+                        int estimatedOutput = fullResponse.length() / 4;
+                        aiUsageLogService.logUsage(AiFeature.SENIOR_CHAT, PROVIDER, MODEL,
+                                estimatedInput, estimatedOutput, durationMs, true, null);
+                    }
+
                     // Save messages to DB after streaming completes
                     try {
                         Long sessionId = chatSessionService.saveMessages(
@@ -120,7 +160,7 @@ public class SeniorServiceImpl implements SeniorService {
 
     private void appendKnowledgeBase(StringBuilder sb, String userMessage) {
         try {
-            float[] queryEmbedding = embeddingService.embed(userMessage);
+            float[] queryEmbedding = embeddingService.embed(userMessage, AiFeature.EMBEDDING_SENIOR);
             String vectorStr = embeddingService.toVectorString(queryEmbedding);
 
             // Priority 1: Manual KB entries (user-written, highest relevance)

@@ -19,6 +19,7 @@ import VersionListPage from '@/pages/features/VersionListPage'
 import VersionDetailPage from '@/pages/features/VersionDetailPage'
 import VersionPhaseDetailPage from '@/pages/features/VersionPhaseDetailPage'
 import ResumePage from '@/pages/ResumePage'
+import MonitoringPage from '@/pages/MonitoringPage'
 import OverviewPage from '@/pages/OverviewPage'
 import FeatureDetailPage from '@/pages/FeatureDetailPage'
 import FeatureVersionPage from '@/pages/FeatureVersionPage'
@@ -54,6 +55,7 @@ export default function App() {
                 <Route path="/feature/:slug/:version" element={<FeatureVersionPage />} />
                 <Route path="/feature/:slug" element={<FeatureDetailPage />} />
                 <Route path="/resume" element={<ResumePage />} />
+                <Route path="/monitoring" element={<MonitoringPage />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

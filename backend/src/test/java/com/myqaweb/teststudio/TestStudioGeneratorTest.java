@@ -15,6 +15,7 @@ import com.myqaweb.feature.TestStatus;
 import com.myqaweb.feature.TestType;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
+import com.myqaweb.monitoring.AiUsageLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +23,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -70,6 +76,9 @@ class TestStudioGeneratorTest {
     @Mock
     private ChatClient chatClient;
 
+    @Mock
+    private AiUsageLogService aiUsageLogService;
+
     private TestStudioGenerator generator;
 
     private TestStudioJobEntity job;
@@ -102,6 +111,7 @@ class TestStudioGeneratorTest {
     void setUp() {
         generator = new TestStudioGenerator(
                 jobRepository,
+                aiUsageLogService,
                 kbRepository,
                 conventionRepository,
                 testCaseRepository,
@@ -135,17 +145,24 @@ class TestStudioGeneratorTest {
         ChatClient.ChatClientRequest.CallResponseSpec callSpec =
                 mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
 
+        Generation generation = new Generation(content);
+        Usage usage = mock(Usage.class);
+        lenient().when(usage.getPromptTokens()).thenReturn(100L);
+        lenient().when(usage.getGenerationTokens()).thenReturn(50L);
+        ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
+        lenient().when(metadata.getUsage()).thenReturn(usage);
+        ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);
+
         when(chatClient.prompt()).thenReturn(clientRequest);
         when(clientRequest.user(anyString())).thenReturn(clientRequest);
-        // Production code overrides max-tokens per call via .options(AnthropicChatOptions).
         when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.class)))
                 .thenReturn(clientRequest);
         when(clientRequest.call()).thenReturn(callSpec);
-        when(callSpec.content()).thenReturn(content);
+        when(callSpec.chatResponse()).thenReturn(chatResponse);
     }
 
     private void stubBaseRag() {
-        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f, 0.2f, 0.3f});
+        when(embeddingService.embed(anyString(), any())).thenReturn(new float[]{0.1f, 0.2f, 0.3f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1,0.2,0.3]");
 
         KnowledgeBaseEntity kb = new KnowledgeBaseEntity();
@@ -331,7 +348,7 @@ class TestStudioGeneratorTest {
 
         // Note: EmbeddingService exceptions are swallowed by buildKbContext(), so we
         // must trigger the failure at the ChatClient level to exercise the FAILED path.
-        when(embeddingService.embed(anyString())).thenReturn(new float[]{0.1f});
+        when(embeddingService.embed(anyString(), any())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
         when(kbRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
@@ -379,6 +396,6 @@ class TestStudioGeneratorTest {
         assertEquals(5, topKCaptor.getValue(), "KB topK should be 5");
         verify(conventionRepository).findAll();
         verify(testCaseRepository).findAllByProductId(eq(10L));
-        verify(embeddingService).embed(anyString());
+        verify(embeddingService).embed(anyString(), any());
     }
 }

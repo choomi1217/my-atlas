@@ -1,12 +1,18 @@
 package com.myqaweb.feature;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.myqaweb.monitoring.AiUsageLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +39,9 @@ class TestCaseServiceImplTest {
     @Mock
     private ChatClient chatClient;
 
+    @Mock
+    private AiUsageLogService aiUsageLogService;
+
     private TestCaseServiceImpl testCaseService;
 
     private CompanyEntity company;
@@ -47,7 +56,8 @@ class TestCaseServiceImplTest {
                 segmentRepository,
                 testCaseImageRepository,
                 chatClient,
-                new ObjectMapper()
+                new ObjectMapper(),
+                aiUsageLogService
         );
 
         // Default stub: return empty images for any test case (lenient because not all tests invoke toResponse)
@@ -176,15 +186,24 @@ class TestCaseServiceImplTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(segmentRepository.findById(1L)).thenReturn(Optional.of(segment));
 
-        // Mock ChatClient for synchronous call
+        // Mock ChatClient for synchronous call → chatResponse()
         ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
         ChatClient.ChatClientRequest.CallResponseSpec callSpec = mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
 
+        String aiResponse = """
+                [{"order": 1, "action": "Enter valid credentials", "expected": "Login succeeds"}]
+                """;
+        Generation generation = new Generation(aiResponse);
+        Usage usage = mock(Usage.class);
+        when(usage.getPromptTokens()).thenReturn(100L);
+        when(usage.getGenerationTokens()).thenReturn(50L);
+        ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
+        when(metadata.getUsage()).thenReturn(usage);
+        ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);
+
         when(chatClient.prompt()).thenReturn(clientRequest);
         when(clientRequest.user(anyString())).thenReturn(clientRequest);
-        when(callSpec.content()).thenReturn("""
-                [{"order": 1, "action": "Enter valid credentials", "expected": "Login succeeds"}]
-                """);
+        when(callSpec.chatResponse()).thenReturn(chatResponse);
         when(clientRequest.call()).thenReturn(callSpec);
 
         TestCaseEntity savedEntity = new TestCaseEntity(
@@ -216,9 +235,17 @@ class TestCaseServiceImplTest {
         ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
         ChatClient.ChatClientRequest.CallResponseSpec callSpec = mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
 
+        Generation generation = new Generation("This is not valid JSON at all");
+        Usage usage = mock(Usage.class);
+        when(usage.getPromptTokens()).thenReturn(50L);
+        when(usage.getGenerationTokens()).thenReturn(20L);
+        ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
+        when(metadata.getUsage()).thenReturn(usage);
+        ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);
+
         when(chatClient.prompt()).thenReturn(clientRequest);
         when(clientRequest.user(anyString())).thenReturn(clientRequest);
-        when(callSpec.content()).thenReturn("This is not valid JSON at all");
+        when(callSpec.chatResponse()).thenReturn(chatResponse);
         when(clientRequest.call()).thenReturn(callSpec);
 
         TestCaseEntity savedEntity = new TestCaseEntity(

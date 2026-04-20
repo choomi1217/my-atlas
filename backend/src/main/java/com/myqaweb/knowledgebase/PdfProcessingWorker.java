@@ -1,6 +1,7 @@
 package com.myqaweb.knowledgebase;
 
 import com.myqaweb.common.EmbeddingService;
+import com.myqaweb.monitoring.AiFeature;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -143,7 +144,7 @@ public class PdfProcessingWorker {
         int retries = 0;
         while (retries < MAX_RETRIES) {
             try {
-                float[] embedding = embeddingService.embed(chunk.title() + " " + chunk.content());
+                float[] embedding = embeddingService.embed(chunk.title() + " " + chunk.content(), AiFeature.EMBEDDING_PDF);
                 String vectorStr = embeddingService.toVectorString(embedding);
 
                 KnowledgeBaseEntity entity = new KnowledgeBaseEntity();

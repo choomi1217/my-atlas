@@ -14,6 +14,8 @@ import com.myqaweb.feature.TestStep;
 import com.myqaweb.feature.TestType;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
+import com.myqaweb.monitoring.AiFeature;
+import com.myqaweb.monitoring.AiUsageLogService;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -22,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -56,8 +60,11 @@ public class TestStudioGenerator {
     private static final int RAG_QUERY_CHAR_LIMIT = 2000;
     private static final int KB_TOP_K = 5;
     private static final int TC_TOP_K = 5;
+    private static final String PROVIDER = "ANTHROPIC";
+    private static final String MODEL = "claude-haiku-4-5-20251001";
 
     private final TestStudioJobRepository jobRepository;
+    private final AiUsageLogService aiUsageLogService;
     private final KnowledgeBaseRepository kbRepository;
     private final ConventionRepository conventionRepository;
     private final TestCaseRepository testCaseRepository;
@@ -117,9 +124,20 @@ public class TestStudioGenerator {
             AnthropicChatOptions options = AnthropicChatOptions.builder()
                     .withMaxTokens(8192)
                     .build();
-            String response = chatClient.prompt().user(prompt).options(options).call().content();
+            long chatStartMs = System.currentTimeMillis();
+            ChatResponse chatResponse = chatClient.prompt().user(prompt).options(options).call().chatResponse();
+            long chatDurationMs = System.currentTimeMillis() - chatStartMs;
+            String response = chatResponse.getResult().getOutput().getContent();
             log.info("Test Studio Claude response received: jobId={}, responseLen={} chars",
                     jobId, response == null ? 0 : response.length());
+
+            // Log AI usage
+            Usage usage = chatResponse.getMetadata() != null ? chatResponse.getMetadata().getUsage() : null;
+            if (usage != null) {
+                aiUsageLogService.logUsage(AiFeature.TEST_STUDIO, PROVIDER, MODEL,
+                        usage.getPromptTokens().intValue(), usage.getGenerationTokens().intValue(),
+                        chatDurationMs, true, null);
+            }
 
             // 5. Parse JSON array
             List<DraftTestCaseDto> drafts = parseDrafts(response);
@@ -170,7 +188,7 @@ public class TestStudioGenerator {
             String queryText = sourceText.length() > RAG_QUERY_CHAR_LIMIT
                     ? sourceText.substring(0, RAG_QUERY_CHAR_LIMIT)
                     : sourceText;
-            float[] embedding = embeddingService.embed(queryText);
+            float[] embedding = embeddingService.embed(queryText, AiFeature.EMBEDDING_TEST_STUDIO);
             String vectorStr = embeddingService.toVectorString(embedding);
             List<KnowledgeBaseEntity> top = kbRepository.findSimilar(vectorStr, KB_TOP_K);
             if (top.isEmpty()) {

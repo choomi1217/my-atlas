@@ -2,6 +2,8 @@ package com.myqaweb.config;
 
 import com.myqaweb.auth.JwtAuthenticationFilter;
 import com.myqaweb.auth.JwtProvider;
+import com.myqaweb.monitoring.ApiAccessLogFilter;
+import com.myqaweb.monitoring.ApiAccessLogRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,8 +25,14 @@ public class SecurityConfig {
     }
 
     @Bean
+    public ApiAccessLogFilter apiAccessLogFilter(ApiAccessLogRepository repository) {
+        return new ApiAccessLogFilter(repository);
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-                                           JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+                                           JwtAuthenticationFilter jwtAuthenticationFilter,
+                                           ApiAccessLogFilter apiAccessLogFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -35,6 +43,8 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         // 계정 생성은 ADMIN만
                         .requestMatchers("/api/auth/register").hasRole("ADMIN")
+                        // 모니터링 API는 ADMIN만
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 이미지는 S3+CloudFront에서 서빙 (백엔드 GET 엔드포인트 제거됨)
                         // GET 요청은 ADMIN, USER 모두 허용
                         .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
@@ -46,7 +56,8 @@ public class SecurityConfig {
                         // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(apiAccessLogFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }
