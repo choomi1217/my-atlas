@@ -137,6 +137,9 @@ class TestStudioGeneratorTest {
 
         when(chatClient.prompt()).thenReturn(clientRequest);
         when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        // Production code overrides max-tokens per call via .options(AnthropicChatOptions).
+        when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.class)))
+                .thenReturn(clientRequest);
         when(clientRequest.call()).thenReturn(callSpec);
         when(callSpec.content()).thenReturn(content);
     }
@@ -236,6 +239,43 @@ class TestStudioGeneratorTest {
         ArgumentCaptor<TestStudioJobEntity> jobCaptor = ArgumentCaptor.forClass(TestStudioJobEntity.class);
         verify(jobRepository, times(2)).save(jobCaptor.capture());
         assertEquals(TestStudioJobStatus.DONE, jobCaptor.getAllValues().get(1).getStatus());
+    }
+
+    // --- Truncated JSON recovery (max_tokens hit mid-object) ---
+
+    /**
+     * Regression test for a real prod bug: Claude's response hit the max_tokens limit and the
+     * JSON array was truncated mid-string. The parser must recover by trimming to the last
+     * top-level complete object and still persist those as DRAFT TCs.
+     */
+    @Test
+    void generate_markdown_truncatedJson_recoversPartialDrafts() {
+        when(jobRepository.findById(100L)).thenReturn(Optional.of(job));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        stubBaseRag();
+
+        // First object is complete; second was cut off mid-"title" before the closing quote.
+        String truncated = """
+                [
+                  {"title":"[Card] NFC 정상 결제","preconditions":"단말기 정상 연결",\
+                   "steps":[{"order":1,"action":"NFC 태그","expected":"승인"}],\
+                   "expectedResult":"결제 완료","priority":"HIGH","testType":"FUNCTIONAL",\
+                   "suggestedSegmentPath":["결제","NFC"]},
+                  {"title":"[Card] NFC 타임아웃 케이스가 여기서 끝나지""";
+        stubChatClientContent(truncated);
+
+        generator.generate(100L, 10L, SourceType.MARKDOWN, "# Spec", null);
+
+        // The one complete object must be persisted.
+        verify(testCaseRepository, times(1)).save(any(TestCaseEntity.class));
+
+        // Job finishes as DONE (not FAILED) with generatedCount=1.
+        ArgumentCaptor<TestStudioJobEntity> jobCaptor = ArgumentCaptor.forClass(TestStudioJobEntity.class);
+        verify(jobRepository, times(2)).save(jobCaptor.capture());
+        TestStudioJobEntity finalState = jobCaptor.getAllValues().get(1);
+        assertEquals(TestStudioJobStatus.DONE, finalState.getStatus());
+        assertEquals(1, finalState.getGeneratedCount());
+        assertNotNull(finalState.getCompletedAt());
     }
 
     // --- Invalid JSON → FAILED ---

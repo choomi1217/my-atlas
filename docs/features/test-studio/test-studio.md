@@ -1,6 +1,6 @@
 # Test Studio — 문서 기반 AI 테스트 케이스 자동 생성
 
-> 최종 업데이트: 2026-04-17 | 현재 버전: v1 (구현 완료)
+> 최종 업데이트: 2026-04-20 | 현재 버전: v1.1 (구현 완료)
 
 ---
 
@@ -335,14 +335,16 @@ frontend/src/
 
 ## 구현 현황
 
-**v1: 구현 완료 (2026-04-17)**
+**v1.1: 구현 완료 (2026-04-20)**
 
-- ✅ 기능 설계 및 Master 명세서 작성
-- ✅ v1 상세 구현 문서 — [test-studio_v1.md](./test-studio_v1.md)
+- ✅ v1 기능 설계 및 구현 — [test-studio_v1.md](./test-studio_v1.md)
 - ✅ Backend 10개 파일 + Flyway 마이그레이션 + 기존 3개 파일 소규모 수정
 - ✅ Frontend 8개 파일 + 기존 3개 파일 소규모 수정
-- ✅ 테스트 **49건 전부 통과** (Backend 35 + E2E 14)
-- ✅ Agent-D 전체 검증 통과 — 백엔드 472개 테스트 + Docker 스택 + 전체 E2E 완주
+- ✅ 테스트 **50건 전부 통과** (Backend 36 + E2E 14, v1.1에서 회귀 테스트 1건 추가)
+- ✅ v1.1 버그 3건 수정 — [test-studio_v1.1.md](./test-studio_v1.1.md)
+  - 트랜잭션 가시성 이슈 (`@Transactional` 제거)
+  - Claude 응답 truncation (max_tokens 8192 per-call + 부분 복구 파서)
+  - DRAFT TC rendering (TestCasePage 📦 Segment 미지정 섹션)
 
 **참고 문서**
 - 상세 구현 계획: [test-studio_v1.md](./test-studio_v1.md)
@@ -359,3 +361,4 @@ frontend/src/
 | 버전 | 날짜 | 유형 | 요약 | 상태 |
 |------|------|------|------|------|
 | v1 | 2026-04-17 | 기능 추가 | Test Studio 초기 구현: MD/PDF 입력 기반 DRAFT TC 자동 생성 파이프라인 (RAG + Claude). 비동기 Job, Convention/KB/기존 TC RAG 주입, DRAFT 상태 저장 → TestCasePage 검토 플로우 | 완료 |
+| v1.1 | 2026-04-20 | 버그 수정 | 초기 검증 3건: ① `@Transactional` 제거로 async 가시성 복구 ② Anthropic max_tokens=8192 per-call + 잘린 JSON 부분 복구 ③ TestCasePage 에 "Segment 미지정" 섹션 추가 (DRAFT TC 가시화) | 완료 |

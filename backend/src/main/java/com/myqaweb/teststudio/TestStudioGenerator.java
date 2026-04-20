@@ -20,6 +20,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -110,8 +111,15 @@ public class TestStudioGenerator {
 
             log.info("Test Studio calling Claude: jobId={}, sourceLen={} chars", jobId, sourceText.length());
 
-            // 4. Call Claude
-            String response = chatClient.prompt().user(prompt).call().content();
+            // 4. Call Claude — override max-tokens for this call only.
+            // Default (application.yml) is 2048 which truncates multi-TC JSON mid-string.
+            // Claude 3.5 Sonnet supports up to 8192 output tokens.
+            AnthropicChatOptions options = AnthropicChatOptions.builder()
+                    .withMaxTokens(8192)
+                    .build();
+            String response = chatClient.prompt().user(prompt).options(options).call().content();
+            log.info("Test Studio Claude response received: jobId={}, responseLen={} chars",
+                    jobId, response == null ? 0 : response.length());
 
             // 5. Parse JSON array
             List<DraftTestCaseDto> drafts = parseDrafts(response);
@@ -267,30 +275,82 @@ public class TestStudioGenerator {
         if (response == null || response.isBlank()) {
             return List.of();
         }
+        String jsonStr = extractJsonArray(response.trim());
+        if (jsonStr == null) {
+            log.warn("No JSON array bracket found in Claude response");
+            return List.of();
+        }
+        // First pass — try as-is.
         try {
-            String jsonStr = response.trim();
-            // Strip markdown fences (```json ... ``` or ``` ... ```)
-            if (jsonStr.startsWith("```")) {
-                int start = jsonStr.indexOf("[");
-                int end = jsonStr.lastIndexOf("]");
-                if (start != -1 && end != -1 && end > start) {
-                    jsonStr = jsonStr.substring(start, end + 1);
-                }
-            } else if (!jsonStr.startsWith("[")) {
-                int start = jsonStr.indexOf("[");
-                int end = jsonStr.lastIndexOf("]");
-                if (start != -1 && end != -1 && end > start) {
-                    jsonStr = jsonStr.substring(start, end + 1);
-                }
-            }
             return objectMapper.readValue(
                     jsonStr,
                     objectMapper.getTypeFactory().constructCollectionType(List.class, DraftTestCaseDto.class)
             );
-        } catch (Exception e) {
-            log.warn("Failed to parse DRAFT TC list from Claude response", e);
-            return List.of();
+        } catch (Exception primary) {
+            // Claude response was likely truncated (max_tokens hit mid-object).
+            // Recover by trimming to the last TOP-LEVEL complete "}" and re-closing the array.
+            String recovered = truncateToLastCompleteObject(jsonStr);
+            if (recovered == null) {
+                log.warn("Failed to parse DRAFT TC list from Claude response (no recovery possible)", primary);
+                return List.of();
+            }
+            try {
+                List<DraftTestCaseDto> partial = objectMapper.readValue(
+                        recovered,
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, DraftTestCaseDto.class)
+                );
+                log.warn("Claude response was truncated — recovered {} complete draft(s) from partial JSON",
+                        partial.size());
+                return partial;
+            } catch (Exception secondary) {
+                log.warn("Failed to parse DRAFT TC list even after truncation recovery", secondary);
+                return List.of();
+            }
         }
+    }
+
+    /**
+     * Extract the JSON array substring from a raw Claude response, handling
+     * code-fenced output and leading commentary. Returns {@code null} if no array bracket is found.
+     */
+    private String extractJsonArray(String raw) {
+        int start = raw.indexOf('[');
+        int end = raw.lastIndexOf(']');
+        if (start == -1) return null;
+        if (end == -1 || end <= start) {
+            // Truncated before the closing bracket — return from '[' to end.
+            return raw.substring(start);
+        }
+        return raw.substring(start, end + 1);
+    }
+
+    /**
+     * If a JSON array was truncated mid-object, trim to the last top-level
+     * {@code "}"} and close with {@code "]"} so Jackson can still parse the
+     * complete prefix. Returns {@code null} if no complete object exists.
+     */
+    String truncateToLastCompleteObject(String jsonStr) {
+        if (jsonStr == null || jsonStr.length() < 2 || jsonStr.charAt(0) != '[') {
+            return null;
+        }
+        int depth = 0;
+        boolean inString = false;
+        boolean escape = false;
+        int lastTopLevelClose = -1;
+        for (int i = 1; i < jsonStr.length(); i++) {
+            char c = jsonStr.charAt(i);
+            if (escape) { escape = false; continue; }
+            if (c == '\\') { escape = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (c == '{') depth++;
+            else if (c == '}') {
+                depth--;
+                if (depth == 0) lastTopLevelClose = i;
+            }
+        }
+        if (lastTopLevelClose <= 0) return null;
+        return jsonStr.substring(0, lastTopLevelClose + 1) + "]";
     }
 
     // --- Draft → TestCaseEntity ---

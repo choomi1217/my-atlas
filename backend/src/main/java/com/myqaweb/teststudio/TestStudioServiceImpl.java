@@ -29,8 +29,15 @@ public class TestStudioServiceImpl implements TestStudioService {
     private final ProductRepository productRepository;
     private final TestStudioGenerator generator;
 
+    /**
+     * NOTE: intentionally NOT @Transactional.
+     * If we wrap this method in a transaction, the async {@link TestStudioGenerator#generate}
+     * thread starts before the outer tx commits and cannot see the newly saved job row
+     * (jobRepository.findById returns empty inside the generator).
+     * Spring Data JPA's save() opens its own REQUIRED transaction, so the insert commits
+     * before we dispatch the async call. Mirrors PdfPipelineServiceImpl.
+     */
     @Override
-    @Transactional
     public Long submitJob(Long productId, SourceType sourceType, String title,
                           String content, MultipartFile file) {
         if (productId == null) {

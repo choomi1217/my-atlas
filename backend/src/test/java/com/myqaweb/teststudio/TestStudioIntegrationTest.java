@@ -115,6 +115,9 @@ class TestStudioIntegrationTest extends BaseIntegrationTest {
                 mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
         when(chatClient.prompt()).thenReturn(clientRequest);
         when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        // Production now overrides max-tokens via .options(AnthropicChatOptions)
+        when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.class)))
+                .thenReturn(clientRequest);
         when(clientRequest.call()).thenReturn(callSpec);
         when(callSpec.content()).thenReturn(VALID_RESPONSE);
     }
