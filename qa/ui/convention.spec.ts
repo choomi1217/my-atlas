@@ -83,6 +83,9 @@ test.describe('Convention UI E2E', () => {
     await page.locator('input[placeholder="용어를 입력하세요"]').fill(termName);
     await page.locator('textarea[placeholder="정의를 입력하세요"]').fill('E2E created definition');
     await page.locator('input[placeholder="카테고리 (선택)"]').fill('E2E Testing');
+    // Close autocomplete dropdown by pressing Escape then clicking elsewhere
+    await page.locator('input[placeholder="카테고리 (선택)"]').press('Escape');
+    await page.locator('label:has-text("Term")').click();
 
     // Click Create and wait for API response
     const createResponse = page.waitForResponse(
@@ -213,6 +216,66 @@ test.describe('Convention UI E2E', () => {
       resp => resp.url().includes('/api/conventions') && resp.request().method() === 'GET'
     );
     await expect(page.getByText(termName)).not.toBeVisible();
+  });
+
+  // --- Category autocomplete ---
+
+  test('should show category suggestions when focused on category input', async ({ page }) => {
+    // Create a convention with a known category via API to seed word_category
+    const catName = `E2E-CatSuggest-${uniqueSuffix}`;
+    const createResp = await apiRequest.post('/api/conventions', {
+      data: { term: `E2E-ForCat-${uniqueSuffix}`, definition: 'Category test', category: catName },
+    });
+    const createBody = await createResp.json() as any;
+    createdIds.push(createBody.data.id);
+
+    // Navigate to create form
+    await page.getByRole('button', { name: '+ Add Word' }).click();
+    await expect(page).toHaveURL(/\/conventions\/new/);
+
+    // Focus on category input
+    const catInput = page.locator('input[placeholder="카테고리 (선택)"]');
+    await catInput.click();
+
+    // Should show suggestions dropdown
+    await expect(page.locator('ul.absolute li').first()).toBeVisible({ timeout: 5000 });
+  });
+
+  test('should filter category suggestions when typing', async ({ page }) => {
+    // Ensure a category exists by creating a convention with it via API
+    const catName = `E2E-CatFilter-${uniqueSuffix}`;
+    const seedResp = await apiRequest.post('/api/conventions', {
+      data: { term: `E2E-ForFilter-${uniqueSuffix}`, definition: 'Filter test seed', category: catName },
+    });
+    const seedBody = await seedResp.json() as any;
+    createdIds.push(seedBody.data.id);
+
+    // Navigate to create form
+    await page.getByRole('button', { name: '+ Add Word' }).click();
+    await expect(page).toHaveURL(/\/conventions\/new/);
+
+    // Type partial category name
+    const catInput = page.locator('input[placeholder="카테고리 (선택)"]');
+    await catInput.fill('E2E-CatFilter');
+
+    // Should show filtered suggestions containing the typed text
+    const suggestions = page.locator('ul.absolute li').filter({ hasText: 'E2E-CatFilter' });
+    await expect(suggestions.first()).toBeVisible({ timeout: 5000 });
+
+    // Click the first suggestion
+    await suggestions.first().click();
+
+    // Input should be filled with the selected category
+    await expect(catInput).toHaveValue(/E2E-CatFilter/);
+  });
+
+  test('should center-align the form page', async ({ page }) => {
+    await page.getByRole('button', { name: '+ Add Word' }).click();
+    await expect(page).toHaveURL(/\/conventions\/new/);
+
+    // The form container should have mx-auto for centering
+    const formContainer = page.locator('.max-w-2xl.mx-auto');
+    await expect(formContainer).toBeVisible();
   });
 
   // --- Search ---

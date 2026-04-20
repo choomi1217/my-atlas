@@ -1,4 +1,4 @@
-package com.myqaweb.knowledgebase;
+package com.myqaweb.convention;
 
 import com.myqaweb.common.CategoryDto;
 import com.myqaweb.common.GlobalExceptionHandler;
@@ -19,47 +19,58 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(KbCategoryController.class)
+@WebMvcTest(WordCategoryController.class)
 @Import(GlobalExceptionHandler.class)
 @AutoConfigureMockMvc(addFilters = false)
-class KbCategoryControllerTest {
+class WordCategoryControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
-    private KbCategoryService categoryService;
+    private WordCategoryService categoryService;
 
-    private final LocalDateTime now = LocalDateTime.of(2026, 4, 10, 10, 0, 0);
+    private final LocalDateTime now = LocalDateTime.of(2026, 4, 20, 10, 0, 0);
 
     @Test
     void list_returnsAllCategories() throws Exception {
         List<CategoryDto.CategoryResponse> categories = List.of(
-                new CategoryDto.CategoryResponse(1L, "Testing", now),
-                new CategoryDto.CategoryResponse(2L, "Automation", now)
+                new CategoryDto.CategoryResponse(1L, "UI", now),
+                new CategoryDto.CategoryResponse(2L, "API", now)
         );
         when(categoryService.findAll()).thenReturn(categories);
 
-        mockMvc.perform(get("/api/kb/categories"))
+        mockMvc.perform(get("/api/conventions/categories"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0].name").value("Testing"));
+                .andExpect(jsonPath("$.data[0].name").value("UI"));
     }
 
     @Test
     void search_returnsFilteredCategories() throws Exception {
         List<CategoryDto.CategoryResponse> categories = List.of(
-                new CategoryDto.CategoryResponse(1L, "Test Design", now)
+                new CategoryDto.CategoryResponse(1L, "UI Components", now)
         );
-        when(categoryService.search("test")).thenReturn(categories);
+        when(categoryService.search("ui")).thenReturn(categories);
 
-        mockMvc.perform(get("/api/kb/categories/search").param("q", "test"))
+        mockMvc.perform(get("/api/conventions/categories/search").param("q", "ui"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].name").value("Test Design"));
+                .andExpect(jsonPath("$.data[0].name").value("UI Components"));
+    }
+
+    @Test
+    void search_defaultEmptyQuery() throws Exception {
+        when(categoryService.search("")).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/conventions/categories/search"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(categoryService).search("");
     }
 
     @Test
@@ -67,7 +78,7 @@ class KbCategoryControllerTest {
         CategoryDto.CategoryResponse created = new CategoryDto.CategoryResponse(1L, "NewCat", now);
         when(categoryService.create("NewCat")).thenReturn(created);
 
-        mockMvc.perform(post("/api/kb/categories")
+        mockMvc.perform(post("/api/conventions/categories")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name": "NewCat"}
@@ -79,13 +90,23 @@ class KbCategoryControllerTest {
 
     @Test
     void create_returns400WhenNameBlank() throws Exception {
-        mockMvc.perform(post("/api/kb/categories")
+        mockMvc.perform(post("/api/conventions/categories")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name": ""}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
+
+        verify(categoryService, never()).create(any());
+    }
+
+    @Test
+    void create_returns400WhenNameMissing() throws Exception {
+        mockMvc.perform(post("/api/conventions/categories")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
 
         verify(categoryService, never()).create(any());
     }

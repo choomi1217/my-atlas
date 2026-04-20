@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { PdfUploadJob } from '@/types/senior';
 import { usePdfUpload } from '@/hooks/usePdfUpload';
-import CategoryAutocomplete from '@/components/kb/CategoryAutocomplete';
+import CategoryAutocomplete from '@/components/common/CategoryAutocomplete';
+import { kbCategoryApi } from '@/api/senior';
 
 interface PdfUploadModalProps {
   isOpen: boolean;
@@ -84,6 +85,8 @@ export default function PdfUploadModal({ isOpen, onClose, onUploadComplete }: Pd
                 value={category}
                 onChange={setCategory}
                 disabled={isUploading}
+                fetchAll={kbCategoryApi.getAll}
+                placeholder="카테고리 (예: Test Design, Automation)"
               />
             </div>
 

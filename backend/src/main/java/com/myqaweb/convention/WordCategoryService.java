@@ -1,10 +1,10 @@
-package com.myqaweb.knowledgebase;
+package com.myqaweb.convention;
 
 import com.myqaweb.common.CategoryDto;
 
 import java.util.List;
 
-public interface KbCategoryService {
+public interface WordCategoryService {
 
     List<CategoryDto.CategoryResponse> findAll();
 
