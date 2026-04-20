@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Segment, TestCase } from '@/types/features';
 import { segmentApi } from '@/api/features';
 import ConfirmDialog from '@/components/features/ConfirmDialog';
+import { TC_DND_MIME } from '@/utils/tcDnd';
 
 interface SegmentTreeViewProps {
   segments: Segment[];
@@ -13,6 +14,12 @@ interface SegmentTreeViewProps {
   onSegmentDeleted: (id: number) => void;
   onSegmentsUpdated: (segments: Segment[]) => void;
   onAddTestCase?: (path: number[]) => void;
+  /**
+   * Fired when the user drops a TestCase card onto a segment node.
+   * `path` is the full ancestor-to-leaf Segment ID chain ending at the drop target.
+   * Parent is responsible for persisting via testCaseApi.updatePath + refreshing the list.
+   */
+  onTestCaseDroppedOnSegment?: (testCaseId: number, path: number[]) => void | Promise<void>;
 }
 
 interface ContextMenuState {
@@ -45,6 +52,7 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
   onSegmentDeleted,
   onSegmentsUpdated,
   onAddTestCase,
+  onTestCaseDroppedOnSegment,
 }) => {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -318,10 +326,44 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
     }));
   }, []);
 
+  // Walk from a segment id up to the root to produce the full ancestor-to-leaf chain.
+  const resolveSegmentAncestry = useCallback(
+    (segmentId: number): number[] => {
+      const byId = new Map<number, Segment>();
+      segments.forEach((s) => byId.set(s.id, s));
+      const chain: number[] = [];
+      let current = byId.get(segmentId);
+      while (current) {
+        chain.unshift(current.id);
+        if (current.parentId == null) break;
+        current = byId.get(current.parentId);
+      }
+      return chain;
+    },
+    [segments]
+  );
+
   const handleDrop = useCallback(
     async (e: React.DragEvent, targetSegmentId: number) => {
       e.preventDefault();
       e.stopPropagation();
+
+      // Branch 1 — user dropped a TestCase card onto this segment.
+      const tcIdRaw = e.dataTransfer.getData(TC_DND_MIME);
+      if (tcIdRaw && onTestCaseDroppedOnSegment) {
+        const tcId = Number(tcIdRaw);
+        setDragState({ draggedSegmentId: null, dragOverSegmentId: null });
+        if (Number.isFinite(tcId)) {
+          const path = resolveSegmentAncestry(targetSegmentId);
+          try {
+            await onTestCaseDroppedOnSegment(tcId, path);
+          } catch (err) {
+            console.error('TC drop handler failed', err);
+            showToast('TC Path 변경에 실패했습니다.', 'error');
+          }
+        }
+        return;
+      }
 
       const { draggedSegmentId } = dragState;
 
@@ -366,7 +408,7 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
         setIsUpdating(false);
       }
     },
-    [dragState, segments, onSegmentsUpdated, showToast]
+    [dragState, segments, onSegmentsUpdated, showToast, onTestCaseDroppedOnSegment, resolveSegmentAncestry]
   );
 
   const handleDragEnd = useCallback(() => {

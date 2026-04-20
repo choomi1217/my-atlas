@@ -224,9 +224,15 @@ class TestStudioGeneratorTest {
         assertEquals(Priority.HIGH, first.getPriority());
         assertEquals(TestType.FUNCTIONAL, first.getTestType());
         assertNotNull(first.getPath());
-        assertEquals(0, first.getPath().length, "v1 path should be empty (user selects later)");
+        assertEquals(0, first.getPath().length, "v2 path stays empty — no automatic injection");
         assertEquals(1, first.getSteps().size());
         assertEquals(product, first.getProduct());
+
+        // v2: suggestedSegmentPath must be persisted from the draft for later user-triggered apply.
+        assertArrayEquals(new String[]{"결제", "NFC"}, first.getSuggestedSegmentPath(),
+                "Draft suggestedSegmentPath should be copied into entity as String[]");
+        TestCaseEntity second = persisted.get(1);
+        assertArrayEquals(new String[]{"결제", "NFC"}, second.getSuggestedSegmentPath());
 
         // Assert — job transitioned PENDING → PROCESSING → DONE via 2 saves
         assertEquals(2, jobStatusSnapshots.size(), "expected exactly 2 save() invocations on job");

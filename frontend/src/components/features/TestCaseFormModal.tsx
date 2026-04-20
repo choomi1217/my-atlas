@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
+  Segment,
   TestCase,
   TestCaseImage,
   TestStep,
@@ -8,6 +9,7 @@ import {
   TestCaseStatus,
 } from '@/types/features';
 import { featureImageApi, testCaseImageApi } from '@/api/features';
+import SegmentTreePicker from './SegmentTreePicker';
 
 interface TestCaseFormData {
   title: string;
@@ -27,6 +29,16 @@ interface TestCaseFormModalProps {
   onSubmit: (data: TestCaseFormData) => Promise<TestCase | void>;
   initialData?: TestCase | null;
   pathDisplay: string;
+  /**
+   * When provided, the modal renders an inline Segment tree picker and lets the user
+   * change the TC's path. The parent is responsible for applying the path change
+   * (e.g. via testCaseApi.updatePath) when the form is submitted or when onPathChange fires.
+   */
+  pathEdit?: {
+    segments: Segment[];
+    selectedPath: number[];
+    onChange: (nextPath: number[]) => void;
+  };
 }
 
 const emptyForm: TestCaseFormData = {
@@ -146,6 +158,7 @@ export default function TestCaseFormModal({
   onSubmit,
   initialData,
   pathDisplay,
+  pathEdit,
 }: TestCaseFormModalProps) {
   const [form, setForm] = useState<TestCaseFormData>(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -313,14 +326,26 @@ export default function TestCaseFormModal({
 
           {/* Body (scrollable) */}
           <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
-            {/* Path (read-only) */}
+            {/* Path — editable when pathEdit is provided, read-only otherwise */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Path
               </label>
               <div className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded border">
-                {pathDisplay || 'Path를 선택해주세요.'}
+                {pathDisplay || 'Path 미지정'}
               </div>
+              {pathEdit && (
+                <div className="mt-2">
+                  <div className="text-xs text-gray-500 mb-1">
+                    Segment을 선택해 Path를 지정하세요. 위의 표시는 저장 후 갱신됩니다.
+                  </div>
+                  <SegmentTreePicker
+                    segments={pathEdit.segments}
+                    selectedPath={pathEdit.selectedPath}
+                    onChange={pathEdit.onChange}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Title */}
