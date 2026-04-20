@@ -2,6 +2,8 @@ package com.myqaweb.config;
 
 import com.myqaweb.auth.JwtAuthenticationFilter;
 import com.myqaweb.auth.JwtProvider;
+import com.myqaweb.monitoring.ApiAccessLogFilter;
+import com.myqaweb.monitoring.ApiAccessLogRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,8 +25,14 @@ public class SecurityConfig {
     }
 
     @Bean
+    public ApiAccessLogFilter apiAccessLogFilter(ApiAccessLogRepository repository) {
+        return new ApiAccessLogFilter(repository);
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-                                           JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+                                           JwtAuthenticationFilter jwtAuthenticationFilter,
+                                           ApiAccessLogFilter apiAccessLogFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -48,7 +56,8 @@ public class SecurityConfig {
                         // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(apiAccessLogFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

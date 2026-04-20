@@ -9,14 +9,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-@Component
+/**
+ * HTTP request logging filter for API access statistics.
+ * Registered as a bean in SecurityConfig (not @Component) to avoid
+ * being auto-scanned in @WebMvcTest contexts.
+ */
 @RequiredArgsConstructor
 public class ApiAccessLogFilter extends OncePerRequestFilter {
 
