@@ -28,6 +28,10 @@ public class TestCaseEntity {
     @Column(columnDefinition = "bigint[]")
     private Long[] path;
 
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "suggested_segment_path", columnDefinition = "text[]")
+    private String[] suggestedSegmentPath;
+
     @Column(nullable = false, length = 200)
     private String title;
 

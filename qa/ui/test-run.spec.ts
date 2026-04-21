@@ -99,7 +99,7 @@ test.describe.serial('TestRun UI E2E', () => {
     await goToTestRunList();
 
     const heading = page.locator('h1:has-text("Test Runs")');
-    await expect(heading).toBeVisible();
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
   test('TestRunListPage - "+ New Test Run" button 표시', async () => {

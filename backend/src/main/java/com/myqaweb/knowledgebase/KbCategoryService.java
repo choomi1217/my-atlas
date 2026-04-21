@@ -1,14 +1,16 @@
 package com.myqaweb.knowledgebase;
 
+import com.myqaweb.common.CategoryDto;
+
 import java.util.List;
 
 public interface KbCategoryService {
 
-    List<KbCategoryDto.CategoryResponse> findAll();
+    List<CategoryDto.CategoryResponse> findAll();
 
-    List<KbCategoryDto.CategoryResponse> search(String query);
+    List<CategoryDto.CategoryResponse> search(String query);
 
-    KbCategoryDto.CategoryResponse create(String name);
+    CategoryDto.CategoryResponse create(String name);
 
     void ensureExists(String name);
 }

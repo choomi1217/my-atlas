@@ -265,6 +265,40 @@ class TestStudioServiceImplTest {
         assertThrows(IllegalArgumentException.class, () -> service.listJobs(null));
     }
 
+    // --- listJobsByCompany ---
+
+    @Test
+    void listJobsByCompany_delegatesToRepo() {
+        // Arrange
+        TestStudioJobEntity j2 = new TestStudioJobEntity();
+        j2.setId(2L);
+        j2.setProductId(2L);
+        j2.setSourceType(SourceType.PDF);
+        j2.setSourceTitle("Across product 2");
+        j2.setStatus(TestStudioJobStatus.DONE);
+        j2.setGeneratedCount(4);
+        j2.setCreatedAt(LocalDateTime.now());
+
+        when(jobRepository.findAllByCompanyIdOrderByCreatedAtDesc(99L))
+                .thenReturn(List.of(savedJob, j2));
+
+        // Act
+        List<TestStudioJobDto.JobResponse> result = service.listJobsByCompany(99L);
+
+        // Assert
+        assertEquals(2, result.size());
+        assertEquals("Title", result.get(0).sourceTitle());
+        assertEquals("Across product 2", result.get(1).sourceTitle());
+        verify(jobRepository).findAllByCompanyIdOrderByCreatedAtDesc(99L);
+        verify(jobRepository, never()).findAllByProductIdOrderByCreatedAtDesc(anyLong());
+    }
+
+    @Test
+    void listJobsByCompany_rejectsNull() {
+        assertThrows(IllegalArgumentException.class, () -> service.listJobsByCompany(null));
+        verify(jobRepository, never()).findAllByCompanyIdOrderByCreatedAtDesc(anyLong());
+    }
+
     // --- deleteJob ---
 
     @Test

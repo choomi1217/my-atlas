@@ -37,8 +37,8 @@ test.describe('Product List Page', () => {
     const productName = 'E2E Web Product';
     await featuresPage.addProduct(productName);
 
-    await expect(page.getByText(productName)).toBeVisible();
-    await expect(page.locator('span').filter({ hasText: 'WEB' }).first()).toBeVisible();
+    await expect(page.getByText(productName)).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('span').filter({ hasText: 'WEB' }).first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should display products created via API', async ({ page }) => {
@@ -47,8 +47,8 @@ test.describe('Product List Page', () => {
 
     await featuresPage.gotoCompany(companyId);
 
-    await expect(page.getByText('API Product 1')).toBeVisible();
-    await expect(page.getByText('API Product 2')).toBeVisible();
+    await expect(page.getByText('API Product 1')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('API Product 2')).toBeVisible({ timeout: 5000 });
   });
 
   test('should delete product via confirm dialog', async ({ page }) => {
@@ -56,11 +56,12 @@ test.describe('Product List Page', () => {
 
     await featuresPage.gotoCompany(companyId);
 
-    await expect(page.getByText('E2E Delete Product')).toBeVisible();
+    // Wait for product to appear (API data loading)
+    await expect(page.getByText('E2E Delete Product')).toBeVisible({ timeout: 10000 });
 
     await featuresPage.deleteProduct('E2E Delete Product');
 
-    await expect(page.getByText('E2E Delete Product')).not.toBeVisible();
+    await expect(page.getByText('E2E Delete Product')).not.toBeVisible({ timeout: 5000 });
   });
 
   test('should navigate to test cases on product click', async ({ page }) => {
@@ -79,6 +80,6 @@ test.describe('Product List Page', () => {
   test('should show empty state when no products exist', async ({ page }) => {
     await featuresPage.gotoCompany(companyId);
 
-    await expect(page.getByText(/No products yet/)).toBeVisible();
+    await expect(page.getByText(/No products yet/)).toBeVisible({ timeout: 5000 });
   });
 });

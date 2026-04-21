@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myqaweb.monitoring.AiFeature;
 import com.myqaweb.monitoring.AiUsageLogService;
+import com.myqaweb.teststudio.SegmentPathResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -30,6 +31,7 @@ public class TestCaseServiceImpl implements TestCaseService {
     private final ProductRepository productRepository;
     private final SegmentRepository segmentRepository;
     private final TestCaseImageRepository testCaseImageRepository;
+    private final SegmentPathResolver segmentPathResolver;
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
     private final AiUsageLogService aiUsageLogService;
@@ -97,6 +99,136 @@ public class TestCaseServiceImpl implements TestCaseService {
             throw new IllegalArgumentException("Test case not found: " + id);
         }
         testCaseRepository.deleteByIdDirectly(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TestCaseDto.TestCaseResponse> getByCompanyId(Long companyId, TestStatus status) {
+        List<TestCaseEntity> entities = status == null
+                ? testCaseRepository.findAllByCompanyId(companyId)
+                : testCaseRepository.findAllByCompanyIdAndStatus(companyId, status);
+        return entities.stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    public TestCaseDto.TestCaseResponse updatePath(Long testCaseId, Long[] path) {
+        TestCaseEntity entity = testCaseRepository.findById(testCaseId)
+                .orElseThrow(() -> new IllegalArgumentException("Test case not found: " + testCaseId));
+        Long[] nextPath = path != null ? path : new Long[0];
+        validatePathBelongsToProduct(entity.getProduct().getId(), nextPath);
+        entity.setPath(nextPath);
+        TestCaseEntity saved = testCaseRepository.save(entity);
+        return toResponse(saved);
+    }
+
+    @Override
+    public TestCaseDto.ApplySuggestedPathResponse applySuggestedPath(Long testCaseId) {
+        TestCaseEntity entity = testCaseRepository.findById(testCaseId)
+                .orElseThrow(() -> new IllegalArgumentException("Test case not found: " + testCaseId));
+
+        String[] suggested = entity.getSuggestedSegmentPath();
+        if (suggested == null || suggested.length == 0) {
+            return new TestCaseDto.ApplySuggestedPathResponse(
+                    testCaseId, new Long[0], 0, false, 0, 0, "NO_SUGGESTION");
+        }
+
+        // User explicitly triggered "추천 적용" — allowed to create missing segments.
+        ProductEntity product = productRepository.findById(entity.getProduct().getId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Product not found: " + entity.getProduct().getId()));
+        SegmentPathResolver.ResolverContext ctx = segmentPathResolver.buildContext(product.getId());
+        SegmentPathResolver.ResolveResult result =
+                segmentPathResolver.resolveOrCreate(ctx, product, Arrays.asList(suggested));
+        entity.setPath(result.path());
+        testCaseRepository.save(entity);
+
+        boolean fullMatch = result.path().length == suggested.length;
+        log.info("[TestCase][ApplyPath] tcId={} suggested={} resolved={} fullMatch={} created={}",
+                testCaseId, Arrays.toString(suggested), Arrays.toString(result.path()),
+                fullMatch, result.createdCount());
+
+        return new TestCaseDto.ApplySuggestedPathResponse(
+                testCaseId, result.path(), result.path().length,
+                fullMatch, suggested.length, result.createdCount(), null);
+    }
+
+    @Override
+    public List<TestCaseDto.ApplySuggestedPathResponse> bulkApplySuggestedPath(List<Long> testCaseIds) {
+        if (testCaseIds == null || testCaseIds.isEmpty()) {
+            return List.of();
+        }
+        // Group by product so the resolver context + Product entity are loaded once per product.
+        // The shared context dedups newly created ancestor segments across TCs of the same product.
+        List<TestCaseEntity> entities = testCaseRepository.findAllById(testCaseIds);
+        java.util.Map<Long, SegmentPathResolver.ResolverContext> ctxByProduct = new java.util.HashMap<>();
+        java.util.Map<Long, ProductEntity> productById = new java.util.HashMap<>();
+        java.util.Map<Long, TestCaseEntity> byId = new java.util.HashMap<>();
+        for (TestCaseEntity e : entities) {
+            byId.put(e.getId(), e);
+            Long pid = e.getProduct().getId();
+            if (!ctxByProduct.containsKey(pid)) {
+                ctxByProduct.put(pid, segmentPathResolver.buildContext(pid));
+                productById.put(pid, productRepository.findById(pid)
+                        .orElseThrow(() -> new IllegalArgumentException("Product not found: " + pid)));
+            }
+        }
+
+        List<TestCaseDto.ApplySuggestedPathResponse> results = new ArrayList<>(testCaseIds.size());
+        for (Long id : testCaseIds) {
+            TestCaseEntity entity = byId.get(id);
+            if (entity == null) {
+                results.add(new TestCaseDto.ApplySuggestedPathResponse(
+                        id, new Long[0], 0, false, 0, 0, "NOT_FOUND"));
+                continue;
+            }
+            String[] suggested = entity.getSuggestedSegmentPath();
+            if (suggested == null || suggested.length == 0) {
+                results.add(new TestCaseDto.ApplySuggestedPathResponse(
+                        id, new Long[0], 0, false, 0, 0, "NO_SUGGESTION"));
+                continue;
+            }
+            Long pid = entity.getProduct().getId();
+            SegmentPathResolver.ResolverContext ctx = ctxByProduct.get(pid);
+            ProductEntity product = productById.get(pid);
+            SegmentPathResolver.ResolveResult result =
+                    segmentPathResolver.resolveOrCreate(ctx, product, Arrays.asList(suggested));
+            entity.setPath(result.path());
+            testCaseRepository.save(entity);
+            boolean fullMatch = result.path().length == suggested.length;
+            log.info("[TestCase][BulkApplyPath] tcId={} suggested={} resolved={} fullMatch={} created={}",
+                    id, Arrays.toString(suggested), Arrays.toString(result.path()),
+                    fullMatch, result.createdCount());
+            results.add(new TestCaseDto.ApplySuggestedPathResponse(
+                    id, result.path(), result.path().length, fullMatch,
+                    suggested.length, result.createdCount(), null));
+        }
+        return results;
+    }
+
+    /**
+     * Validates that every segment id in the path belongs to the given product and that the
+     * parent chain forms a valid ancestor-to-descendant sequence.
+     */
+    private void validatePathBelongsToProduct(Long productId, Long[] path) {
+        if (path == null || path.length == 0) {
+            return;
+        }
+        Long expectedParent = null;
+        for (Long segmentId : path) {
+            SegmentEntity seg = segmentRepository.findById(segmentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Segment not found: " + segmentId));
+            if (!seg.getProduct().getId().equals(productId)) {
+                throw new IllegalArgumentException(
+                        "Segment " + segmentId + " does not belong to product " + productId);
+            }
+            Long actualParent = seg.getParent() == null ? null : seg.getParent().getId();
+            if (!java.util.Objects.equals(expectedParent, actualParent)) {
+                throw new IllegalArgumentException(
+                        "Invalid path chain at segment " + segmentId
+                                + ": expected parent " + expectedParent + " but was " + actualParent);
+            }
+            expectedParent = segmentId;
+        }
     }
 
     @Override
@@ -202,6 +334,7 @@ public class TestCaseServiceImpl implements TestCaseService {
                 entity.getId(),
                 entity.getProduct().getId(),
                 entity.getPath(),
+                entity.getSuggestedSegmentPath(),
                 entity.getTitle(),
                 entity.getDescription(),
                 entity.getPromptText(),

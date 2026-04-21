@@ -45,12 +45,22 @@ public class TestStudioController {
     }
 
     /**
-     * List jobs for a product (newest first).
+     * List jobs for a product or company (newest first).
+     * Exactly one of {productId, companyId} must be provided.
      */
     @GetMapping("/jobs")
     public ResponseEntity<ApiResponse<List<TestStudioJobDto.JobResponse>>> listJobs(
-            @RequestParam("productId") Long productId) {
-        List<TestStudioJobDto.JobResponse> jobs = testStudioService.listJobs(productId);
+            @RequestParam(value = "productId", required = false) Long productId,
+            @RequestParam(value = "companyId", required = false) Long companyId) {
+        if (productId == null && companyId == null) {
+            throw new IllegalArgumentException("productId or companyId is required");
+        }
+        if (productId != null && companyId != null) {
+            throw new IllegalArgumentException("productId and companyId are mutually exclusive");
+        }
+        List<TestStudioJobDto.JobResponse> jobs = productId != null
+                ? testStudioService.listJobs(productId)
+                : testStudioService.listJobsByCompany(companyId);
         return ResponseEntity.ok(ApiResponse.ok(jobs));
     }
 

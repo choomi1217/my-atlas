@@ -1,6 +1,7 @@
 import apiClient from './client';
 import {
   ApiResponse,
+  ApplySuggestedPathResult,
   Company,
   Product,
   Segment,
@@ -188,6 +189,54 @@ export const testCaseApi = {
       {
         params: { productId },
       }
+    );
+    return response.data.data;
+  },
+
+  getByCompanyId: async (
+    companyId: number,
+    status?: TestCaseStatus
+  ): Promise<TestCase[]> => {
+    const response = await apiClient.get<ApiResponse<TestCase[]>>(
+      '/api/test-cases',
+      {
+        params: status ? { companyId, status } : { companyId },
+      }
+    );
+    return response.data.data;
+  },
+
+  /**
+   * PATCH /api/test-cases/{id}/path — user manually replaces the segment path.
+   * This is NOT forced injection: user explicitly chooses the path via picker / DnD.
+   */
+  updatePath: async (id: number, path: number[]): Promise<TestCase> => {
+    const response = await apiClient.patch<ApiResponse<TestCase>>(
+      `/api/test-cases/${id}/path`,
+      { path }
+    );
+    return response.data.data;
+  },
+
+  /**
+   * POST /api/test-cases/{id}/apply-suggested-path — user applies Claude's recommendation.
+   */
+  applySuggestedPath: async (id: number): Promise<ApplySuggestedPathResult> => {
+    const response = await apiClient.post<ApiResponse<ApplySuggestedPathResult>>(
+      `/api/test-cases/${id}/apply-suggested-path`
+    );
+    return response.data.data;
+  },
+
+  /**
+   * POST /api/test-cases/bulk-apply-suggested-path — user applies recommendations in bulk.
+   */
+  bulkApplySuggestedPath: async (
+    testCaseIds: number[]
+  ): Promise<ApplySuggestedPathResult[]> => {
+    const response = await apiClient.post<ApiResponse<ApplySuggestedPathResult[]>>(
+      '/api/test-cases/bulk-apply-suggested-path',
+      { testCaseIds }
     );
     return response.data.data;
   },

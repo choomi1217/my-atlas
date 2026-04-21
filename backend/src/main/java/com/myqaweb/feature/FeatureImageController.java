@@ -1,7 +1,7 @@
 package com.myqaweb.feature;
 
 import com.myqaweb.common.ApiResponse;
-import com.myqaweb.common.S3ImageService;
+import com.myqaweb.common.ImageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -20,19 +20,19 @@ import java.util.Map;
 public class FeatureImageController {
 
     private static final Logger log = LoggerFactory.getLogger(FeatureImageController.class);
-    private final S3ImageService s3ImageService;
+    private final ImageService imageService;
 
-    public FeatureImageController(S3ImageService s3ImageService) {
-        this.s3ImageService = s3ImageService;
+    public FeatureImageController(ImageService imageService) {
+        this.imageService = imageService;
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadImage(
             @RequestParam("file") MultipartFile file) {
         try {
-            String imageUrl = s3ImageService.upload("feature", file);
+            String imageUrl = imageService.upload("feature", file);
             String filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-            log.info("Feature image uploaded to S3: {}", imageUrl);
+            log.info("Feature image uploaded: {}", imageUrl);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.ok(Map.of(
                             "url", imageUrl,

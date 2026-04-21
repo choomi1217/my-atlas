@@ -14,6 +14,13 @@ public interface TestCaseRepository extends JpaRepository<TestCaseEntity, Long> 
 
     List<TestCaseEntity> findAllByProductIdAndStatus(Long productId, TestStatus status);
 
+    @Query("SELECT tc FROM TestCaseEntity tc WHERE tc.product.company.id = :companyId")
+    List<TestCaseEntity> findAllByCompanyId(@Param("companyId") Long companyId);
+
+    @Query("SELECT tc FROM TestCaseEntity tc WHERE tc.product.company.id = :companyId AND tc.status = :status")
+    List<TestCaseEntity> findAllByCompanyIdAndStatus(@Param("companyId") Long companyId,
+                                                    @Param("status") TestStatus status);
+
     @Modifying
     @Query("DELETE FROM TestCaseEntity t WHERE t.id = :id")
     void deleteByIdDirectly(@Param("id") Long id);

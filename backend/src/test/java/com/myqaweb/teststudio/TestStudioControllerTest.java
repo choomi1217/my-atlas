@@ -124,6 +124,54 @@ class TestStudioControllerTest {
         verify(testStudioService).listJobs(10L);
     }
 
+    @Test
+    void listJobs_withCompanyId_delegates_andReturnsOk() throws Exception {
+        // Arrange — company-scoped call routes to listJobsByCompany
+        List<TestStudioJobDto.JobResponse> jobs = List.of(
+                new TestStudioJobDto.JobResponse(1L, 10L, SourceType.MARKDOWN,
+                        "Company Job 1", TestStudioJobStatus.DONE, null, 5, now, now),
+                new TestStudioJobDto.JobResponse(2L, 11L, SourceType.PDF,
+                        "Company Job 2", TestStudioJobStatus.PROCESSING, null, 0, now, null)
+        );
+        when(testStudioService.listJobsByCompany(7L)).thenReturn(jobs);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/test-studio/jobs").param("companyId", "7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].sourceTitle").value("Company Job 1"))
+                .andExpect(jsonPath("$.data[1].sourceTitle").value("Company Job 2"));
+
+        verify(testStudioService).listJobsByCompany(7L);
+        verify(testStudioService, never()).listJobs(any());
+    }
+
+    @Test
+    void listJobs_missingBoth_returns400() throws Exception {
+        // Act & Assert
+        mockMvc.perform(get("/api/test-studio/jobs"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(testStudioService, never()).listJobs(any());
+        verify(testStudioService, never()).listJobsByCompany(any());
+    }
+
+    @Test
+    void listJobs_bothProvided_returns400() throws Exception {
+        // Act & Assert
+        mockMvc.perform(get("/api/test-studio/jobs")
+                        .param("productId", "10")
+                        .param("companyId", "7"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(testStudioService, never()).listJobs(any());
+        verify(testStudioService, never()).listJobsByCompany(any());
+    }
+
     // --- GET /api/test-studio/jobs/{id} ---
 
     @Test

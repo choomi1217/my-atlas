@@ -1,6 +1,6 @@
 package com.myqaweb.knowledgebase;
 
-import com.myqaweb.common.S3ImageService;
+import com.myqaweb.common.ImageService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -23,7 +23,7 @@ class KbImageControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private S3ImageService s3ImageService;
+    private ImageService s3ImageService;
 
     @Test
     void uploadImage_withValidPng_returns201WithUrl() throws Exception {

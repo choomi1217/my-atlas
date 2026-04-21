@@ -163,6 +163,12 @@ class TestStudioIntegrationTest extends BaseIntegrationTest {
         for (TestCaseEntity tc : tcs) {
             assertEquals(TestStatus.DRAFT, tc.getStatus());
             assertEquals(jobId, tc.getTestStudioJobId());
+            // v2: path stays empty (no automatic injection), suggestedSegmentPath is persisted
+            assertNotNull(tc.getPath());
+            assertEquals(0, tc.getPath().length,
+                    "v2: path must remain empty until user explicitly applies the suggestion");
+            assertArrayEquals(new String[]{"Integration"}, tc.getSuggestedSegmentPath(),
+                    "suggested_segment_path column should hold the Claude suggestion from VALID_RESPONSE");
         }
     }
 

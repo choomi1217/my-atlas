@@ -1,5 +1,6 @@
 package com.myqaweb.knowledgebase;
 
+import com.myqaweb.common.CategoryDto;
 import com.myqaweb.common.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,9 +34,9 @@ class KbCategoryControllerTest {
 
     @Test
     void list_returnsAllCategories() throws Exception {
-        List<KbCategoryDto.CategoryResponse> categories = List.of(
-                new KbCategoryDto.CategoryResponse(1L, "Testing", now),
-                new KbCategoryDto.CategoryResponse(2L, "Automation", now)
+        List<CategoryDto.CategoryResponse> categories = List.of(
+                new CategoryDto.CategoryResponse(1L, "Testing", now),
+                new CategoryDto.CategoryResponse(2L, "Automation", now)
         );
         when(categoryService.findAll()).thenReturn(categories);
 
@@ -49,8 +50,8 @@ class KbCategoryControllerTest {
 
     @Test
     void search_returnsFilteredCategories() throws Exception {
-        List<KbCategoryDto.CategoryResponse> categories = List.of(
-                new KbCategoryDto.CategoryResponse(1L, "Test Design", now)
+        List<CategoryDto.CategoryResponse> categories = List.of(
+                new CategoryDto.CategoryResponse(1L, "Test Design", now)
         );
         when(categoryService.search("test")).thenReturn(categories);
 
@@ -63,7 +64,7 @@ class KbCategoryControllerTest {
 
     @Test
     void create_returns201() throws Exception {
-        KbCategoryDto.CategoryResponse created = new KbCategoryDto.CategoryResponse(1L, "NewCat", now);
+        CategoryDto.CategoryResponse created = new CategoryDto.CategoryResponse(1L, "NewCat", now);
         when(categoryService.create("NewCat")).thenReturn(created);
 
         mockMvc.perform(post("/api/kb/categories")

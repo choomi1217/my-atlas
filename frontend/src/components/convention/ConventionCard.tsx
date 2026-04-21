@@ -19,17 +19,17 @@ export default function ConventionCard({ convention, onClick, onDelete }: Conven
     >
       {/* Image area */}
       {convention.imageUrl ? (
-        <div className="w-full h-40 bg-gray-100">
+        <div className="w-full h-40 bg-gray-50 flex items-center justify-center">
           <img
             src={convention.imageUrl}
             alt={convention.term}
-            className="w-full h-full object-cover"
+            className="max-w-full max-h-full object-contain"
           />
         </div>
       ) : (
-        <div className="w-full h-40 bg-gray-100 flex items-center justify-center">
+        <div className="w-full h-40 bg-gray-100 flex flex-col items-center justify-center gap-1">
           <svg
-            className="w-12 h-12 text-gray-300"
+            className="w-10 h-10 text-gray-300"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -41,6 +41,7 @@ export default function ConventionCard({ convention, onClick, onDelete }: Conven
               d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"
             />
           </svg>
+          <span className="text-xs text-gray-400">No Image</span>
         </div>
       )}
 

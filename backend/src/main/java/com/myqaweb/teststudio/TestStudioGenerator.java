@@ -376,7 +376,12 @@ public class TestStudioGenerator {
     private TestCaseEntity toTestCaseEntity(DraftTestCaseDto draft, ProductEntity product, Long jobId) {
         TestCaseEntity tc = new TestCaseEntity();
         tc.setProduct(product);
-        tc.setPath(new Long[0]); // v1: user manually selects segments later
+        // v2: path stays empty — no forced/automatic injection from code.
+        // Claude's suggestedSegmentPath is persisted for later user-triggered apply.
+        tc.setPath(new Long[0]);
+        if (draft.suggestedSegmentPath() != null && !draft.suggestedSegmentPath().isEmpty()) {
+            tc.setSuggestedSegmentPath(draft.suggestedSegmentPath().toArray(new String[0]));
+        }
         tc.setTitle(draft.title() != null ? draft.title() : "Untitled DRAFT");
         tc.setPreconditions(draft.preconditions());
         tc.setSteps(draft.steps() != null ? draft.steps() : new ArrayList<TestStep>());

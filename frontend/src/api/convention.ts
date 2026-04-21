@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import { ConventionItem, ConventionRequest } from '../types/convention';
+import { CategoryItem } from '../types/common';
 
 export const conventionApi = {
   getAll: async (): Promise<ConventionItem[]> => {
@@ -33,5 +34,24 @@ export const conventionApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return res.data.data.url;
+  },
+};
+
+export const conventionCategoryApi = {
+  getAll: async (): Promise<CategoryItem[]> => {
+    const res = await apiClient.get('/api/conventions/categories');
+    return res.data.data;
+  },
+
+  search: async (query: string): Promise<CategoryItem[]> => {
+    const res = await apiClient.get('/api/conventions/categories/search', {
+      params: { q: query },
+    });
+    return res.data.data;
+  },
+
+  create: async (name: string): Promise<CategoryItem> => {
+    const res = await apiClient.post('/api/conventions/categories', { name });
+    return res.data.data;
   },
 };

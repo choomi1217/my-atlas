@@ -3,10 +3,11 @@ import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 
 const navItems = [
-  { to: '/senior',      label: 'My Senior'         },
-  { to: '/kb',          label: 'Knowledge Base'    },
-  { to: '/conventions', label: 'Word Conventions'  },
+  { to: '/senior',      label: 'My Senior'          },
+  { to: '/kb',          label: 'Knowledge Base'     },
+  { to: '/conventions', label: 'Word Conventions'   },
   { to: '/features',    label: 'Product Test Suite' },
+  { to: '/test-studio', label: 'Test Studio'        },
   { to: '/resume',      label: 'Resume'             },
 ]
 
