@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKnowledgeBase, SourceFilter, SortOption } from '@/hooks/useKnowledgeBase';
+import { useAuth } from '@/context/AuthContext';
 import PdfUploadModal from '@/components/kb/PdfUploadModal';
 
 const filterTabs: { key: SourceFilter; label: string }[] = [
@@ -34,9 +35,30 @@ export default function KnowledgeBasePage() {
   } = useKnowledgeBase();
 
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showLoginRequiredToast = useCallback(() => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast('PDF 업로드는 로그인이 필요합니다.');
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  useEffect(() => () => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+  }, []);
+
+  const handlePdfUploadClick = () => {
+    if (!user) {
+      showLoginRequiredToast();
+      return;
+    }
+    setIsPdfModalOpen(true);
+  };
 
   // Debounce search
   useEffect(() => {
@@ -80,7 +102,7 @@ export default function KnowledgeBasePage() {
             + 직접 작성
           </button>
           <button
-            onClick={() => setIsPdfModalOpen(true)}
+            onClick={handlePdfUploadClick}
             className="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-300 rounded-md
                        hover:bg-indigo-50 transition-colors"
           >
@@ -209,6 +231,16 @@ export default function KnowledgeBasePage() {
         onClose={() => setIsPdfModalOpen(false)}
         onUploadComplete={fetchKbItems}
       />
+
+      {/* Toast — 비로그인 PDF 업로드 안내 */}
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-4 right-4 px-4 py-3 rounded shadow-lg text-white text-sm z-50 bg-red-500"
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

@@ -453,3 +453,54 @@ FEAT-1 ~ FEAT-4 전 항목 완료. `system_settings`에 `login_required`, `ai_ra
 - **Public 설정 엔드포인트**: `GET /api/settings/public` — 인증 없이 `{loginRequired}` 만 노출. Frontend 부팅 시 이 응답으로 `ProtectedRoute` 동작 결정.
 - **모니터링 일관성**: `ai_usage_log` + `api_access_log` 양쪽에 `ip_address` 칼럼 추가. 비로그인 AI 사용은 `username=null, ip_address="x.x.x.x"`로 기록되어 남용 추적 가능.
 - **E2E 상태 격리**: Rate Limit 테스트는 실행마다 랜덤 IP 옥텟을 생성하여 이전 실행의 카운터 잔존 상태와 충돌하지 않도록 설계. `afterAll`에서 원본 설정 복원 보장.
+
+### 로그 노이즈 수정 (SSE async dispatch)
+
+- **증상**: ADMIN이 Senior Chat 요청하면 정상 응답 후에도 chat당 ~120라인의 `AccessDeniedException` 스택 트레이스가 반복 로깅.
+- **원인**: `SseEmitter` 완료 시 Spring이 **async dispatch**로 응답을 마무리. 이 때 별도 스레드에서 `FilterChainProxy`가 재실행되는데, `SecurityContextHolder`(ThreadLocal)가 dispatch 스레드에 전파되지 않아 `AuthorizationFilter`가 `/api/**` `authenticated()` 규칙에서 차단 → SSE 응답이 이미 commit된 상태라 `/error` fallback → 추가 AccessDenied 폭주.
+- **수정**: `SecurityConfig`의 `authorizeHttpRequests` 최상단에 `DispatcherType.ASYNC / ERROR / FORWARD / INCLUDE` `permitAll`. 원본 요청이 이미 인가 통과했으니 재dispatch는 skip — 실제 외부 요청(`DispatcherType.REQUEST`)에는 영향 없음.
+- **효과**: chat 1회당 stdout 로그 ~120라인 → 3라인 (약 99% 감소), AccessDeniedException 0건.
+
+---
+
+## 후속 작업: KB v7 (Haiku PDF 청킹) 통합
+
+> 작업일: 2026-04-22
+> 트리거: `origin/develop`에 Knowledge Base v7 (#102 — PDF 업스트림 정제 Haiku) merge → `feature/platform` worktree로 merge 필요
+
+### Merge 처리
+
+- **상충 파일 16개** — 대부분 Platform v8의 squash merge 후폭풍(add/add): Settings 도메인 8파일은 v9가 v8의 superset이라 HEAD 선택. `qa/ui/test-studio.spec.ts`는 develop 쪽 `test.fixme` quarantine 수용. `SlackNotificationService.java`는 develop의 `enabled` 필드 + `@PostConstruct` 로그 refactor 수용.
+- **Merge commit**: `d25b5f7 Merge remote-tracking branch 'origin/develop' into feature/platform`
+- **빌드 검증**: `./gradlew compileJava compileTestJava` BUILD SUCCESSFUL, `npx tsc --noEmit` pass.
+
+### KB v7 × Platform v9 상호작용 분석
+
+| 영역 | 상태 | 비고 |
+|------|------|------|
+| `POST /api/kb/upload-pdf` 접근 제어 | ✅ 정상 | `DynamicPublicAccessFilter` whitelist에 없음 → 비인증 차단 유지 |
+| `AiRateLimitFilter` 적용 | ➖ 무관 | 타겟은 `/api/senior/chat`, `/api/senior/sessions`만. 인증 사용자는 면제 |
+| `KbContentCleanupService` (Haiku) | ✅ 호환 | `AiUsageLogService.logUsage()` 6-param overload 사용 → `ipAddress=null` 저장 |
+| `EmbeddingService.embed()` | ⚠️ 부분 | `@Async` 컨텍스트에서 `extractClientIp()` null 반환 가능 — 이미 try/catch로 방어 |
+| `isAiEnabled()` 가드 | ⚠️ 개선 여지 | `KbContentCleanupService.refine()`에 없음. 임베딩에만 존재 → Haiku도 AI 토글 OFF 시 정지되도록 추가 권장 |
+| Slack 알림 | ⚠️ 폭주 가능 | 임베딩 호출마다 `@Async` webhook → 책 1권당 50~200회 |
+
+### FE UX: 비로그인 PDF 업로드 버튼 → 토스트 (이동 없음)
+
+**요구사항**: 로그인하지 않은 사용자가 `PDF 업로드` 버튼 클릭 시 "로그인 필요" 토스트만 노출하고, `/login`으로 **이동시키지 않음**. 이유 — PDF 청킹은 Haiku+Embedding 호출이 많아 비용이 큰 작업이라 비로그인 사용자에게는 원천 차단해야 하지만, 포트폴리오 열람 흐름을 끊지 않기 위해.
+
+**구현**: `frontend/src/pages/KnowledgeBasePage.tsx`
+
+- `useAuth()`로 `user` 상태 구독
+- `handlePdfUploadClick()` — `user` 없으면 `showLoginRequiredToast()` 호출, 있으면 기존 `setIsPdfModalOpen(true)`
+- 토스트 컴포넌트는 `SegmentTreeView.tsx`의 기존 인라인 패턴 재사용 (외부 라이브러리 미도입):
+  - 로컬 state + `setTimeout(3000)`로 자동 사라짐, unmount 시 cleanup
+  - `fixed bottom-4 right-4 bg-red-500` 스타일
+  - 메시지: "PDF 업로드는 로그인이 필요합니다."
+- 변경 파일 1개, +25 lines
+
+### Follow-up (v9 외 별도 이슈로 관리 권장)
+
+- **Haiku AI 토글 가드**: `KbContentCleanupService.refine()` 진입 시 `settingsService.isAiEnabled()` 체크 추가 — 현재는 임베딩에서만 가드되어 Haiku 호출은 토글 OFF 상태에서도 실행됨
+- **Slack 알림 batch**: 책 1권 업로드 시 임베딩 호출마다 webhook 전송하면 Slack 채널 폭주. 청크 단위가 아닌 업로드 단위로 "총 N회 호출, 예상 비용 $X" 1회 종합 알림으로 전환
+- **`@Async` IP 전파**: `PdfProcessingWorker.processPdf()`가 `@Async`로 호출되면서 `RequestContextHolder`가 null → `ai_usage_log.ip_address`에 PDF 청킹 기록은 `null`로만 남음. 업로드 시점에 동기 구간에서 IP 추출 후 파라미터로 전파하면 추적 가능
