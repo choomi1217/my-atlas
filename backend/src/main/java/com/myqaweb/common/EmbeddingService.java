@@ -12,7 +12,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Optional;
 
@@ -76,6 +79,7 @@ public class EmbeddingService {
         }
 
         long startMs = System.currentTimeMillis();
+        String clientIp = extractClientIp();
         try {
             EmbeddingResponse response = embeddingModel.get().embedForResponse(List.of(text));
             long durationMs = System.currentTimeMillis() - startMs;
@@ -95,7 +99,7 @@ public class EmbeddingService {
             if (feature != null) {
                 Integer inputTokens = extractEmbeddingTokens(response);
                 aiUsageLogService.logUsage(feature, PROVIDER, MODEL,
-                        inputTokens, null, durationMs, true, null);
+                        inputTokens, null, durationMs, true, null, clientIp);
             }
 
             return result;
@@ -103,9 +107,26 @@ public class EmbeddingService {
             long durationMs = System.currentTimeMillis() - startMs;
             if (feature != null) {
                 aiUsageLogService.logUsage(feature, PROVIDER, MODEL,
-                        null, null, durationMs, false, e.getMessage());
+                        null, null, durationMs, false, e.getMessage(), clientIp);
             }
             throw e;
+        }
+    }
+
+    private String extractClientIp() {
+        try {
+            ServletRequestAttributes attrs =
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs == null) return null;
+            HttpServletRequest request = attrs.getRequest();
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                int comma = forwarded.indexOf(',');
+                return (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
+            }
+            return request.getRemoteAddr();
+        } catch (Exception e) {
+            return null;
         }
     }
 

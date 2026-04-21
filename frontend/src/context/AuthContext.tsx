@@ -1,14 +1,18 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
 import { AuthUser, LoginRequest, LoginResponse } from '@/types/auth';
 import { authApi } from '@/api/auth';
+import { apiClient } from '@/api/client';
 
 interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  loginRequired: boolean;
   login: (request: LoginRequest) => Promise<void>;
   logout: () => void;
+  refreshPublicSettings: () => Promise<void>;
+  setLoginRequired: (value: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -16,11 +20,19 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = 'my-atlas-token';
 const USER_KEY = 'my-atlas-user';
 const TIMEOUT_KEY = 'my-atlas-session-timeout';
+const LOGIN_REQUIRED_KEY = 'my-atlas-login-required';
+
+interface ApiResponseShape<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loginRequired, setLoginRequiredState] = useState<boolean>(true);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearSessionTimer = useCallback(() => {
@@ -47,10 +59,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, timeoutSeconds * 1000);
   }, [clearSessionTimer, logout]);
 
+  const setLoginRequired = useCallback((value: boolean) => {
+    setLoginRequiredState(value);
+    localStorage.setItem(LOGIN_REQUIRED_KEY, String(value));
+  }, []);
+
+  const refreshPublicSettings = useCallback(async () => {
+    try {
+      const response = await apiClient.get<ApiResponseShape<{ loginRequired: boolean }>>(
+        '/api/settings/public',
+      );
+      const value = response.data.data.loginRequired;
+      setLoginRequired(value);
+    } catch {
+      // Network or server error — keep safe default (true).
+    }
+  }, [setLoginRequired]);
+
   useEffect(() => {
     const savedToken = localStorage.getItem(TOKEN_KEY);
     const savedUser = localStorage.getItem(USER_KEY);
     const savedTimeout = localStorage.getItem(TIMEOUT_KEY);
+    const savedLoginRequired = localStorage.getItem(LOGIN_REQUIRED_KEY);
+
+    if (savedLoginRequired !== null) {
+      setLoginRequiredState(savedLoginRequired === 'true');
+    }
+
     if (savedToken && savedUser) {
       try {
         setToken(savedToken);
@@ -64,8 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(TIMEOUT_KEY);
       }
     }
-    setIsLoading(false);
-  }, [startSessionTimer]);
+
+    // Always refresh public settings (authoritative source)
+    refreshPublicSettings().finally(() => setIsLoading(false));
+  }, [startSessionTimer, refreshPublicSettings]);
 
   const login = useCallback(async (request: LoginRequest) => {
     const response: LoginResponse = await authApi.login(request);
@@ -87,8 +124,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         isAuthenticated: !!token,
         isLoading,
+        loginRequired,
         login,
         logout,
+        refreshPublicSettings,
+        setLoginRequired,
       }}
     >
       {children}

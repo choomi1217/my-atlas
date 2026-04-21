@@ -8,7 +8,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login } = useAuth();
+  const { login, loginRequired } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
@@ -24,6 +24,10 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleBrowseWithoutLogin = () => {
+    navigate('/features', { replace: true });
   };
 
   return (
@@ -82,6 +86,19 @@ export default function LoginPage() {
               {isSubmitting ? 'Logging in...' : 'Login'}
             </button>
           </form>
+
+          {!loginRequired && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={handleBrowseWithoutLogin}
+                className="w-full py-2 px-4 border border-indigo-200 text-indigo-600 text-sm font-medium
+                           rounded-md hover:bg-indigo-50 transition-colors"
+              >
+                로그인 없이 둘러보기
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

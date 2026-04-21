@@ -3,6 +3,8 @@ import axios from 'axios';
 // 프로덕션: VITE_API_BASE_URL 환경변수 사용, 로컬: 빈 문자열 → Vite proxy 경유
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+const LOGIN_REQUIRED_KEY = 'my-atlas-login-required';
+
 /**
  * Axios instance for API calls.
  */
@@ -26,6 +28,7 @@ apiClient.interceptors.request.use((config) => {
 
 /**
  * Add response interceptor — handle 401 (token expired/invalid).
+ * When loginRequired=false, do NOT force a redirect to /login; allow anonymous browsing.
  */
 apiClient.interceptors.response.use(
   (response) => response,
@@ -33,7 +36,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem('my-atlas-token');
       localStorage.removeItem('my-atlas-user');
-      if (window.location.pathname !== '/login') {
+      const loginRequired = localStorage.getItem(LOGIN_REQUIRED_KEY) !== 'false';
+      if (loginRequired && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     }

@@ -20,9 +20,13 @@ import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
 import java.util.List;
@@ -63,6 +67,7 @@ public class SeniorServiceImpl implements SeniorService {
 
         String userMessage = request.message();
         String currentUsername = getCurrentUsername();
+        String clientIp = extractClientIp();
 
         // Build RAG context with optional FAQ context
         String systemPrompt = buildRagContext(userMessage, request.faqContext());
@@ -103,7 +108,7 @@ public class SeniorServiceImpl implements SeniorService {
                     log.error("Chat streaming error", error);
                     long durationMs = System.currentTimeMillis() - startMs;
                     aiUsageLogService.logUsage(AiFeature.SENIOR_CHAT, PROVIDER, MODEL,
-                            null, null, durationMs, false, error.getMessage());
+                            null, null, durationMs, false, error.getMessage(), clientIp);
                     emitter.completeWithError(error);
                 },
                 () -> {
@@ -113,13 +118,13 @@ public class SeniorServiceImpl implements SeniorService {
                     if (usage != null) {
                         aiUsageLogService.logUsage(AiFeature.SENIOR_CHAT, PROVIDER, MODEL,
                                 usage.getPromptTokens().intValue(), usage.getGenerationTokens().intValue(),
-                                durationMs, true, null);
+                                durationMs, true, null, clientIp);
                     } else {
                         // Fallback: estimate tokens from character count
                         int estimatedInput = systemPrompt.length() / 4;
                         int estimatedOutput = fullResponse.length() / 4;
                         aiUsageLogService.logUsage(AiFeature.SENIOR_CHAT, PROVIDER, MODEL,
-                                estimatedInput, estimatedOutput, durationMs, true, null);
+                                estimatedInput, estimatedOutput, durationMs, true, null, clientIp);
                     }
 
                     // Slack notification
@@ -214,6 +219,23 @@ public class SeniorServiceImpl implements SeniorService {
     private String getCurrentUsername() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth != null ? auth.getName() : "unknown";
+    }
+
+    private String extractClientIp() {
+        try {
+            ServletRequestAttributes attrs =
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs == null) return null;
+            HttpServletRequest request = attrs.getRequest();
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                int comma = forwarded.indexOf(',');
+                return (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
+            }
+            return request.getRemoteAddr();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void incrementHitCounts(List<KnowledgeBaseEntity> kbEntries) {

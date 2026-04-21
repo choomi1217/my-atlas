@@ -35,11 +35,20 @@ public class AiUsageLogServiceImpl implements AiUsageLogService {
 
     private final AiUsageLogRepository repository;
 
-    @Async
     @Override
     public void logUsage(AiFeature feature, String provider, String model,
                          Integer inputTokens, Integer outputTokens,
                          long durationMs, boolean success, String errorMessage) {
+        logUsage(feature, provider, model, inputTokens, outputTokens,
+                durationMs, success, errorMessage, null);
+    }
+
+    @Async
+    @Override
+    public void logUsage(AiFeature feature, String provider, String model,
+                         Integer inputTokens, Integer outputTokens,
+                         long durationMs, boolean success, String errorMessage,
+                         String ipAddress) {
         try {
             AiUsageLogEntity entity = new AiUsageLogEntity();
             entity.setFeature(feature.name());
@@ -53,6 +62,7 @@ public class AiUsageLogServiceImpl implements AiUsageLogService {
             entity.setSuccess(success);
             entity.setErrorMessage(truncate(errorMessage, 500));
             entity.setUsername(getCurrentUsername());
+            entity.setIpAddress(truncate(ipAddress, 50));
             entity.setCreatedAt(LocalDateTime.now());
 
             repository.save(entity);

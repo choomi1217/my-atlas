@@ -67,8 +67,8 @@ export default function Layout({ children }: LayoutProps) {
             )}
           </nav>
 
-          {/* User */}
-          {user && (
+          {/* User area */}
+          {user ? (
             <div className="flex items-center gap-3 shrink-0">
               {user.role === 'ADMIN' && (
                 <NavLink
@@ -91,6 +91,15 @@ export default function Layout({ children }: LayoutProps) {
               >
                 Logout
               </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 shrink-0">
+              <Link
+                to="/login"
+                className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors"
+              >
+                Login
+              </Link>
             </div>
           )}
         </div>

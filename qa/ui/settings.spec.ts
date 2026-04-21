@@ -36,8 +36,9 @@ test.describe('Settings UI E2E', () => {
 
   test('AI toggle switch is visible', async ({ page }) => {
     await expect(page.locator('text=AI Features')).toBeVisible();
-    // Toggle button (rounded-full)
-    const toggle = page.locator('button.rounded-full');
+    // Scope to AI Settings section — v9 added AccessControlSection with another rounded-full toggle
+    const aiSection = page.locator('section').filter({ has: page.locator('h2:has-text("AI Settings")') });
+    const toggle = aiSection.locator('button.rounded-full');
     await expect(toggle).toBeVisible();
   });
 

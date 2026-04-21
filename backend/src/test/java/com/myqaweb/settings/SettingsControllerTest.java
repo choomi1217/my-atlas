@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -34,7 +35,7 @@ class SettingsControllerTest {
 
     @Test
     void getSettings_returnsOk() throws Exception {
-        SettingsDto.SystemSettingsResponse settings = new SettingsDto.SystemSettingsResponse(true, 3600);
+        SettingsDto.SystemSettingsResponse settings = new SettingsDto.SystemSettingsResponse(true, 3600, true, 30, 3600);
         when(settingsService.getSettings()).thenReturn(settings);
 
         mockMvc.perform(get("/api/settings"))
@@ -46,11 +47,49 @@ class SettingsControllerTest {
         verify(settingsService).getSettings();
     }
 
+    @Test
+    void getSettings_includesLoginRequiredAndRateLimitFields() throws Exception {
+        SettingsDto.SystemSettingsResponse settings = new SettingsDto.SystemSettingsResponse(
+                true, 3600, false, 42, 900);
+        when(settingsService.getSettings()).thenReturn(settings);
+
+        mockMvc.perform(get("/api/settings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.loginRequired").value(false))
+                .andExpect(jsonPath("$.data.aiRateLimitPerIp").value(42))
+                .andExpect(jsonPath("$.data.aiRateLimitWindowSeconds").value(900));
+    }
+
+    // --- GET /api/settings/public ---
+
+    @Test
+    void getPublicSettings_returnsLoginRequiredTrue() throws Exception {
+        when(settingsService.isLoginRequired()).thenReturn(true);
+
+        mockMvc.perform(get("/api/settings/public"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.loginRequired").value(true));
+
+        verify(settingsService).isLoginRequired();
+    }
+
+    @Test
+    void getPublicSettings_returnsLoginRequiredFalse() throws Exception {
+        when(settingsService.isLoginRequired()).thenReturn(false);
+
+        mockMvc.perform(get("/api/settings/public"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.loginRequired").value(false));
+
+        verify(settingsService).isLoginRequired();
+    }
+
     // --- PATCH /api/settings ---
 
     @Test
     void updateSettings_returnsOk() throws Exception {
-        SettingsDto.SystemSettingsResponse updated = new SettingsDto.SystemSettingsResponse(false, 600);
+        SettingsDto.SystemSettingsResponse updated = new SettingsDto.SystemSettingsResponse(false, 600, true, 30, 3600);
         when(settingsService.updateSettings(any())).thenReturn(updated);
 
         mockMvc.perform(patch("/api/settings")
@@ -63,6 +102,46 @@ class SettingsControllerTest {
                 .andExpect(jsonPath("$.data.sessionTimeoutSeconds").value(600));
 
         verify(settingsService).updateSettings(any());
+    }
+
+    @Test
+    void updateSettings_loginRequiredFalse_passesThroughToService() throws Exception {
+        SettingsDto.SystemSettingsResponse updated =
+                new SettingsDto.SystemSettingsResponse(true, 3600, false, 30, 3600);
+        when(settingsService.updateSettings(any())).thenReturn(updated);
+
+        mockMvc.perform(patch("/api/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"loginRequired": false}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.loginRequired").value(false));
+
+        verify(settingsService).updateSettings(argThat(req ->
+                Boolean.FALSE.equals(req.loginRequired())
+                        && req.aiEnabled() == null
+                        && req.sessionTimeoutSeconds() == null));
+    }
+
+    @Test
+    void updateSettings_aiRateLimit_passesThroughToService() throws Exception {
+        SettingsDto.SystemSettingsResponse updated =
+                new SettingsDto.SystemSettingsResponse(true, 3600, true, 100, 1800);
+        when(settingsService.updateSettings(any())).thenReturn(updated);
+
+        mockMvc.perform(patch("/api/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"aiRateLimitPerIp": 100, "aiRateLimitWindowSeconds": 1800}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.aiRateLimitPerIp").value(100))
+                .andExpect(jsonPath("$.data.aiRateLimitWindowSeconds").value(1800));
+
+        verify(settingsService).updateSettings(argThat(req ->
+                req.aiRateLimitPerIp() != null && req.aiRateLimitPerIp() == 100
+                        && req.aiRateLimitWindowSeconds() != null && req.aiRateLimitWindowSeconds() == 1800));
     }
 
     // --- GET /api/settings/users ---
