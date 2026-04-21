@@ -1,4 +1,4 @@
-# Knowledge Base — 현재 구현 요약 (v6)
+# Knowledge Base — 현재 구현 요약 (v7)
 
 ## 개요
 
@@ -184,7 +184,8 @@ backend/src/main/java/com/myqaweb/knowledgebase/
 ├── KbCategoryDto.java             # CategoryRequest / CategoryResponse 레코드
 ├── PdfPipelineService.java        # PDF 파이프라인 인터페이스
 ├── PdfPipelineServiceImpl.java    # 파이프라인 오케스트레이션 (Job CRUD, Worker 위임)
-├── PdfProcessingWorker.java       # @Async 비동기 PDF 처리 (클리닝, 파싱, 청킹, 임베딩)
+├── PdfProcessingWorker.java       # @Async 비동기 PDF 처리 (클리닝, 파싱, v7 cleanup 또는 legacy 청킹, 임베딩)
+├── KbContentCleanupService.java   # v7: Haiku 기반 섹션 → Markdown 청크 재구성 + AI 사용량 기록
 ├── PdfUploadJobEntity.java        # Job 엔티티
 ├── PdfUploadJobRepository.java    # Job 리포지토리
 └── PdfUploadJobDto.java           # JobResponse 레코드
@@ -251,18 +252,24 @@ Backend: Job 생성 (PENDING) → jobId 즉시 반환
     ↓
 @Async Worker:
     1. PDFBox로 텍스트 추출
-    2. [클리닝] 헤더/푸터 반복 텍스트 자동 제거, 페이지 번호 제거, 공백 정규화
+    2. [클리닝] 목차 dot-leaders 제거 → 반복 헤더/푸터 제거 → 페이지 번호 제거 → 공백 정규화
     3. [파싱] 챕터/섹션 헤더 파싱 (제N장, Chapter N, N.N Title, Section N)
-    4. [병합] 200자 미만 소형 섹션을 인접 섹션에 병합 (목차 노이즈 제거)
-    5. [청킹] 500~800 토큰 단위 (50 토큰 overlap)
-    6. [안전망] 3,000자 초과 청크 강제 분할
-    7. [임베딩] 청크별 임베딩 생성 (200ms sleep + 429 시 5초 retry)
-    8. knowledge_base에 INSERT (source = 책 제목, category = 선택한 카테고리)
+    4. [병합] 200자 미만 소형 섹션을 인접 섹션에 병합
+    5. [v7 정제] 각 섹션을 Claude Haiku 4.5에 1회 호출 →
+         JSON 배열 { title, markdown, meaningful, reason } 반환받음
+         - 깨진 한국어 어절 복원, 불릿/번호 리스트 복원, 핵심 용어 **볼드**
+         - 의미 없는 청크(meaningful=false) 자동 필터링
+         - max_tokens=8192, temperature=0, 재시도 3회, 70% 길이 검증
+    6. [Safety rail] 3,000자 초과 청크 추가 분할 / 100자 미만 청크 병합
+    7. [임베딩] stripMarkdown(청크) → 임베딩 생성 (200ms sleep + 429 시 5초 retry)
+    8. knowledge_base에 INSERT (title/content=markdown/source/category)
     ↓
 완료: DONE + totalChunks 기록 / 실패: FAILED + errorMessage
     ↓
 Frontend: 3초 polling으로 상태 감지 → 목록 자동 갱신
 ```
+
+**v7 정제 롤백**: `kb.pdf.cleanup.enabled=false` 설정 시 v6 경로(rule-based chunkText)로 동작.
 
 **청킹 품질 기준** (v4에서 확립):
 
@@ -447,11 +454,13 @@ extractText(PDFBox) → cleanExtractedText → parseSections
 |------|------|
 | Markdown 에디터 | @uiw/react-md-editor (WYSIWYG + 라이브 미리보기) |
 | PDF 파싱 | Apache PDFBox 3.0.1 |
+| **PDF 정제 (v7)** | **Claude Haiku 4.5 (Spring AI Anthropic, max_tokens=8192, temperature=0)** |
 | 임베딩 | OpenAI text-embedding-3-small (1536차원) |
 | 벡터 검색 | pgvector (PostgreSQL 15) + IVFFlat 코사인 유사도 |
 | 비동기 처리 | Spring @Async (PdfProcessingWorker), Java 21 Virtual Thread (KB/FAQ 임베딩) |
 | 이미지 저장 | 로컬 디스크 (`kb-images/`, UUID 파일명) |
-| Rate Limit | 청크 간 200ms sleep, 429 시 5초 retry 최대 3회 |
+| Rate Limit | 청크 간 200ms sleep, Haiku 429 시 5초 retry 최대 3회 |
+| AI 사용량 모니터링 | `AiFeature.PDF_CLEANUP` — 섹션 호출별 `ai_usage_log` 기록 (토큰·비용·duration) |
 | Polling | Frontend setInterval 3초 (PDF 업로드 상태) |
 
 ---
@@ -468,7 +477,8 @@ extractText(PDFBox) → cleanExtractedText → parseSections
 | `KbCategoryServiceImplTest.java` | 카테고리 서비스 | CRUD + 중복 검증 + ensureExists |
 | `KbCategoryControllerTest.java` | 카테고리 컨트롤러 | 목록/검색/생성 엔드포인트 |
 | `PdfPipelineServiceImplTest.java` | 파이프라인 | getJob, getAllJobs, deleteBook, response 매핑 |
-| `PdfProcessingWorkerTest.java` | Worker 로직 | parseSections, chunkText, mergeSections, enforceMaxSize, 클리닝(removeRepeatingHeaders, removePageNumbers, normalizeWhitespace) |
+| `PdfProcessingWorkerTest.java` | Worker 로직 | parseSections, chunkText, mergeSections, enforceMaxSize, 클리닝(removeTocLines, removeRepeatingHeaders, removePageNumbers, normalizeWhitespace) |
+| `KbContentCleanupServiceTest.java` (v7) | Haiku 정제 서비스 | JSON 파싱 + 절단 복구 + safety rail(split/merge) + 모니터링 호출 + 재시도 |
 | `SeniorServiceImplTest.java` | RAG + FAQ | 2단계 KB 검색, FAQ CRUD, 임베딩 생성 |
 
 ### Backend 통합 테스트
@@ -476,7 +486,7 @@ extractText(PDFBox) → cleanExtractedText → parseSections
 | 파일 | 대상 | 테스트 항목 |
 |------|------|------------|
 | `KnowledgeBaseIntegrationTest.java` | KB + pgvector | 코사인 유사도 검색, NULL 임베딩 제외, source 필터링, 책 단위 삭제 |
-| `PdfPipelineIntegrationTest.java` | PDF 파이프라인 | 실제 PDF 파일로 텍스트 추출, 챕터 파싱, 청킹 |
+| `PdfPipelineIntegrationTest.java` | PDF 파이프라인 | 실제 PDF 파일로 텍스트 추출, 챕터 파싱, 청킹 + **v7: Haiku mock 기반 cleanup 시나리오 (RefinedChunk 저장 + ai_usage_log 기록 검증)** |
 | `FaqIntegrationTest.java` | FAQ + pgvector | 유사도 검색, NULL 임베딩 제외, 임베딩 저장 검증 |
 
 ### E2E 테스트 (Playwright)
@@ -504,6 +514,9 @@ spring.ai.vectorstore.pgvector:
 
 # 이미지 저장 경로
 kb.image.upload-dir: ${KB_IMAGE_UPLOAD_DIR:kb-images}
+
+# v7: PDF 청크 정제 (Haiku)
+kb.pdf.cleanup.enabled: ${KB_PDF_CLEANUP_ENABLED:true}
 ```
 
 ---
@@ -541,6 +554,7 @@ kb.image.upload-dir: ${KB_IMAGE_UPLOAD_DIR:kb-images}
 | v4 | 버그 수정 | PDF 청킹 파이프라인 개선 (목차 오인식, 번호 리스트 분리, 중복 이름, 크기 편차) | 2026-04-09 | `knowledge-base_v4.md` |
 | v5 | 기능 개선 | PDF 텍스트 클리닝 레이어 추가 (헤더/푸터 제거, 페이지 번호 제거, 섹션 패턴 확장) | 2026-04-10 | `knowledge-base_v5.md` |
 | v6 | 기능 추가 | Soft Delete + PDF 편집 + 카테고리 관리 + 정렬/검색 | 2026-04-10 | `knowledge-base_v6.md` |
+| v7 | 기능 개선 | PDF 업스트림 정제 (Claude Haiku 4.5) — 한국어 어절 복원, Markdown 재구성, 의미 필터, 목차 dot-leader 제거, AI 사용량 모니터링 통합 | 2026-04-21 | `knowledge-base_v7.md` |
 
 ### 환경 개선 (ops)
 
