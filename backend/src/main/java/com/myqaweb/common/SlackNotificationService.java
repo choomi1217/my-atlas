@@ -1,5 +1,6 @@
 package com.myqaweb.common;
 
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
@@ -16,17 +17,27 @@ public class SlackNotificationService {
 
     private final String webhookUrl;
     private final RestTemplate restTemplate;
+    private final boolean enabled;
 
     public SlackNotificationService(
             @Value("${slack.webhook.url:}") String webhookUrl) {
         this.webhookUrl = webhookUrl;
         this.restTemplate = new RestTemplate();
+        this.enabled = webhookUrl != null && !webhookUrl.isBlank();
+    }
+
+    @PostConstruct
+    void logConfigStatus() {
+        if (enabled) {
+            log.info("Slack AI usage notifications: enabled");
+        } else {
+            log.info("Slack AI usage notifications: disabled (slack.webhook.url not set)");
+        }
     }
 
     @Async
     public void notifyAiUsage(String username, String endpoint, int estimatedTokens) {
-        if (webhookUrl == null || webhookUrl.isBlank()) {
-            log.debug("Slack webhook URL not configured, skipping AI usage notification");
+        if (!enabled) {
             return;
         }
 

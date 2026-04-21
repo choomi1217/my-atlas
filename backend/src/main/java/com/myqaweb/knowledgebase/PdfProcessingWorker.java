@@ -8,6 +8,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -56,6 +57,13 @@ public class PdfProcessingWorker {
             Pattern.MULTILINE | Pattern.CASE_INSENSITIVE
     );
 
+    // Table-of-contents dot-leader lines: "1.1 제목 ........... 15"
+    // Matches: any title, 5+ dots, trailing page number.
+    private static final Pattern TOC_LINE_PATTERN = Pattern.compile(
+            "^.+?\\s*\\.{5,}\\s*\\d{1,4}\\s*$",
+            Pattern.MULTILINE
+    );
+
     // "제N장", "Chapter N", "Part N", multi-level numbering ("6.1 Title"), "Section N"
     // Note: single-level "N. Title" excluded to avoid matching numbered lists
     private static final Pattern CHAPTER_PATTERN = Pattern.compile(
@@ -70,6 +78,10 @@ public class PdfProcessingWorker {
     private final PdfUploadJobRepository jobRepository;
     private final KnowledgeBaseRepository kbRepository;
     private final EmbeddingService embeddingService;
+    private final KbContentCleanupService cleanupService;
+
+    @Value("${kb.pdf.cleanup.enabled:true}")
+    private boolean cleanupEnabled;
 
     @Async
     public void processPdf(Long jobId, byte[] pdfBytes, String bookTitle, String category) {
@@ -86,41 +98,18 @@ public class PdfProcessingWorker {
                 throw new RuntimeException("PDF에서 텍스트를 추출할 수 없습니다.");
             }
 
-            // 2. Clean extracted text (remove headers/footers, page numbers, normalize whitespace)
+            // 2. Clean extracted text (remove TOC, headers/footers, page numbers, whitespace)
             fullText = cleanExtractedText(fullText);
 
             // 3. Parse chapters/sections and merge small sections
             List<Section> sections = parseSections(fullText);
             sections = mergeSections(sections);
 
-            // 4. Chunk each section (global sequence numbering)
-            List<Chunk> allChunks = new ArrayList<>();
-            int globalSeq = 1;
-            for (Section section : sections) {
-                List<String> chunkTexts = chunkText(section.content());
-                chunkTexts = enforceMaxSize(chunkTexts);
-                for (String chunkText : chunkTexts) {
-                    String title = buildChunkTitle(bookTitle, section.name(), globalSeq++);
-                    allChunks.add(new Chunk(title, chunkText));
-                }
-            }
-
-            log.info("PDF parsed: jobId={}, book='{}', totalChunks={}", jobId, bookTitle, allChunks.size());
-
-            // 5. Generate embeddings and save to KB (with rate limit handling)
-            int savedCount = 0;
-            for (int i = 0; i < allChunks.size(); i++) {
-                Chunk chunk = allChunks.get(i);
-                boolean saved = saveChunkWithRetry(chunk, bookTitle, category);
-                if (saved) savedCount++;
-
-                // Progress log every 50 chunks
-                if ((i + 1) % 50 == 0) {
-                    log.info("Progress: jobId={}, {}/{} chunks processed", jobId, i + 1, allChunks.size());
-                }
-
-                // Rate limit delay between chunks
-                Thread.sleep(RATE_LIMIT_DELAY_MS);
+            int savedCount;
+            if (cleanupEnabled) {
+                savedCount = processWithCleanup(jobId, sections, bookTitle, category);
+            } else {
+                savedCount = processLegacy(jobId, sections, bookTitle, category);
             }
 
             // 6. Mark as done
@@ -129,7 +118,8 @@ public class PdfProcessingWorker {
             job.setCompletedAt(LocalDateTime.now());
             jobRepository.save(job);
 
-            log.info("PDF upload completed: jobId={}, book='{}', chunks={}", jobId, bookTitle, savedCount);
+            log.info("PDF upload completed: jobId={}, book='{}', chunks={}, mode={}",
+                    jobId, bookTitle, savedCount, cleanupEnabled ? "cleanup" : "legacy");
 
         } catch (Exception e) {
             log.error("PDF processing failed: jobId={}, book='{}'", jobId, bookTitle, e);
@@ -138,6 +128,126 @@ public class PdfProcessingWorker {
             job.setCompletedAt(LocalDateTime.now());
             jobRepository.save(job);
         }
+    }
+
+    /**
+     * v7 path: Each section is refined by {@link KbContentCleanupService} via Haiku.
+     * Refined chunks are saved as-is (title + Markdown). Embedding uses stripped text.
+     * Non-meaningful chunks are filtered out.
+     */
+    private int processWithCleanup(Long jobId, List<Section> sections,
+                                   String bookTitle, String category) throws InterruptedException {
+        int savedCount = 0;
+        int skippedSections = 0;
+        int skippedUnmeaningful = 0;
+        int sectionIdx = 0;
+        for (Section section : sections) {
+            sectionIdx++;
+            List<KbContentCleanupService.RefinedChunk> refined =
+                    cleanupService.refine(bookTitle, section.name(), section.content());
+            if (refined.isEmpty()) {
+                skippedSections++;
+                log.warn("Section skipped (cleanup returned empty): jobId={}, section='{}'",
+                        jobId, section.name());
+                continue;
+            }
+            for (KbContentCleanupService.RefinedChunk rc : refined) {
+                if (!rc.meaningful()) {
+                    skippedUnmeaningful++;
+                    log.debug("Skipping non-meaningful chunk: title='{}', reason='{}'",
+                            rc.title(), rc.reason());
+                    continue;
+                }
+                if (saveRefinedChunkWithRetry(rc, bookTitle, category)) {
+                    savedCount++;
+                }
+                Thread.sleep(RATE_LIMIT_DELAY_MS);
+            }
+            if (sectionIdx % 10 == 0) {
+                log.info("Progress: jobId={}, {}/{} sections processed, {} chunks saved",
+                        jobId, sectionIdx, sections.size(), savedCount);
+            }
+            // Section-level delay to space out Haiku calls
+            Thread.sleep(RATE_LIMIT_DELAY_MS);
+        }
+        log.info("Cleanup summary: jobId={}, saved={}, skipSections={}, skipUnmeaningful={}",
+                jobId, savedCount, skippedSections, skippedUnmeaningful);
+        return savedCount;
+    }
+
+    /**
+     * Legacy v6 path: rule-based chunking (chunkText + enforceMaxSize).
+     * Kept for feature-flag rollback.
+     */
+    private int processLegacy(Long jobId, List<Section> sections,
+                              String bookTitle, String category) throws InterruptedException {
+        List<Chunk> allChunks = new ArrayList<>();
+        int globalSeq = 1;
+        for (Section section : sections) {
+            List<String> chunkTexts = chunkText(section.content());
+            chunkTexts = enforceMaxSize(chunkTexts);
+            for (String chunkText : chunkTexts) {
+                String title = buildChunkTitle(bookTitle, section.name(), globalSeq++);
+                allChunks.add(new Chunk(title, chunkText));
+            }
+        }
+        log.info("PDF parsed (legacy): jobId={}, book='{}', totalChunks={}",
+                jobId, bookTitle, allChunks.size());
+
+        int savedCount = 0;
+        for (int i = 0; i < allChunks.size(); i++) {
+            Chunk chunk = allChunks.get(i);
+            boolean saved = saveChunkWithRetry(chunk, bookTitle, category);
+            if (saved) savedCount++;
+            if ((i + 1) % 50 == 0) {
+                log.info("Progress: jobId={}, {}/{} chunks processed", jobId, i + 1, allChunks.size());
+            }
+            Thread.sleep(RATE_LIMIT_DELAY_MS);
+        }
+        return savedCount;
+    }
+
+    /**
+     * Persists a refined (Markdown) chunk with embedding from stripped text.
+     * Retries on Anthropic rate-limit (429). Returns true on success.
+     */
+    private boolean saveRefinedChunkWithRetry(KbContentCleanupService.RefinedChunk rc,
+                                              String bookTitle, String category) {
+        int retries = 0;
+        while (retries < MAX_RETRIES) {
+            try {
+                String embedText = (rc.title() == null ? "" : rc.title()) + " "
+                        + KnowledgeBaseServiceImpl.stripMarkdown(rc.markdown());
+                float[] embedding = embeddingService.embed(embedText, AiFeature.EMBEDDING_PDF);
+                String vectorStr = embeddingService.toVectorString(embedding);
+
+                KnowledgeBaseEntity entity = new KnowledgeBaseEntity();
+                entity.setTitle(rc.title() != null ? rc.title() : "Untitled");
+                entity.setContent(rc.markdown());
+                entity.setSource(bookTitle);
+                entity.setCategory(category);
+                KnowledgeBaseEntity saved = kbRepository.save(entity);
+                kbRepository.updateEmbedding(saved.getId(), vectorStr);
+                return true;
+            } catch (Exception e) {
+                String msg = e.getMessage() != null ? e.getMessage() : "";
+                if (msg.contains("429") && retries < MAX_RETRIES - 1) {
+                    retries++;
+                    log.warn("Rate limit hit for refined chunk '{}', retry {}/{} after {}ms",
+                            rc.title(), retries, MAX_RETRIES, RETRY_DELAY_MS);
+                    try {
+                        Thread.sleep(RETRY_DELAY_MS);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                } else {
+                    log.warn("Failed to save refined chunk '{}': {}", rc.title(), msg);
+                    return false;
+                }
+            }
+        }
+        return false;
     }
 
     private boolean saveChunkWithRetry(Chunk chunk, String bookTitle, String category) {
@@ -253,12 +363,22 @@ public class PdfProcessingWorker {
     String cleanExtractedText(String rawText) {
         int originalLength = rawText.length();
         String cleaned = rawText;
+        cleaned = removeTocLines(cleaned);
         cleaned = removeRepeatingHeaders(cleaned);
         cleaned = removePageNumbers(cleaned);
         cleaned = normalizeWhitespace(cleaned);
         log.info("Text cleaning: {} → {} chars (removed {})",
                 originalLength, cleaned.length(), originalLength - cleaned.length());
         return cleaned;
+    }
+
+    /**
+     * Removes table-of-contents lines with dot-leader patterns like
+     * "1.1 Title ............ 15". These lines pollute parseSections because the
+     * CHAPTER_PATTERN matches their "1.1" prefix.
+     */
+    String removeTocLines(String text) {
+        return TOC_LINE_PATTERN.matcher(text).replaceAll("");
     }
 
     /**
