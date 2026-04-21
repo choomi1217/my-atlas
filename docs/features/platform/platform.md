@@ -182,3 +182,4 @@ ADMIN 권한으로 KB Pin 설정(최대 15건 → FAQ 화면에 고정 노출), 
 | v2 | 2026-04-12 | 기능 추가 | Resume 페이지 (경력기술서/자기소개서 탭 전환, Static Content) |
 | v7 | 2026-04-17 | 문서 개선 | QA 시니어 관점 보강. 개요 재작성 + QA 가치/실무 시나리오/기능 연계 섹션 추가 |
 | v8 | 2026-04-20 | 기능 추가 | Settings 페이지 + User 등록 + Company 접근 제어 + AI On/Off + Session Timeout + AI Slack 알림 |
+| v10 | 2026-04-21 | 기능 개선 | Feature 상세 페이지 경력자 어필용 리뉴얼 (API/Schema 섹션 제거, Screenshots 갤러리 도입, Test Studio feature 추가) |
