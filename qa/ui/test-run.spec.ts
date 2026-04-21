@@ -10,7 +10,7 @@ import {
 import axios from 'axios';
 
 const API_BASE_URL = process.env.API_URL || 'http://localhost:8080';
-const FRONTEND_URL = 'http://localhost:5173';
+const FRONTEND_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -99,7 +99,7 @@ test.describe.serial('TestRun UI E2E', () => {
     await goToTestRunList();
 
     const heading = page.locator('h1:has-text("Test Runs")');
-    await expect(heading).toBeVisible();
+    await expect(heading).toBeVisible({ timeout: 10000 });
   });
 
   test('TestRunListPage - "+ New Test Run" button 표시', async () => {

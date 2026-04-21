@@ -1,4 +1,4 @@
-package com.myqaweb.knowledgebase;
+package com.myqaweb.convention;
 
 import com.myqaweb.common.CategoryDto;
 import org.junit.jupiter.api.Test;
@@ -15,44 +15,53 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class KbCategoryServiceImplTest {
+class WordCategoryServiceImplTest {
 
     @Mock
-    private KbCategoryRepository categoryRepository;
+    private WordCategoryRepository categoryRepository;
 
     @InjectMocks
-    private KbCategoryServiceImpl categoryService;
+    private WordCategoryServiceImpl categoryService;
 
     private final LocalDateTime now = LocalDateTime.now();
 
     @Test
     void findAll_returnsAllCategories() {
-        KbCategoryEntity cat1 = new KbCategoryEntity(1L, "Testing", now);
-        KbCategoryEntity cat2 = new KbCategoryEntity(2L, "Automation", now);
+        WordCategoryEntity cat1 = new WordCategoryEntity(1L, "UI", now);
+        WordCategoryEntity cat2 = new WordCategoryEntity(2L, "API", now);
         when(categoryRepository.findAll()).thenReturn(List.of(cat1, cat2));
 
         List<CategoryDto.CategoryResponse> result = categoryService.findAll();
 
         assertEquals(2, result.size());
-        assertEquals("Testing", result.get(0).name());
-        assertEquals("Automation", result.get(1).name());
+        assertEquals("UI", result.get(0).name());
+        assertEquals("API", result.get(1).name());
+    }
+
+    @Test
+    void findAll_returnsEmptyWhenNoCategories() {
+        when(categoryRepository.findAll()).thenReturn(List.of());
+
+        List<CategoryDto.CategoryResponse> result = categoryService.findAll();
+
+        assertTrue(result.isEmpty());
     }
 
     @Test
     void search_filtersCategories() {
-        KbCategoryEntity cat1 = new KbCategoryEntity(1L, "Test Design", now);
-        when(categoryRepository.findByNameContainingIgnoreCaseOrderByNameAsc("test"))
+        WordCategoryEntity cat1 = new WordCategoryEntity(1L, "UI Components", now);
+        when(categoryRepository.findByNameContainingIgnoreCaseOrderByNameAsc("ui"))
                 .thenReturn(List.of(cat1));
 
-        List<CategoryDto.CategoryResponse> result = categoryService.search("test");
+        List<CategoryDto.CategoryResponse> result = categoryService.search("ui");
 
         assertEquals(1, result.size());
-        assertEquals("Test Design", result.get(0).name());
+        assertEquals("UI Components", result.get(0).name());
     }
 
     @Test
     void search_emptyQuery_returnsAll() {
-        KbCategoryEntity cat1 = new KbCategoryEntity(1L, "Testing", now);
+        WordCategoryEntity cat1 = new WordCategoryEntity(1L, "UI", now);
         when(categoryRepository.findAll()).thenReturn(List.of(cat1));
 
         List<CategoryDto.CategoryResponse> result = categoryService.search("");
@@ -61,15 +70,36 @@ class KbCategoryServiceImplTest {
     }
 
     @Test
+    void search_nullQuery_returnsAll() {
+        WordCategoryEntity cat1 = new WordCategoryEntity(1L, "UI", now);
+        when(categoryRepository.findAll()).thenReturn(List.of(cat1));
+
+        List<CategoryDto.CategoryResponse> result = categoryService.search(null);
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
     void create_savesNewCategory() {
-        KbCategoryEntity saved = new KbCategoryEntity(1L, "NewCategory", now);
-        when(categoryRepository.existsByName("NewCategory")).thenReturn(false);
+        WordCategoryEntity saved = new WordCategoryEntity(1L, "NewCat", now);
+        when(categoryRepository.existsByName("NewCat")).thenReturn(false);
         when(categoryRepository.save(any())).thenReturn(saved);
 
-        CategoryDto.CategoryResponse result = categoryService.create("NewCategory");
+        CategoryDto.CategoryResponse result = categoryService.create("NewCat");
 
-        assertEquals("NewCategory", result.name());
+        assertEquals("NewCat", result.name());
         verify(categoryRepository).save(any());
+    }
+
+    @Test
+    void create_trimsName() {
+        WordCategoryEntity saved = new WordCategoryEntity(1L, "Trimmed", now);
+        when(categoryRepository.existsByName("Trimmed")).thenReturn(false);
+        when(categoryRepository.save(any())).thenReturn(saved);
+
+        categoryService.create("  Trimmed  ");
+
+        verify(categoryRepository).existsByName("Trimmed");
     }
 
     @Test
@@ -110,5 +140,14 @@ class KbCategoryServiceImplTest {
         categoryService.ensureExists("  ");
 
         verify(categoryRepository, never()).existsByName(any());
+    }
+
+    @Test
+    void ensureExists_trimsBeforeCheck() {
+        when(categoryRepository.existsByName("UI")).thenReturn(false);
+
+        categoryService.ensureExists("  UI  ");
+
+        verify(categoryRepository).existsByName("UI");
     }
 }

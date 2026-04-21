@@ -2,8 +2,6 @@ package com.myqaweb.common;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -14,8 +12,7 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
 
-@Service
-public class S3ImageService {
+public class S3ImageService implements ImageService {
 
     private static final Logger log = LoggerFactory.getLogger(S3ImageService.class);
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("png", "jpg", "jpeg", "gif", "webp");
@@ -24,8 +21,7 @@ public class S3ImageService {
     private final S3Client s3Client;
     private final String bucketName;
 
-    public S3ImageService(S3Client s3Client,
-                          @Value("${app.s3.image-bucket}") String bucketName) {
+    public S3ImageService(S3Client s3Client, String bucketName) {
         this.s3Client = s3Client;
         this.bucketName = bucketName;
     }

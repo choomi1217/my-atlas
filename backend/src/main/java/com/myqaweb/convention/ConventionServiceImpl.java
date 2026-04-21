@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 public class ConventionServiceImpl implements ConventionService {
 
     private final ConventionRepository conventionRepository;
+    private final WordCategoryService wordCategoryService;
 
     @Override
     @Transactional(readOnly = true)
@@ -39,6 +40,7 @@ public class ConventionServiceImpl implements ConventionService {
         entity.setCategory(request.category());
         entity.setImageUrl(request.imageUrl());
         entity.setUpdatedAt(LocalDateTime.now());
+        wordCategoryService.ensureExists(request.category());
 
         ConventionEntity saved = conventionRepository.save(entity);
         return toResponse(saved);
@@ -54,6 +56,7 @@ public class ConventionServiceImpl implements ConventionService {
         entity.setCategory(request.category());
         entity.setImageUrl(request.imageUrl());
         entity.setUpdatedAt(LocalDateTime.now());
+        wordCategoryService.ensureExists(request.category());
 
         ConventionEntity saved = conventionRepository.save(entity);
         return toResponse(saved);

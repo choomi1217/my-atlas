@@ -1,4 +1,4 @@
-package com.myqaweb.knowledgebase;
+package com.myqaweb.convention;
 
 import com.myqaweb.common.CategoryDto;
 import lombok.RequiredArgsConstructor;
@@ -11,9 +11,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class KbCategoryServiceImpl implements KbCategoryService {
+public class WordCategoryServiceImpl implements WordCategoryService {
 
-    private final KbCategoryRepository categoryRepository;
+    private final WordCategoryRepository categoryRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -39,7 +39,7 @@ public class KbCategoryServiceImpl implements KbCategoryService {
         if (categoryRepository.existsByName(name.trim())) {
             throw new IllegalStateException("Category already exists: " + name);
         }
-        KbCategoryEntity entity = new KbCategoryEntity();
+        WordCategoryEntity entity = new WordCategoryEntity();
         entity.setName(name.trim());
         return toResponse(categoryRepository.save(entity));
     }
@@ -49,13 +49,13 @@ public class KbCategoryServiceImpl implements KbCategoryService {
         if (name == null || name.isBlank()) return;
         String trimmed = name.trim();
         if (!categoryRepository.existsByName(trimmed)) {
-            KbCategoryEntity entity = new KbCategoryEntity();
+            WordCategoryEntity entity = new WordCategoryEntity();
             entity.setName(trimmed);
             categoryRepository.save(entity);
         }
     }
 
-    private CategoryDto.CategoryResponse toResponse(KbCategoryEntity entity) {
+    private CategoryDto.CategoryResponse toResponse(WordCategoryEntity entity) {
         return new CategoryDto.CategoryResponse(entity.getId(), entity.getName(), entity.getCreatedAt());
     }
 }

@@ -1,4 +1,4 @@
-package com.myqaweb.knowledgebase;
+package com.myqaweb.convention;
 
 import com.myqaweb.common.ApiResponse;
 import com.myqaweb.common.CategoryDto;
@@ -11,11 +11,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/kb/categories")
+@RequestMapping("/api/conventions/categories")
 @RequiredArgsConstructor
-public class KbCategoryController {
+public class WordCategoryController {
 
-    private final KbCategoryService categoryService;
+    private final WordCategoryService categoryService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<CategoryDto.CategoryResponse>>> list() {

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { conventionApi } from '@/api/convention';
+import { conventionApi, conventionCategoryApi } from '@/api/convention';
 import { ConventionItem } from '@/types/convention';
 import ConventionImageUpload from '@/components/convention/ConventionImageUpload';
+import CategoryAutocomplete from '@/components/common/CategoryAutocomplete';
 
 export default function ConventionFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,7 @@ export default function ConventionFormPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<{ term?: string; definition?: string }>({});
+  const fetchCategories = useCallback(() => conventionCategoryApi.getAll(), []);
 
   // Load existing data in edit mode
   useEffect(() => {
@@ -88,7 +90,7 @@ export default function ConventionFormPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <button
@@ -156,12 +158,11 @@ export default function ConventionFormPage() {
         {/* Category */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-          <input
-            type="text"
+          <CategoryAutocomplete
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={setCategory}
+            fetchAll={fetchCategories}
             placeholder="카테고리 (선택)"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
 

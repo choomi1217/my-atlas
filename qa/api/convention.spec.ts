@@ -165,6 +165,88 @@ test.describe('Convention API E2E', () => {
   });
 });
 
+test.describe('Convention Category API E2E', () => {
+  const uniqueCatName = `E2E-Cat-${Date.now()}`;
+  let categoryId: number;
+
+  test('GET /api/conventions/categories - returns list', async () => {
+    const response = await request.get('/api/conventions/categories');
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  test('POST /api/conventions/categories - create category', async () => {
+    const response = await request.post('/api/conventions/categories', {
+      data: { name: uniqueCatName },
+    });
+    expect(response.status()).toBe(201);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.name).toBe(uniqueCatName);
+    expect(body.data.id).toBeGreaterThan(0);
+    categoryId = body.data.id;
+  });
+
+  test('GET /api/conventions/categories/search - search returns matching', async () => {
+    const response = await request.get('/api/conventions/categories/search', {
+      params: { q: uniqueCatName.substring(0, 10) },
+    });
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    const match = body.data.find((c: any) => c.name === uniqueCatName);
+    expect(match).toBeDefined();
+  });
+
+  test('GET /api/conventions/categories/search - empty query returns all', async () => {
+    const response = await request.get('/api/conventions/categories/search', {
+      params: { q: '' },
+    });
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+  });
+
+  test('POST /api/conventions/categories - duplicate returns error', async () => {
+    const response = await request.post('/api/conventions/categories', {
+      data: { name: uniqueCatName },
+    });
+    expect([400, 500]).toContain(response.status());
+  });
+
+  test('POST /api/conventions/categories - blank name returns 400', async () => {
+    const response = await request.post('/api/conventions/categories', {
+      data: { name: '' },
+    });
+    expect(response.status()).toBe(400);
+    const body = await response.json() as any;
+    expect(body.success).toBe(false);
+  });
+
+  test('POST /api/conventions - create auto-registers category to word_category', async () => {
+    const uniqueCat = `E2E-AutoCat-${Date.now()}`;
+    // Create convention with a new category
+    const createResp = await request.post('/api/conventions', {
+      data: { term: 'E2E-AutoCatTerm', definition: 'Auto category test', category: uniqueCat },
+    });
+    expect(createResp.status()).toBe(201);
+    const createBody = await createResp.json() as any;
+
+    // Verify the category was auto-created in word_category
+    const searchResp = await request.get('/api/conventions/categories/search', {
+      params: { q: uniqueCat },
+    });
+    const searchBody = await searchResp.json() as any;
+    expect(searchBody.data.some((c: any) => c.name === uniqueCat)).toBe(true);
+
+    // Cleanup
+    await request.delete(`/api/conventions/${createBody.data.id}`).catch(() => {});
+  });
+});
+
 test.describe('Convention Image API E2E', () => {
   // 이미지 업로드는 S3 의존 — CI에서는 S3 자격증명 없으므로 로컬/운영에서만 테스트
   test.skip(!!process.env.CI, 'S3 credentials not available in CI');

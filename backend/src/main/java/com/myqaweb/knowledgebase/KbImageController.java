@@ -1,7 +1,7 @@
 package com.myqaweb.knowledgebase;
 
 import com.myqaweb.common.ApiResponse;
-import com.myqaweb.common.S3ImageService;
+import com.myqaweb.common.ImageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -16,18 +16,18 @@ import java.util.Map;
 public class KbImageController {
 
     private static final Logger log = LoggerFactory.getLogger(KbImageController.class);
-    private final S3ImageService s3ImageService;
+    private final ImageService imageService;
 
-    public KbImageController(S3ImageService s3ImageService) {
-        this.s3ImageService = s3ImageService;
+    public KbImageController(ImageService imageService) {
+        this.imageService = imageService;
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadImage(
             @RequestParam("file") MultipartFile file) {
         try {
-            String imageUrl = s3ImageService.upload("kb", file);
-            log.info("KB image uploaded to S3: {}", imageUrl);
+            String imageUrl = imageService.upload("kb", file);
+            log.info("KB image uploaded: {}", imageUrl);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.ok(Map.of("url", imageUrl)));
         } catch (IllegalArgumentException e) {
