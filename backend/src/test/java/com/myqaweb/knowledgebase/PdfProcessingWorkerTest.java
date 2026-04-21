@@ -32,6 +32,49 @@ class PdfProcessingWorkerTest {
     @InjectMocks
     private PdfProcessingWorker pdfProcessingWorker;
 
+    // --- removeTocLines ---
+
+    @Test
+    void removeTocLines_removesDotLeaderLines() {
+        String text = """
+                1.1 테스트 프로세스 ............................................................................ 15
+                1.2 테스팅의 정황 ................................................................................ 19
+                이것은 본문 라인이라서 유지되어야 합니다.
+                제 2장 제품 관리 ................................................................................ 47
+                """;
+
+        String result = pdfProcessingWorker.removeTocLines(text);
+
+        assertFalse(result.contains("1.1 테스트 프로세스 .........."),
+                "dot-leader 목차 라인이 제거되어야 함");
+        assertFalse(result.contains("1.2 테스팅의 정황"),
+                "두 번째 목차 라인도 제거되어야 함");
+        assertFalse(result.contains("제 2장 제품 관리"),
+                "챕터 제목이 붙은 목차 라인도 제거되어야 함");
+        assertTrue(result.contains("이것은 본문 라인이라서 유지되어야 합니다"),
+                "본문 라인은 유지되어야 함");
+    }
+
+    @Test
+    void removeTocLines_preservesBodyWithInlineDots() {
+        // 본문 내 짧은 점(…, ..)은 유지되어야 함
+        String text = "참고: 1.2 섹션 참조. 자세한 내용은... 다음을 확인하시오.\n버전 1.0.0 이다.";
+
+        String result = pdfProcessingWorker.removeTocLines(text);
+
+        assertEquals(text, result, "본문 내 짧은 점은 변경되지 않아야 함");
+    }
+
+    @Test
+    void removeTocLines_preservesPageNumberOnlyLines() {
+        // 페이지 번호만 있는 라인은 removePageNumbers 담당 — removeTocLines는 건드리지 않음
+        String text = "본문 내용\n66\n다음 본문";
+
+        String result = pdfProcessingWorker.removeTocLines(text);
+
+        assertEquals(text, result, "페이지 번호만 있는 라인은 removeTocLines에서 제거되지 않음");
+    }
+
     // --- removeRepeatingHeaders ---
 
     @Test

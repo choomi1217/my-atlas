@@ -86,6 +86,11 @@ feature:
 kb:
   image:
     upload-dir: ${KB_IMAGE_UPLOAD_DIR:kb-images}
+  pdf:
+    cleanup:
+      # v7: Haiku-based chunk refinement during PDF upload.
+      # Set to false for legacy v6 rule-based chunking (rollback).
+      enabled: ${KB_PDF_CLEANUP_ENABLED:true}
 
 # Jira integration
 jira:
