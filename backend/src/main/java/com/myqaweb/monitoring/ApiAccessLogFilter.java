@@ -75,11 +75,27 @@ public class ApiAccessLogFilter extends OncePerRequestFilter {
             entity.setStatusCode(response.getStatus());
             entity.setDurationMs(durationMs);
             entity.setUsername(getCurrentUsername());
+            entity.setIpAddress(extractClientIp(request));
             entity.setCreatedAt(LocalDateTime.now());
             repository.save(entity);
         } catch (Exception e) {
             log.warn("Failed to log API access: {}", e.getMessage());
         }
+    }
+
+    static String extractClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            int comma = forwarded.indexOf(',');
+            String ip = (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
+            return truncateIp(ip);
+        }
+        return truncateIp(request.getRemoteAddr());
+    }
+
+    private static String truncateIp(String ip) {
+        if (ip == null) return null;
+        return ip.length() <= 50 ? ip : ip.substring(0, 50);
     }
 
     private String resolveFeature(String uri) {

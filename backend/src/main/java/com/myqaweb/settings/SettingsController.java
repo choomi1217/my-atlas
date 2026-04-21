@@ -22,6 +22,13 @@ public class SettingsController {
         return ResponseEntity.ok(ApiResponse.ok(settings));
     }
 
+    @GetMapping("/public")
+    public ResponseEntity<ApiResponse<SettingsDto.PublicSettingsResponse>> getPublicSettings() {
+        SettingsDto.PublicSettingsResponse publicSettings =
+                new SettingsDto.PublicSettingsResponse(settingsService.isLoginRequired());
+        return ResponseEntity.ok(ApiResponse.ok(publicSettings));
+    }
+
     @PatchMapping
     public ResponseEntity<ApiResponse<SettingsDto.SystemSettingsResponse>> updateSettings(
             @Valid @RequestBody SettingsDto.UpdateSettingsRequest request) {

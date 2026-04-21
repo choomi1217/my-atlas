@@ -11,12 +11,22 @@ public class SettingsDto {
 
     public record SystemSettingsResponse(
             boolean aiEnabled,
-            long sessionTimeoutSeconds
+            long sessionTimeoutSeconds,
+            boolean loginRequired,
+            int aiRateLimitPerIp,
+            int aiRateLimitWindowSeconds
     ) {}
 
     public record UpdateSettingsRequest(
             Boolean aiEnabled,
-            Long sessionTimeoutSeconds
+            Long sessionTimeoutSeconds,
+            Boolean loginRequired,
+            Integer aiRateLimitPerIp,
+            Integer aiRateLimitWindowSeconds
+    ) {}
+
+    public record PublicSettingsResponse(
+            boolean loginRequired
     ) {}
 
     public record UserWithCompaniesResponse(

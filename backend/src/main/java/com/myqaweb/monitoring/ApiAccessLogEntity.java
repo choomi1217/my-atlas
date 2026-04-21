@@ -39,6 +39,9 @@ public class ApiAccessLogEntity {
     @Column(length = 50)
     private String username;
 
+    @Column(name = "ip_address", length = 50)
+    private String ipAddress;
+
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

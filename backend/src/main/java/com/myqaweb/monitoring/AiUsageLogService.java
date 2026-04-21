@@ -20,4 +20,13 @@ public interface AiUsageLogService {
     void logUsage(AiFeature feature, String provider, String model,
                   Integer inputTokens, Integer outputTokens,
                   long durationMs, boolean success, String errorMessage);
+
+    /**
+     * Logs an AI API call asynchronously with IP address metadata.
+     * IP must be captured on the caller thread before @Async dispatch.
+     */
+    void logUsage(AiFeature feature, String provider, String model,
+                  Integer inputTokens, Integer outputTokens,
+                  long durationMs, boolean success, String errorMessage,
+                  String ipAddress);
 }
