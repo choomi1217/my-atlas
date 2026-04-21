@@ -180,12 +180,15 @@ class PdfPipelineIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void processPdf_withCleanup_savesRefinedChunksAndLogsAiUsage() throws IOException {
-        // Arrange — create a PENDING job + load a real test PDF
-        byte[] pdfBytes = new ClassPathResource("test-pdfs/qa-handbook.pdf").getContentAsByteArray();
+        // Arrange — create a PENDING job + load a small test PDF.
+        // minimal.pdf is used so that the mock Haiku response (~370 chars) passes the
+        // 70% recall check in KbContentCleanupService. A larger PDF (qa-handbook) would
+        // need a per-section mock sized to each input, which is brittle.
+        byte[] pdfBytes = new ClassPathResource("test-pdfs/minimal.pdf").getContentAsByteArray();
 
         PdfUploadJobEntity job = new PdfUploadJobEntity();
         job.setBookTitle("QA Handbook");
-        job.setOriginalFilename("qa-handbook.pdf");
+        job.setOriginalFilename("minimal.pdf");
         job.setStatus("PENDING");
         PdfUploadJobEntity saved = jobRepository.save(job);
         Long jobId = saved.getId();
