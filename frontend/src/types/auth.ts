@@ -16,3 +16,7 @@ export interface LoginResponse {
   role: UserRole;
   sessionTimeoutSeconds: number;
 }
+
+export interface PublicSettings {
+  loginRequired: boolean;
+}

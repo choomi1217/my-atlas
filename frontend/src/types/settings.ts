@@ -1,6 +1,9 @@
 export interface SystemSettings {
   aiEnabled: boolean;
   sessionTimeoutSeconds: number;
+  loginRequired: boolean;
+  aiRateLimitPerIp: number;
+  aiRateLimitWindowSeconds: number;
 }
 
 export interface CompanyInfo {
@@ -25,6 +28,9 @@ export interface RegisterUserRequest {
 export interface UpdateSettingsRequest {
   aiEnabled?: boolean;
   sessionTimeoutSeconds?: number;
+  loginRequired?: boolean;
+  aiRateLimitPerIp?: number;
+  aiRateLimitWindowSeconds?: number;
 }
 
 export interface UpdateCompaniesRequest {

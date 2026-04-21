@@ -35,6 +35,9 @@ public class CompanyServiceImpl implements CompanyService {
     @Override
     @Transactional(readOnly = true)
     public List<CompanyDto.CompanyResponse> findAllForUser(String username) {
+        if (username == null || "anonymousUser".equals(username)) {
+            return findAll();
+        }
         AppUserEntity user = appUserRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
         if (user.getRole() == Role.ADMIN) {

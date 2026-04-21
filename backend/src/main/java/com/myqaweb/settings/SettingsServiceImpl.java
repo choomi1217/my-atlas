@@ -20,6 +20,16 @@ import java.util.List;
 @Transactional
 public class SettingsServiceImpl implements SettingsService {
 
+    private static final String KEY_AI_ENABLED = "ai_enabled";
+    private static final String KEY_SESSION_TIMEOUT = "session_timeout_seconds";
+    private static final String KEY_LOGIN_REQUIRED = "login_required";
+    private static final String KEY_RATE_LIMIT_PER_IP = "ai_rate_limit_per_ip";
+    private static final String KEY_RATE_LIMIT_WINDOW = "ai_rate_limit_window_seconds";
+
+    private static final long DEFAULT_SESSION_TIMEOUT = 3600L;
+    private static final int DEFAULT_RATE_LIMIT_PER_IP = 30;
+    private static final int DEFAULT_RATE_LIMIT_WINDOW = 3600;
+
     private final SystemSettingsRepository settingsRepository;
     private final UserCompanyAccessRepository userCompanyAccessRepository;
     private final AppUserRepository appUserRepository;
@@ -29,21 +39,35 @@ public class SettingsServiceImpl implements SettingsService {
     @Override
     @Transactional(readOnly = true)
     public SettingsDto.SystemSettingsResponse getSettings() {
-        boolean aiEnabled = getBooleanSetting("ai_enabled", true);
-        long sessionTimeout = getLongSetting("session_timeout_seconds", 3600);
-        return new SettingsDto.SystemSettingsResponse(aiEnabled, sessionTimeout);
+        boolean aiEnabled = getBooleanSetting(KEY_AI_ENABLED, true);
+        long sessionTimeout = getLongSetting(KEY_SESSION_TIMEOUT, DEFAULT_SESSION_TIMEOUT);
+        boolean loginRequired = getBooleanSetting(KEY_LOGIN_REQUIRED, true);
+        int rateLimitPerIp = getIntSetting(KEY_RATE_LIMIT_PER_IP, DEFAULT_RATE_LIMIT_PER_IP);
+        int rateLimitWindow = getIntSetting(KEY_RATE_LIMIT_WINDOW, DEFAULT_RATE_LIMIT_WINDOW);
+        return new SettingsDto.SystemSettingsResponse(
+                aiEnabled, sessionTimeout, loginRequired, rateLimitPerIp, rateLimitWindow);
     }
 
     @Override
     public SettingsDto.SystemSettingsResponse updateSettings(SettingsDto.UpdateSettingsRequest request) {
         if (request.aiEnabled() != null) {
-            upsertSetting("ai_enabled", String.valueOf(request.aiEnabled()));
+            upsertSetting(KEY_AI_ENABLED, String.valueOf(request.aiEnabled()));
         }
         if (request.sessionTimeoutSeconds() != null) {
-            upsertSetting("session_timeout_seconds", String.valueOf(request.sessionTimeoutSeconds()));
+            upsertSetting(KEY_SESSION_TIMEOUT, String.valueOf(request.sessionTimeoutSeconds()));
         }
-        log.info("System settings updated: aiEnabled={}, sessionTimeout={}",
-                request.aiEnabled(), request.sessionTimeoutSeconds());
+        if (request.loginRequired() != null) {
+            upsertSetting(KEY_LOGIN_REQUIRED, String.valueOf(request.loginRequired()));
+        }
+        if (request.aiRateLimitPerIp() != null) {
+            upsertSetting(KEY_RATE_LIMIT_PER_IP, String.valueOf(request.aiRateLimitPerIp()));
+        }
+        if (request.aiRateLimitWindowSeconds() != null) {
+            upsertSetting(KEY_RATE_LIMIT_WINDOW, String.valueOf(request.aiRateLimitWindowSeconds()));
+        }
+        log.info("System settings updated: aiEnabled={}, sessionTimeout={}, loginRequired={}, rateLimitPerIp={}, rateLimitWindow={}",
+                request.aiEnabled(), request.sessionTimeoutSeconds(),
+                request.loginRequired(), request.aiRateLimitPerIp(), request.aiRateLimitWindowSeconds());
         return getSettings();
     }
 
@@ -100,13 +124,31 @@ public class SettingsServiceImpl implements SettingsService {
     @Override
     @Transactional(readOnly = true)
     public boolean isAiEnabled() {
-        return getBooleanSetting("ai_enabled", true);
+        return getBooleanSetting(KEY_AI_ENABLED, true);
     }
 
     @Override
     @Transactional(readOnly = true)
     public long getSessionTimeoutSeconds() {
-        return getLongSetting("session_timeout_seconds", 3600);
+        return getLongSetting(KEY_SESSION_TIMEOUT, DEFAULT_SESSION_TIMEOUT);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isLoginRequired() {
+        return getBooleanSetting(KEY_LOGIN_REQUIRED, true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public int getAiRateLimitPerIp() {
+        return getIntSetting(KEY_RATE_LIMIT_PER_IP, DEFAULT_RATE_LIMIT_PER_IP);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public int getAiRateLimitWindowSeconds() {
+        return getIntSetting(KEY_RATE_LIMIT_WINDOW, DEFAULT_RATE_LIMIT_WINDOW);
     }
 
     private void assignCompanies(Long userId, List<Long> companyIds) {
@@ -139,6 +181,12 @@ public class SettingsServiceImpl implements SettingsService {
     private long getLongSetting(String key, long defaultValue) {
         return settingsRepository.findBySettingKey(key)
                 .map(s -> Long.parseLong(s.getSettingValue()))
+                .orElse(defaultValue);
+    }
+
+    private int getIntSetting(String key, int defaultValue) {
+        return settingsRepository.findBySettingKey(key)
+                .map(s -> Integer.parseInt(s.getSettingValue()))
                 .orElse(defaultValue);
     }
 
