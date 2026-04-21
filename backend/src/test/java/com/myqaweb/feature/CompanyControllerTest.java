@@ -13,6 +13,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -39,11 +42,13 @@ class CompanyControllerTest {
     @Test
     void list_returnsOk() throws Exception {
         // Arrange
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("admin", null, java.util.Collections.emptyList()));
         List<CompanyDto.CompanyResponse> companies = List.of(
                 new CompanyDto.CompanyResponse(1L, "Corp A", true, 3, now),
                 new CompanyDto.CompanyResponse(2L, "Corp B", false, 1, now)
         );
-        when(companyService.findAll()).thenReturn(companies);
+        when(companyService.findAllForUser("admin")).thenReturn(companies);
 
         // Act & Assert
         mockMvc.perform(get("/api/companies"))
@@ -54,7 +59,8 @@ class CompanyControllerTest {
                 .andExpect(jsonPath("$.data[0].name").value("Corp A"))
                 .andExpect(jsonPath("$.data[0].productCount").value(3));
 
-        verify(companyService).findAll();
+        verify(companyService).findAllForUser("admin");
+        SecurityContextHolder.clearContext();
     }
 
     // --- POST /api/companies ---

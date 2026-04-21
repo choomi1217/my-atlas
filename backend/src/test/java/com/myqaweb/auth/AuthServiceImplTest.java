@@ -1,5 +1,6 @@
 package com.myqaweb.auth;
 
+import com.myqaweb.settings.SettingsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,9 @@ class AuthServiceImplTest {
     @Mock
     private JwtProvider jwtProvider;
 
+    @Mock
+    private SettingsService settingsService;
+
     @InjectMocks
     private AuthServiceImpl authService;
 
@@ -41,6 +45,7 @@ class AuthServiceImplTest {
     void setUp() {
         adminUser = new AppUserEntity(1L, "admin", "encoded-password", Role.ADMIN, LocalDateTime.now());
         normalUser = new AppUserEntity(2L, "testuser", "encoded-password", Role.USER, LocalDateTime.now());
+        lenient().when(settingsService.getSessionTimeoutSeconds()).thenReturn(3600L);
     }
 
     // --- login ---

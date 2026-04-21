@@ -15,6 +15,12 @@ public interface CompanyService {
     List<CompanyDto.CompanyResponse> findAll();
 
     /**
+     * Get companies filtered by user access.
+     * ADMIN sees all companies, USER sees only assigned companies.
+     */
+    List<CompanyDto.CompanyResponse> findAllForUser(String username);
+
+    /**
      * Get a company by ID.
      *
      * @param id the company ID

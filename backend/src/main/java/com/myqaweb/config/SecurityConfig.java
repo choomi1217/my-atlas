@@ -45,14 +45,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register").hasRole("ADMIN")
                         // 모니터링 API는 ADMIN만
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        // 이미지는 S3+CloudFront에서 서빙 (백엔드 GET 엔드포인트 제거됨)
-                        // GET 요청은 ADMIN, USER 모두 허용
-                        .requestMatchers(HttpMethod.GET, "/api/**").authenticated()
-                        // 쓰기 요청(POST/PUT/PATCH/DELETE)은 ADMIN만
-                        .requestMatchers(HttpMethod.POST, "/api/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
+                        // Settings는 ADMIN 전용
+                        .requestMatchers("/api/settings/**").hasRole("ADMIN")
+                        // 그 외 모든 API는 인증된 사용자 (ADMIN + USER 모두 CRUD 가능)
+                        .requestMatchers("/api/**").authenticated()
                         // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )

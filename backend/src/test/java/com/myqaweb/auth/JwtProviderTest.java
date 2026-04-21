@@ -1,9 +1,12 @@
 package com.myqaweb.auth;
 
+import com.myqaweb.settings.SettingsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for JwtProvider.
@@ -15,10 +18,13 @@ class JwtProviderTest {
     private static final long EXPIRATION_MS = 86400000L; // 24 hours
 
     private JwtProvider jwtProvider;
+    private SettingsService settingsService;
 
     @BeforeEach
     void setUp() {
-        jwtProvider = new JwtProvider(SECRET, EXPIRATION_MS);
+        settingsService = mock(SettingsService.class);
+        when(settingsService.getSessionTimeoutSeconds()).thenReturn(86400L);
+        jwtProvider = new JwtProvider(SECRET, EXPIRATION_MS, settingsService);
     }
 
     // --- generateToken ---
@@ -143,7 +149,9 @@ class JwtProviderTest {
     @Test
     void validateToken_returnsFalseForExpiredToken() {
         // Arrange: create provider with 0ms expiration (already expired upon creation)
-        JwtProvider shortLivedProvider = new JwtProvider(SECRET, 0L);
+        SettingsService shortSettings = mock(SettingsService.class);
+        when(shortSettings.getSessionTimeoutSeconds()).thenReturn(0L);
+        JwtProvider shortLivedProvider = new JwtProvider(SECRET, 0L, shortSettings);
         String token = shortLivedProvider.generateToken("admin", Role.ADMIN);
 
         // Act
@@ -157,7 +165,7 @@ class JwtProviderTest {
     void validateToken_returnsFalseForTokenSignedWithDifferentSecret() {
         // Arrange: generate token with a different secret
         JwtProvider otherProvider = new JwtProvider(
-                "another-secret-key-at-least-32-bytes-long!!", EXPIRATION_MS);
+                "another-secret-key-at-least-32-bytes-long!!", EXPIRATION_MS, settingsService);
         String token = otherProvider.generateToken("admin", Role.ADMIN);
 
         // Act: validate with the main provider (different secret)

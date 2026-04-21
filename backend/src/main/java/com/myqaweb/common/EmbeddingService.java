@@ -2,9 +2,14 @@ package com.myqaweb.common;
 
 import com.myqaweb.monitoring.AiFeature;
 import com.myqaweb.monitoring.AiUsageLogService;
+import com.myqaweb.settings.SettingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.stereotype.Service;
 
@@ -25,11 +30,17 @@ public class EmbeddingService {
 
     private final Optional<EmbeddingModel> embeddingModel;
     private final AiUsageLogService aiUsageLogService;
+    private final SettingsService settingsService;
+    private final SlackNotificationService slackNotificationService;
 
     public EmbeddingService(Optional<EmbeddingModel> embeddingModel,
-                            AiUsageLogService aiUsageLogService) {
+                            AiUsageLogService aiUsageLogService,
+                            SettingsService settingsService,
+                            SlackNotificationService slackNotificationService) {
         this.embeddingModel = embeddingModel;
         this.aiUsageLogService = aiUsageLogService;
+        this.settingsService = settingsService;
+        this.slackNotificationService = slackNotificationService;
         if (embeddingModel.isPresent()) {
             log.info("EmbeddingService initialized with OpenAI EmbeddingModel");
         } else {
@@ -57,6 +68,9 @@ public class EmbeddingService {
      * @throws IllegalStateException if EmbeddingModel is not available
      */
     public float[] embed(String text, AiFeature feature) {
+        if (!settingsService.isAiEnabled()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI features are currently disabled");
+        }
         if (embeddingModel.isEmpty()) {
             throw new IllegalStateException("EmbeddingModel is not available - OpenAI API key may not be configured");
         }
@@ -71,6 +85,11 @@ public class EmbeddingService {
             for (int i = 0; i < output.size(); i++) {
                 result[i] = output.get(i).floatValue();
             }
+
+            // Slack notification
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth != null ? auth.getName() : "system";
+            slackNotificationService.notifyAiUsage(username, "KB Embedding", text.length() / 4);
 
             // Log usage if feature tracking is enabled
             if (feature != null) {

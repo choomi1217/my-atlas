@@ -111,12 +111,19 @@ test.describe('Auth API E2E - Authorization rules', () => {
     expect(response.status()).toBeLessThanOrEqual(403);
   });
 
-  test('POST /api/conventions with USER token - rejected (403)', async () => {
+  test('POST /api/conventions with USER token - allowed (201)', async () => {
     const response = await request.post('/api/conventions', {
-      data: { term: 'E2E-Auth-Test', definition: 'Should be blocked', category: 'Test' },
+      data: { term: 'E2E-Auth-Test', definition: 'USER can now CRUD', category: 'Test' },
       headers: { Authorization: `Bearer ${userToken}` },
     });
-    expect(response.status()).toBe(403);
+    expect(response.status()).toBe(201);
+    // Cleanup
+    const body = await response.json() as any;
+    if (body.data?.id) {
+      await request.delete(`/api/conventions/${body.data.id}`, {
+        headers: { Authorization: `Bearer ${userToken}` },
+      });
+    }
   });
 
   test('GET /api/conventions with USER token - succeeds (200)', async () => {
