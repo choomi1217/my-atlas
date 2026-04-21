@@ -1,6 +1,6 @@
 export default function ResumeHeader() {
   return (
-    <div className="pb-12 border-b-2 border-violet-500">
+    <div className="pb-12">
       <h1 className="text-5xl font-bold tracking-tight mb-4">조영미</h1>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>

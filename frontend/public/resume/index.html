@@ -23,7 +23,7 @@
     .page { max-width: 900px; margin: 0 auto; padding: 4rem 2rem 6rem; }
 
     /* ── HEADER ── */
-    .header { margin-bottom: 0; padding-bottom: 2.5rem; border-bottom: 2px solid var(--accent); }
+    .header { margin-bottom: 0; padding-bottom: 2.5rem; }
 
     /* ── TABS ── */
     .tab-bar { display: flex; gap: 0; margin-bottom: 3rem; }
@@ -33,12 +33,15 @@
     .tab:hover { color: var(--text2); background: var(--surface2); }
     .tab.active { color: var(--accent); background: var(--bg); border-bottom-color: transparent; font-weight: 700; position: relative; }
     .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--accent); }
+    .pdf-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-light); padding: 8px 16px; border-radius: 6px; text-decoration: none; transition: background 0.2s; }
+    .pdf-btn:hover { background: #e4d9ff; }
     .name { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 14px; }
     .name-en { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 400; color: var(--text3); margin-left: 12px; }
     .header-row { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1.5rem; }
     .role-badge { display: inline-block; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-light); padding: 6px 18px; border-radius: 999px; margin-bottom: 10px; }
     .header-meta { display: flex; gap: 20px; flex-wrap: wrap; }
-    .header-meta span { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--text3); }
+    .header-meta a { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--text3); text-decoration: none; }
+    .header-meta a:hover { color: var(--accent); }
     .career-box { text-align: right; }
     .career-num { font-family: 'DM Mono', monospace; font-size: 32px; font-weight: 500; line-height: 1; }
     .career-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
@@ -57,34 +60,11 @@
       margin-bottom: 3rem;
     }
 
-    .exp-left {
-      padding-top: 2px;
-    }
-
-    .company-name {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 6px;
-    }
-
-    .company-name-dot {
-      color: var(--accent);
-    }
-
-    .company-role {
-      font-size: 15px;
-      color: var(--text2);
-      margin-bottom: 4px;
-      font-weight: 500;
-    }
-
-    .company-period {
-      font-family: 'DM Mono', monospace;
-      font-size: 14px;
-      color: var(--text3);
-    }
-
+    .exp-left { padding-top: 2px; }
+    .company-name { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .company-name-dot { color: var(--accent); }
+    .company-role { font-size: 15px; color: var(--text2); margin-bottom: 4px; font-weight: 500; }
+    .company-period { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--text3); }
     .exp-right {}
 
     /* ── TIMELINE ── */
@@ -131,7 +111,7 @@
     .skill-pill { font-size: 14px; color: var(--text2); background: var(--bg); border: 1px solid var(--border); padding: 6px 16px; border-radius: 999px; }
 
     .divider { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
-    .footer { text-align: center; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); letter-spacing: 0.04em; }
+    .footer { display: flex; align-items: center; justify-content: center; gap: 24px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); letter-spacing: 0.04em; }
 
     @media (max-width: 680px) {
       .exp-row { grid-template-columns: 1fr; }
@@ -140,6 +120,22 @@
       .header-row { flex-direction: column; align-items: flex-start; }
       .career-box { text-align: left; }
       .name { font-size: 28px; }
+    }
+
+    /* ── PRINT ── */
+    @media print {
+      @page { size: A4; margin: 14mm 12mm; }
+      body { font-size: 11pt; background: white; }
+      .page { padding: 0; max-width: none; }
+      .tab-bar { display: none; }
+      .pdf-btn { display: none; }
+      .project-card,
+      .project-accent,
+      .timeline,
+      .skills-table { break-inside: avoid; page-break-inside: avoid; }
+      .section { margin-bottom: 2rem; }
+      a { color: inherit; text-decoration: none; }
+      .footer { break-before: avoid; }
     }
   </style>
 </head>
@@ -153,8 +149,7 @@
       <div>
         <div class="role-badge">QA Engineer</div>
         <div class="header-meta">
-          <span><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="94e3fcf0e1f0f5f8a5a6a5a3d4faf5e2f1e6baf7fbf9">[email&#160;protected]</a></span>
-          
+          <a href="mailto:choomi1217@gmail.com">choomi1217@gmail.com</a>
         </div>
       </div>
       <div class="career-box">
@@ -167,7 +162,7 @@
   <!-- TABS -->
   <div class="tab-bar">
     <a class="tab" href="intro.html">자기소개서</a>
-    <a class="tab active" href="resume.html">경력기술서</a>
+    <a class="tab active" href="index.html">경력기술서</a>
   </div>
 
   <!-- QA 경력 -->
@@ -178,90 +173,111 @@
     </div>
 
     <div class="exp-row">
-      <!-- 좌측: 회사 정보 -->
       <div class="exp-left">
         <div class="company-name">Studio XID<span class="company-name-dot">.</span></div>
         <div class="company-role">Test Engineer</div>
         <div class="company-period">2025.03 — 2026.03</div>
       </div>
 
-      <!-- 우측: 프로젝트 목록 -->
       <div class="exp-right">
 
         <!-- 타임라인 -->
         <div class="timeline">
           <div class="timeline-row">
-            <span class="t-period">2025.03 — 2025.10</span>
+            <span class="t-period">2025.03 — 2026.03</span>
             <span class="t-desc">ProtoPie Cloud QA</span>
-          </div>
-          <div class="timeline-row">
-            <span class="t-period">2025.11 — 2026.03</span>
-            <span class="t-desc">User Testing QA</span>
           </div>
         </div>
 
-        <!-- KPI 카드 -->
+        <!-- User Testing 소켓 테스트 -->
         <div class="project-card">
-          <div class="project-title">User Testing — 소켓 안정성 검증</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Moderator / Participant / Observer / Mobile(Android·iOS) / Windows 등 8명 동시 참가 시나리오에서 소켓 연결 안정성 테스트</span></div>
+          <div class="project-title">User Testing - 모바일 / 웹 환경 소켓 테스트</div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Chrome DevTools Throttling, 실제 네트워크 차단, 모바일 앱 백그라운드 전환으로 네트워크 불안정 환경 테스트</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">iOS / Android 백그라운드 전환 후 재접속 정상 여부, Participant 이탈 후 10분 세션 유지 및 자동 종료, 10분 내 재접속 시 세션 복구 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Moderator / Participant / Observer 등 8명 동시 참가 시나리오에서 소켓 연결 안정성 테스트</span></div>
+          <span class="result-badge badge-green">네트워크 불안정·다중 환경에서 세션 복구 검증</span>
           <div class="tags">
             <span class="tag tag-blue">WebSocket Test</span><span class="tag tag-gray">Android · iOS</span><span class="tag tag-gray">네트워크 불안정</span><span class="tag tag-gray">세션 관리</span>
           </div>
         </div>
 
-        <!-- 프로젝트 카드들 -->
+        <!-- AI 응답 검증 자동화 -->
         <div class="project-card">
           <div class="project-title">AI 응답 검증 자동화</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Studio AI 채팅 기능 출시 전, 600개 이상의 질의에 대한 응답 품질 전수 테스트</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">엑셀 내용을 스크립트로 자동으로 응답 수집</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">수집한 응답을 <strong>질문 | AI 응답 | 기대 응답 | Claude 판단 점수</strong> 형식의 CSV로 가공, Claude에 채점 기준을 Prompt로 정의하여 응답 품질 자동 평가</span></div>
-          <span class="result-badge badge-green">예상 테스트 완료 일주일  →  하루로 단축 </span>
+          <div class="sub-label">Problem</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Studio AI 채팅 출시 전 600개 이상 질의의 응답 품질 검증 요구 — 수동 진행 시 일주일 이상 소요</span></div>
+          <div class="sub-label">Solution</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">데이터 표준화 (Excel → CSV → Map 가공)</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">대량 데이터 처리 자동화 (API 요청, datastream 응답 수집)</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">자동 채점 기준 정의 및 평가 (Claude Prompt 엔지니어링)</span></div>
+          <span class="result-badge badge-green">예상 일주일 → 하루로 단축</span>
           <div class="tags">
             <span class="tag tag-blue">JavaScript</span><span class="tag tag-blue">Prompt Engineering</span><span class="tag tag-gray">CSV</span><span class="tag tag-gray">Claude.ai</span>
           </div>
         </div>
 
+        <!-- API 스크립트 자동화 -->
         <div class="project-card">
           <div class="project-title">API 스크립트 자동화</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">네트워크 요청·JSON 응답 구조 분석, 팀의 반복 작업을 API 스크립트로 해결</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">페이지네이션 등 대량 데이터 필요 시 API 반복 호출로 테스트 데이터 자동 생성</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">다수 유저 팀 이동 등 운영팀이 수동 처리 불가한 작업을 스크립트로 대체 처리</span></div>
+          <div class="sub-label">Problem</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">팀 내 반복 작업, UI/API 미제공으로 수동 처리 불가한 운영 요청 누적</span></div>
+          <div class="sub-label">Solution</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">네트워크 요청·JSON 응답 구조 분석으로 API 파이프라인 확보</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">대량 테스트 데이터가 필요한 경우 API 반복 호출로 자동 생성</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">UI/API 미지원 작업(예: 다수 유저 팀 이동)을 스크립트로 대체 처리</span></div>
+          <span class="result-badge badge-green">수동 처리 불가 업무를 스크립트로 자동화</span>
           <div class="tags">
             <span class="tag tag-blue">JavaScript</span><span class="tag tag-blue">API 자동화</span><span class="tag tag-blue">DevTools</span>
           </div>
         </div>
 
+        <!-- reCAPTCHA -->
         <div class="project-card">
-          <div class="project-title">reCAPTCHA v2 QA</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Email Abusing 대응 reCAPTCHA v2 도입, 자동화 도구로 CAPTCHA 테스트</span></div>
+          <div class="project-title">reCAPTCHA 봇 차단 성공률 테스트</div>
+          <div class="sub-label">Problem</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Email Abusing 발생 → 봇 차단 필요</span></div>
+          <div class="sub-label">Solution</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">reCAPTCHA v2 도입</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">reCAPTCHA v3 검증 로직 통합 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Playwright로 Email 전송 기능 테스트 후, 응답값에서 reCAPTCHA 점수 확인</span></div>
+          <span class="result-badge badge-green">Email Abusing 재발 차단 확인</span>
           <div class="tags">
-            <span class="tag tag-blue">Playwright</span><span class="tag tag-gray">보안 QA</span>
+            <span class="tag tag-blue">Playwright</span><span class="tag tag-blue">reCAPTCHA</span><span class="tag tag-gray">보안 QA</span>
           </div>
         </div>
 
+        <!-- Test Case 설계 -->
         <div class="project-card">
           <div class="project-title">Test Case 설계</div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">경계값 테스트 — 경계 이하·경계·경계 초과 케이스로 파일 용량 제한(1GB) 검증</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">상태 전이 조합 전수 검증</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">권한(역할·플랜·멤버십)에 따른 기능 접근 시나리오 설계</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">ISTQB 및 테스트 방법론 기반 Test Case 설계</span></div>
           <div class="tags">
-            <span class="tag tag-gray">경계값 분석</span><span class="tag tag-gray">상태 전이 테스트</span><span class="tag tag-gray">권한 기반 테스트</span>
+            <span class="tag tag-gray">경계값 분석</span><span class="tag tag-gray">상태 전이 테스트</span><span class="tag tag-gray">권한 기반 테스트</span><span class="tag tag-gray">ISTQB</span>
           </div>
         </div>
 
+        <!-- QA Sprint -->
         <div class="project-card">
-          <div class="project-title">QA Sprint 설계 및 운영</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">개발팀 Sprint 주기에 맞춰 QA팀 Sprint 보드 설계 및 운영</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">테스트 일정, 워크플로우, Jira Automation 구성</span></div>
+          <div class="project-title">QA Sprint 병렬 처리 체계 설계 및 운영</div>
+          <div class="sub-label">Problem</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">개발 완료 후 일괄 테스트 → 통합 단계 대량 버그 발견, 수정·재테스트·배포 지연 악순환</span></div>
+          <div class="sub-label">Solution</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">개발팀 현재 Sprint ↔ QA팀 전 Sprint 병렬 처리</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">개발 Spec 1 종료 시점에 QA Spec 1 테스트 시작 (개발은 Spec 2 진행)</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">QA가 다음 Spec을 미리 설계 → 테스트 케이스 준비 → 개발 완료 즉시 실행</span></div>
+          <span class="result-badge badge-green">배포 일주일 전 주요 버그 Zero → 사내 Open Beta 진입</span>
           <div class="tags">
             <span class="tag tag-blue">Jira</span><span class="tag tag-gray">Sprint Board</span><span class="tag tag-gray">Jira Automation</span><span class="tag tag-gray">TestRail</span>
           </div>
         </div>
+
+        <!-- Playwright Test Architecture -->
         <div class="project-card">
           <div class="project-title">Playwright Test Architecture Design</div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Account, Membership, Role, Plan을 관리하는 테스트 환경 설계</span></div>
+          <span class="result-badge badge-green">계정·권한 매트릭스 자동화 환경 구축</span>
           <div class="tags">
             <span class="tag tag-blue">Playwright</span><span class="tag tag-blue">JSON Manifest</span><span class="tag tag-gray">GitHub Actions</span><span class="tag tag-gray">AWS</span>
           </div>
@@ -287,10 +303,12 @@
       <div class="exp-right">
         <div class="project-card">
           <div class="project-title">부산교통공사 지하철 관리 시스템</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">JPA 실무 활용 및 DB·인덱스 설계 경험</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">DB 중복 적재 버그를 Scheduler Lock으로 해결</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">JPA N+1 문제 진단 및 QueryDSL 개선 — 성능 이슈 탐지 경험</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">테스트 서버(WAS 1대) vs 운영 서버(WAS 2대) 환경 차이 문제 해결</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"> CI/CD, Slack 알림 봇 구축</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">CI/CD, Slack 알림 봇 구축</span></div>
+          <span class="result-badge badge-green">JPA 실무 활용 · DB / 인덱스 설계</span>
           <div class="tags">
             <span class="tag tag-gray">Java</span><span class="tag tag-gray">Spring Boot</span><span class="tag tag-gray">PostgreSQL</span><span class="tag tag-gray">Kafka</span><span class="tag tag-gray">ElasticSearch</span><span class="tag tag-gray">Docker</span>
           </div>
@@ -309,7 +327,7 @@
           <div class="project-title">GIS 기반 도로명주소 웹 애플리케이션</div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Test Code(JUnit + Mockito) 사용 — 테스트 자동화 필요성을 직접 경험하고 주도한 계기</span></div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Apache Solr API, GeoServer, Spring Scheduler 등 다양한 기술 스택 실무 경험</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">지도 이미지 재생성 백오피스 — 알고리즘 설계부터 구현까지 단독 수행</span></div>
+          <span class="result-badge badge-green">테스트 자동화 실무 도입</span>
           <div class="tags">
             <span class="tag tag-gray">Java</span><span class="tag tag-gray">Spring Framework</span><span class="tag tag-gray">PostgreSQL</span><span class="tag tag-gray">Oracle</span><span class="tag tag-gray">Apache Solr</span><span class="tag tag-gray">GeoServer</span>
           </div>
@@ -341,20 +359,23 @@
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">QA 업무 효율화를 위해 직접 설계·개발 중인 풀스택 웹 서비스. <br/> Spring Boot + React + PostgreSQL(pgvector) 기반</span></div>
 
           <div class="sub-label">구현 완료 기능</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>My Senior (AI QA 챗봇)</strong> — 사용자 질문을 임베딩하여 pgvector 코사인 유사도 검색으로 관련 QA 지식을 컨텍스트로 주입, Claude API로 SSE 스트리밍 답변 생성. RAG 파이프라인 완성</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Company Feature (TC 관리)</strong> — Company → Product → TestCase 3단계 드릴다운, Segment 기반 계층형 경로 관리, AI가 Feature 설명 기반으로 테스트 케이스 초안 자동 생성</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Knowledge Base (진행 중)</strong> — PDF 도서 업로드 시 자동 청킹·임베딩 파이프라인 구현, @Async self-invocation 버그 직접 분석·해결, Rate Limit 대응 retry 로직 추가</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>My Senior (AI QA 챗봇)</strong> — 사용자 질문을 임베딩하여 pgvector 코사인 유사도 검색으로 관련 QA 지식을 컨텍스트로 주입, Claude API로 SSE 스트리밍 답변 생성. 채팅 세션 저장·Chat→KB 전환 구현</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Knowledge Base</strong> — PDF 도서 업로드 시 자동 청킹·임베딩 파이프라인, Pin/Unpin(최대 15건), 카테고리 자동완성, 소프트 삭제, 검색/정렬</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Feature Registry</strong> — Company → Product → TestCase 3단계 드릴다운, Segment DnD 계층 관리, Version/Phase/TestResult, Jira 연동(FAIL 시 자동 티켓 생성)</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Test Studio</strong> — 문서 기반 Claude API로 DRAFT TestCase 자동 생성</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Word Conventions</strong> — 팀 용어 표준화 CRUD + 이미지 첨부</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Platform</strong> — JWT 인증 + Spring Security, AWS ALB + HTTPS 배포, GitHub Actions CI/CD (JaCoCo 70%)</span></div>
 
           <div class="sub-label">테스트 커버리지</div>
           <div class="test-stats">
-            <span class="test-stat">Backend Unit 161개 통과</span>
-            <span class="test-stat">Frontend Unit 33개 통과</span>
-            <span class="test-stat">E2E Playwright 60개 통과</span>
+            <span class="test-stat">Backend Unit 529개 통과</span>
+            <span class="test-stat">Frontend Unit 54개 통과</span>
+            <span class="test-stat">E2E Playwright 289개 통과</span>
             <span class="test-stat">Testcontainers pgvector Integration Test</span>
           </div>
 
           <div class="tags" style="margin-top:18px; padding-top:18px; border-top:1px solid var(--border);">
-            <span class="tag tag-blue">Spring Boot 3</span><span class="tag tag-blue">Java 21</span><span class="tag tag-blue">Spring AI</span><span class="tag tag-blue">React + TypeScript</span><span class="tag tag-blue">pgvector</span><span class="tag tag-green">Playwright</span><span class="tag tag-green">Testcontainers</span><span class="tag tag-gray">Docker Compose</span><span class="tag tag-gray">Claude API</span>
+            <span class="tag tag-blue">Spring Boot 3</span><span class="tag tag-blue">Java 21</span><span class="tag tag-blue">Spring AI</span><span class="tag tag-blue">React + TypeScript</span><span class="tag tag-blue">pgvector</span><span class="tag tag-green">Playwright</span><span class="tag tag-green">Testcontainers</span><span class="tag tag-gray">Docker Compose</span><span class="tag tag-gray">Claude API</span><span class="tag tag-gray">AWS</span>
           </div>
         </div>
       </div>
@@ -417,7 +438,10 @@
     </div>
   </div>
 
-  <div class="footer">choomi1217@gmail.com</div>
+  <div class="footer">
+    <a class="pdf-btn" href="조영미_경력기술서.pdf" download>⬇ PDF 다운로드</a>
+    <span>choomi1217@gmail.com</span>
+  </div>
 </div>
 </body>
 </html>
