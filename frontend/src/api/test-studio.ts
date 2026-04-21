@@ -37,6 +37,18 @@ export const testStudioApi = {
   },
 
   /**
+   * List all jobs across every Product within a Company (newest first).
+   * Used by the Company-level Test Studio dashboard.
+   */
+  listJobsByCompany: async (companyId: number): Promise<TestStudioJob[]> => {
+    const response = await apiClient.get<ApiResponse<TestStudioJob[]>>(
+      '/api/test-studio/jobs',
+      { params: { companyId } }
+    );
+    return response.data.data;
+  },
+
+  /**
    * Get a single job by id.
    */
   getJob: async (id: number): Promise<TestStudioJob> => {

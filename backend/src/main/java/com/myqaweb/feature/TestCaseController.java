@@ -18,9 +18,19 @@ public class TestCaseController {
     private final TestCaseRepository testCaseRepository;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<TestCaseDto.TestCaseResponse>>> getByProductId(
-            @RequestParam Long productId) {
-        List<TestCaseDto.TestCaseResponse> result = testCaseService.getByProductId(productId);
+    public ResponseEntity<ApiResponse<List<TestCaseDto.TestCaseResponse>>> list(
+            @RequestParam(required = false) Long productId,
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) TestStatus status) {
+        if (productId == null && companyId == null) {
+            throw new IllegalArgumentException("productId or companyId is required");
+        }
+        if (productId != null && companyId != null) {
+            throw new IllegalArgumentException("productId and companyId are mutually exclusive");
+        }
+        List<TestCaseDto.TestCaseResponse> result = productId != null
+                ? testCaseService.getByProductId(productId)
+                : testCaseService.getByCompanyId(companyId, status);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 

@@ -33,6 +33,11 @@ public interface TestStudioService {
     List<TestStudioJobDto.JobResponse> listJobs(Long productId);
 
     /**
+     * List all jobs across every Product within a Company, newest first.
+     */
+    List<TestStudioJobDto.JobResponse> listJobsByCompany(Long companyId);
+
+    /**
      * Delete a job row.
      * DRAFT TCs created by this job are preserved (FK uses ON DELETE SET NULL).
      */

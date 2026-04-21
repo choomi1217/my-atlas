@@ -47,7 +47,7 @@ class TestCaseControllerTest {
     void listByProduct_returnsOk() throws Exception {
         // Arrange
         List<TestCaseDto.TestCaseResponse> testCases = List.of(
-                new TestCaseDto.TestCaseResponse(1L, 10L, new Long[]{1L, 2L}, "Login test",
+                new TestCaseDto.TestCaseResponse(1L, 10L, new Long[]{1L, 2L}, null, "Login test",
                         "Verify login", null, "User exists", List.of(new TestStep(1, "Click login", "Form shown")),
                         "Login success", Priority.HIGH, TestType.FUNCTIONAL, TestStatus.ACTIVE, List.of(), now, now, null)
         );
@@ -64,13 +64,67 @@ class TestCaseControllerTest {
         verify(testCaseService).getByProductId(10L);
     }
 
+    @Test
+    void list_withProductId_delegates() throws Exception {
+        // Arrange
+        when(testCaseService.getByProductId(10L)).thenReturn(List.of());
+
+        // Act & Assert
+        mockMvc.perform(get("/api/test-cases").param("productId", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(testCaseService).getByProductId(10L);
+        verify(testCaseService, never()).getByCompanyId(any(), any());
+    }
+
+    @Test
+    void list_withCompanyId_delegates() throws Exception {
+        // Arrange
+        when(testCaseService.getByCompanyId(5L, TestStatus.DRAFT)).thenReturn(List.of());
+
+        // Act & Assert
+        mockMvc.perform(get("/api/test-cases")
+                        .param("companyId", "5")
+                        .param("status", "DRAFT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(testCaseService).getByCompanyId(5L, TestStatus.DRAFT);
+        verify(testCaseService, never()).getByProductId(any());
+    }
+
+    @Test
+    void list_missingBoth_throws400() throws Exception {
+        // Act & Assert
+        mockMvc.perform(get("/api/test-cases"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(testCaseService, never()).getByProductId(any());
+        verify(testCaseService, never()).getByCompanyId(any(), any());
+    }
+
+    @Test
+    void list_bothProvided_throws400() throws Exception {
+        // Act & Assert
+        mockMvc.perform(get("/api/test-cases")
+                        .param("productId", "10")
+                        .param("companyId", "5"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(testCaseService, never()).getByProductId(any());
+        verify(testCaseService, never()).getByCompanyId(any(), any());
+    }
+
     // --- POST /api/test-cases ---
 
     @Test
     void create_returns201() throws Exception {
         // Arrange
         TestCaseDto.TestCaseResponse created = new TestCaseDto.TestCaseResponse(
-                1L, 10L, new Long[]{1L}, "New TC", "Desc", null, null,
+                1L, 10L, new Long[]{1L}, null, "New TC", "Desc", null, null,
                 List.of(), "Expected", Priority.MEDIUM, TestType.SMOKE, TestStatus.DRAFT, List.of(), now, now, null);
         when(testCaseService.create(any(TestCaseDto.TestCaseRequest.class))).thenReturn(created);
 
@@ -117,7 +171,7 @@ class TestCaseControllerTest {
     void update_returnsOk() throws Exception {
         // Arrange
         TestCaseDto.TestCaseResponse updated = new TestCaseDto.TestCaseResponse(
-                1L, 10L, new Long[]{1L}, "Updated TC", "Updated", null, null,
+                1L, 10L, new Long[]{1L}, null, "Updated TC", "Updated", null, null,
                 List.of(), "Updated Expected", Priority.HIGH, TestType.REGRESSION, TestStatus.ACTIVE, List.of(), now, now, null);
         when(testCaseService.update(eq(1L), any(TestCaseDto.TestCaseRequest.class))).thenReturn(updated);
 
@@ -162,7 +216,7 @@ class TestCaseControllerTest {
     void generateDraft_returnsCreated() throws Exception {
         // Arrange
         List<TestCaseDto.TestCaseResponse> drafts = List.of(
-                new TestCaseDto.TestCaseResponse(1L, 10L, new Long[]{1L}, "AI Draft 1",
+                new TestCaseDto.TestCaseResponse(1L, 10L, new Long[]{1L}, null, "AI Draft 1",
                         "AI generated", null, null, List.of(), "Pass",
                         Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT, List.of(), now, now, null)
         );
