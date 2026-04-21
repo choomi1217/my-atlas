@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,7 +24,8 @@ public class CompanyController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<CompanyDto.CompanyResponse>>> listAll() {
-        List<CompanyDto.CompanyResponse> companies = companyService.findAll();
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<CompanyDto.CompanyResponse> companies = companyService.findAllForUser(username);
         return ResponseEntity.ok(ApiResponse.ok(companies));
     }
 

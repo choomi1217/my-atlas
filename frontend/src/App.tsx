@@ -24,6 +24,7 @@ import MonitoringPage from '@/pages/MonitoringPage'
 import OverviewPage from '@/pages/OverviewPage'
 import FeatureDetailPage from '@/pages/FeatureDetailPage'
 import FeatureVersionPage from '@/pages/FeatureVersionPage'
+import SettingsPage from '@/pages/SettingsPage'
 
 export default function App() {
   return (
@@ -58,6 +59,7 @@ export default function App() {
                 <Route path="/feature/:slug" element={<FeatureDetailPage />} />
                 <Route path="/resume" element={<ResumePage />} />
                 <Route path="/monitoring" element={<MonitoringPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

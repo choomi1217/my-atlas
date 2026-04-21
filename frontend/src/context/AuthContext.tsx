@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
 import { AuthUser, LoginRequest, LoginResponse } from '@/types/auth';
 import { authApi } from '@/api/auth';
 
@@ -15,26 +15,57 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const TOKEN_KEY = 'my-atlas-token';
 const USER_KEY = 'my-atlas-user';
+const TIMEOUT_KEY = 'my-atlas-session-timeout';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearSessionTimer = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    clearSessionTimer();
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TIMEOUT_KEY);
+  }, [clearSessionTimer]);
+
+  const startSessionTimer = useCallback((timeoutSeconds: number) => {
+    clearSessionTimer();
+    timeoutRef.current = setTimeout(() => {
+      logout();
+      window.location.href = '/login';
+    }, timeoutSeconds * 1000);
+  }, [clearSessionTimer, logout]);
 
   useEffect(() => {
     const savedToken = localStorage.getItem(TOKEN_KEY);
     const savedUser = localStorage.getItem(USER_KEY);
+    const savedTimeout = localStorage.getItem(TIMEOUT_KEY);
     if (savedToken && savedUser) {
       try {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
+        if (savedTimeout) {
+          startSessionTimer(Number(savedTimeout));
+        }
       } catch {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
+        localStorage.removeItem(TIMEOUT_KEY);
       }
     }
     setIsLoading(false);
-  }, []);
+  }, [startSessionTimer]);
 
   const login = useCallback(async (request: LoginRequest) => {
     const response: LoginResponse = await authApi.login(request);
@@ -44,14 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(authUser);
     localStorage.setItem(TOKEN_KEY, response.token);
     localStorage.setItem(USER_KEY, JSON.stringify(authUser));
-  }, []);
+    localStorage.setItem(TIMEOUT_KEY, String(response.sessionTimeoutSeconds));
 
-  const logout = useCallback(() => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-  }, []);
+    startSessionTimer(response.sessionTimeoutSeconds);
+  }, [startSessionTimer]);
 
   return (
     <AuthContext.Provider

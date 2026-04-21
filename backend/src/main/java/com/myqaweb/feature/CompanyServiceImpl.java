@@ -1,5 +1,9 @@
 package com.myqaweb.feature;
 
+import com.myqaweb.auth.AppUserEntity;
+import com.myqaweb.auth.AppUserRepository;
+import com.myqaweb.auth.Role;
+import com.myqaweb.settings.UserCompanyAccessRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,12 +20,28 @@ import java.util.Optional;
 public class CompanyServiceImpl implements CompanyService {
     private final CompanyRepository companyRepository;
     private final ProductRepository productRepository;
+    private final AppUserRepository appUserRepository;
+    private final UserCompanyAccessRepository userCompanyAccessRepository;
 
     @Override
     @Transactional(readOnly = true)
     public List<CompanyDto.CompanyResponse> findAll() {
         return companyRepository.findAll()
                 .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CompanyDto.CompanyResponse> findAllForUser(String username) {
+        AppUserEntity user = appUserRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        if (user.getRole() == Role.ADMIN) {
+            return findAll();
+        }
+        List<Long> companyIds = userCompanyAccessRepository.findCompanyIdsByUserId(user.getId());
+        return companyRepository.findAllById(companyIds).stream()
                 .map(this::toResponse)
                 .toList();
     }

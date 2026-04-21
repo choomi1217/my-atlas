@@ -1,5 +1,6 @@
 package com.myqaweb.auth;
 
+import com.myqaweb.settings.SettingsService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -15,19 +16,30 @@ import java.util.Date;
 public class JwtProvider {
 
     private final SecretKey secretKey;
-    private final long expirationMs;
+    private final long defaultExpirationMs;
+    private final SettingsService settingsService;
 
     public JwtProvider(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration-ms:86400000}") long expirationMs) {
+            @Value("${jwt.expiration-ms:86400000}") long defaultExpirationMs,
+            SettingsService settingsService) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.expirationMs = expirationMs;
+        this.defaultExpirationMs = defaultExpirationMs;
+        this.settingsService = settingsService;
     }
 
     /**
-     * JWT 토큰 생성.
+     * JWT 토큰 생성 (system_settings의 session_timeout_seconds 사용).
      */
     public String generateToken(String username, Role role) {
+        long expirationMs;
+        try {
+            long timeoutSeconds = settingsService.getSessionTimeoutSeconds();
+            expirationMs = timeoutSeconds * 1000;
+        } catch (Exception e) {
+            expirationMs = defaultExpirationMs;
+        }
+
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 

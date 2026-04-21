@@ -103,6 +103,11 @@ statistics:
     min-regression-pass-rate: 98.0
     aging-threshold-days: 3
 
+# Slack integration
+slack:
+  webhook:
+    url: ${SLACK_WEBHOOK_URL:}
+
 # Convention image upload
 convention:
   image:
