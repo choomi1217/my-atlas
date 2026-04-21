@@ -1,15 +1,3 @@
-interface ApiEndpoint {
-  method: string
-  path: string
-  desc: string
-}
-
-interface SchemaRow {
-  table: string
-  desc: string
-  key: string
-}
-
 interface TestRow {
   label: string
   count: number
@@ -24,11 +12,15 @@ export interface VersionEntry {
   highlights: string[]
 }
 
+export interface Screenshot {
+  src: string
+  caption: string
+}
+
 export interface AboutSection {
   why: string[]
   what: string[]
   benefit: string[]
-  screenshot?: string
 }
 
 export interface FeatureDetail {
@@ -39,8 +31,7 @@ export interface FeatureDetail {
   about: AboutSection
   techStack: string[]
   architecture: string[]
-  apis: ApiEndpoint[]
-  schema: SchemaRow[]
+  screenshots: Screenshot[]
   testing: TestRow[]
   versions: VersionEntry[]
 }
@@ -62,11 +53,13 @@ export const futurePlans: FuturePlan[] = [
   { name: 'Release Readiness 통계', description: 'Feature Registry — Go/No-Go 릴리즈 판단 대시보드', difficulty: '높음' },
 ]
 
+const IMG = '/images/features'
+
 export const featureDetails: Record<string, FeatureDetail> = {
   senior: {
     slug: 'senior',
     name: 'My Senior',
-    tagline: 'RAG 기반 AI 시니어 QA 챗봇',
+    tagline: 'RAG 파이프라인 직접 구현 — pgvector + Spring AI + SSE 스트리밍',
     description: [
       '사용자의 질문을 임베딩하여 FAQ, Knowledge Base, Convention을 벡터 검색하고, 컨텍스트로 주입한 뒤 Claude API로 답변을 생성한다.',
       'SSE 스트리밍으로 실시간 응답을 제공하며, FAQ 카드뷰에서 자주 묻는 질문을 관리할 수 있다.',
@@ -97,17 +90,15 @@ export const featureDetails: Record<string, FeatureDetail> = {
       'SseEmitter로 토큰 단위 스트리밍 응답 전송',
       'Frontend: fetch + ReadableStream으로 실시간 렌더링',
     ],
-    apis: [
-      { method: 'POST', path: '/api/senior/chat', desc: 'SSE 스트리밍 AI 채팅 (message, faqContext?)' },
-      { method: 'GET', path: '/api/senior/faq', desc: 'FAQ 전체 조회' },
-      { method: 'POST', path: '/api/senior/faq', desc: 'FAQ 생성 (+ 비동기 임베딩)' },
-      { method: 'PUT', path: '/api/senior/faq/{id}', desc: 'FAQ 수정 (+ 비동기 임베딩)' },
-      { method: 'DELETE', path: '/api/senior/faq/{id}', desc: 'FAQ 삭제' },
-    ],
-    schema: [
-      { table: 'faq', desc: 'FAQ 항목 (질문/답변 + 벡터 임베딩)', key: 'id, title, content, tags, embedding(1536), created_at' },
-      { table: 'knowledge_base', desc: 'QA 지식 (수동 작성 + PDF 청킹)', key: 'id, title, content, source, embedding(1536), created_at' },
-      { table: 'convention', desc: '팀 용어 컨벤션 (전체 조회)', key: 'id, term, definition, category, created_at' },
+    screenshots: [
+      {
+        src: `${IMG}/senior_01_faq_list.png`,
+        caption: '큐레이션 FAQ 카드뷰 — 관리자가 고정한 질문과 조회수 Top 5가 한 화면에 노출된다. 카드를 클릭하면 해당 FAQ가 Chat 컨텍스트로 주입된다.',
+      },
+      {
+        src: `${IMG}/senior_02_chat.png`,
+        caption: 'SSE 스트리밍 Chat 페이지 — Claude 응답 토큰이 실시간으로 렌더링되고 Markdown + 코드 블록 포매팅을 지원한다. 채팅 내용은 세션 단위로 저장되어 재진입 시 복원된다.',
+      },
     ],
     testing: [
       { label: 'Service Unit', count: 13, detail: 'FAQ CRUD 9 + Chat Context 4' },
@@ -130,7 +121,7 @@ export const featureDetails: Record<string, FeatureDetail> = {
   kb: {
     slug: 'kb',
     name: 'Knowledge Base',
-    tagline: 'PDF 파이프라인 + 벡터 검색 지식 관리',
+    tagline: 'PDF → 청킹 → 임베딩 비동기 파이프라인, Virtual Threads + @Async + Rate Limit 대응',
     description: [
       'QA 지식을 Markdown WYSIWYG 에디터로 작성하거나, PDF 도서를 업로드하면 자동으로 청킹·임베딩하여 벡터 DB에 저장한다.',
       '수동 작성 문서와 PDF 청크를 분리하여 RAG 검색 시 수동 문서(top 3)를 우선하고, PDF(top 2)를 보조로 사용한다.',
@@ -161,18 +152,27 @@ export const featureDetails: Record<string, FeatureDetail> = {
       'knowledge_base 테이블에 source=도서명으로 저장',
       'Frontend: 3초 간격 polling으로 Job 상태 추적',
     ],
-    apis: [
-      { method: 'POST', path: '/api/kb', desc: 'KB 생성 (Markdown + 비동기 임베딩)' },
-      { method: 'GET', path: '/api/kb', desc: 'KB 전체 조회' },
-      { method: 'PUT', path: '/api/kb/{id}', desc: 'KB 수정' },
-      { method: 'DELETE', path: '/api/kb/{id}', desc: 'KB 삭제' },
-      { method: 'POST', path: '/api/kb/upload-pdf', desc: 'PDF 업로드 → jobId' },
-      { method: 'GET', path: '/api/kb/jobs/{jobId}', desc: 'Job 상태 조회' },
-      { method: 'DELETE', path: '/api/kb/books/{source}', desc: '도서 단위 일괄 삭제' },
-    ],
-    schema: [
-      { table: 'knowledge_base', desc: 'QA 지식 (수동: source=null, PDF: source=도서명)', key: 'id, title, content, category, tags, source, embedding(1536)' },
-      { table: 'pdf_upload_job', desc: 'PDF 비동기 처리 이력', key: 'id, book_title, original_filename, status(ENUM), total_chunks, error_message' },
+    screenshots: [
+      {
+        src: `${IMG}/kb_01_list.png`,
+        caption: 'KB 전체 목록 — 수동 작성 문서와 PDF 청크를 통합 검색한다. Pin 고정, 카테고리 자동완성, 소프트 삭제(deleted_at) 지원.',
+      },
+      {
+        src: `${IMG}/kb_02_pdf_upload.png`,
+        caption: 'PDF 업로드 모달 — bookTitle + 파일을 선택해 업로드하면 jobId를 즉시 반환하고 비동기 Worker가 파싱·청킹·임베딩을 이어받는다. multipart 500MB까지 허용.',
+      },
+      {
+        src: `${IMG}/kb_03_pdf_loading.png`,
+        caption: 'PDF 처리 Job 카드 — PENDING → PROCESSING → DONE / FAILED 상태를 3초 polling으로 UI에 반영한다. 실패 시 error 메시지와 재시도 안내가 노출되고, 성공분은 이미 임베딩된 채로 보존된다.',
+      },
+      {
+        src: `${IMG}/kb_04_detail.png`,
+        caption: 'KB 상세 페이지 — 조회수 카운트(hit_count)로 자동으로 FAQ Top 5에 반영된다. Pin/Unpin, 카테고리, 수동 작성 / PDF 챕터 구분 표시.',
+      },
+      {
+        src: `${IMG}/kb_06_write.png`,
+        caption: 'Markdown WYSIWYG 에디터 — @uiw/react-md-editor로 실시간 프리뷰. 이미지 드래그 앤 드롭 업로드, 코드 블록 하이라이팅, stripMarkdown 임베딩 전처리.',
+      },
     ],
     testing: [
       { label: 'Service Unit', count: 13, detail: 'CRUD + stripMarkdown' },
@@ -224,15 +224,15 @@ export const featureDetails: Record<string, FeatureDetail> = {
       '알파벳/가나다 순 정렬, 키워드 검색 지원',
       'RAG에서 Convention 전체를 System Prompt에 주입 (임베딩 없이 전체 조회)',
     ],
-    apis: [
-      { method: 'GET', path: '/api/conventions', desc: '전체 조회' },
-      { method: 'POST', path: '/api/conventions', desc: '생성 (term, definition 필수)' },
-      { method: 'PUT', path: '/api/conventions/{id}', desc: '수정' },
-      { method: 'DELETE', path: '/api/conventions/{id}', desc: '삭제' },
-      { method: 'POST', path: '/api/convention-images', desc: '이미지 업로드' },
-    ],
-    schema: [
-      { table: 'convention', desc: '팀 용어 사전 (임베딩 없음)', key: 'id, term, definition, category, image_url, created_at, updated_at' },
+    screenshots: [
+      {
+        src: `${IMG}/convention_01_list.png`,
+        caption: '용어 카드 목록 — 알파벳/가나다 순 정렬과 키워드 검색을 지원한다. 각 카드에 등록된 이미지 썸네일이 함께 노출되어 시각적 참고자료로 기능한다.',
+      },
+      {
+        src: `${IMG}/convention_02_create.png`,
+        caption: '용어 등록 화면 — term + definition + 카테고리 + 이미지(Drag & Drop 업로드, UUID 파일명으로 저장). 등록된 용어는 My Senior RAG System Prompt에 전체 주입된다.',
+      },
     ],
     testing: [
       { label: 'Service Unit', count: 6, detail: 'CRUD + imageUrl/updatedAt' },
@@ -249,50 +249,99 @@ export const featureDetails: Record<string, FeatureDetail> = {
   'test-suite': {
     slug: 'test-suite',
     name: 'Product Test Suite',
-    tagline: '계층형 테스트 케이스 관리 시스템',
+    tagline: 'TestRail 핵심 기능을 Adjacency List + JSONB로 재구현 — Release Readiness 대시보드까지',
     description: [
       'Company → Product → TestCase 3단계 드릴다운 구조로 테스트 케이스를 관리한다.',
-      'Segment 트리(Adjacency List)로 논리적 경로를 설정하고, AI가 테스트 케이스 초안을 자동 생성한다.',
+      'Segment 트리(Adjacency List)로 논리적 경로를 설정하고, Version/Phase/TestResult로 릴리즈별 테스트를 추적한다.',
+      'FAIL 시 Jira 티켓 자동 생성, Release Readiness 대시보드로 Go/No-Go 판단까지 연결된다.',
     ],
     about: {
       why: [
         '테스트 케이스가 스프레드시트에 흩어져 있으면 "어디에 어떤 TC가 있는지" 파악하기 어렵다.',
         'TestRail 같은 상용 도구의 핵심 기능(계층 구조, 경로 관리)을 직접 구현하여 팀에 맞게 커스터마이징하고 싶었다.',
-        'AI가 Feature 설명만으로 테스트 케이스 초안을 생성하면 TC 작성 시간을 줄일 수 있다.',
+        '릴리즈 직전까지 "배포해도 되는가"를 정량 근거로 판단할 수 있는 대시보드가 필요했다.',
       ],
       what: [
-        'Company → Product → TestCase 3단계 드릴다운으로 테스트 케이스를 체계적으로 관리한다.',
-        'Segment 트리(Adjacency List)로 "설정 > 계정 > 비밀번호 변경" 같은 논리적 경로를 설정한다.',
-        'Claude AI가 Product와 Segment 경로 기반으로 테스트 스텝을 자동 생성한다 (DRAFT → 검토 → ACTIVE).',
+        'Company → Product → TestCase 3단계 드릴다운 + Segment Adjacency List 트리 구조.',
+        'Test Run(TC 묶음) → Version → Phase 계층으로 릴리즈 테스트를 구성, TestResult(PASS/FAIL/BLOCKED/SKIP)로 실행 결과 기록.',
+        'FAIL 기록 시 Jira 티켓 자동 생성/연동, Release Readiness 통계로 Go/No-Go 판단.',
       ],
       benefit: [
         '테스트 케이스의 위치를 Segment 경로로 명확히 알 수 있어 중복/누락을 방지한다.',
-        'AI 드래프트로 TC 작성 시간을 절약하고, QA는 검토에 집중할 수 있다.',
-        'Test Run과 Version 관리로 릴리즈별 테스트 범위를 정의하고 추적할 수 있다.',
+        'Version Phase별 통계로 릴리즈 범위와 커버리지를 정량 추적할 수 있다.',
+        'Aging Bug + Blocked TC + Highest Priority 실패를 한 화면에서 보여주어 배포 판단을 정량화했다.',
       ],
     },
-    techStack: ['Spring AI', 'Claude API', 'Adjacency List', 'Drag & Drop', 'Zustand', 'Cascading Dropdown'],
+    techStack: ['Adjacency List', 'JSONB', 'Drag & Drop', 'Zustand', 'Cascading Dropdown', 'Jira API'],
     architecture: [
       'Company: Partial Unique Index로 활성 회사 1개만 보장',
       'Segment: self-referencing FK 기반 Adjacency List 트리 구조',
       'TestCase: path(bigint[]) 배열로 Segment 경로 저장, Steps는 JSONB',
       'DnD: Segment 부모 변경 시 BFS로 순환 참조 검증',
-      'AI Draft: Claude가 productId + path 기반으로 테스트 스텝 JSON 생성',
+      'Version → Phase → Test Run → TestResult 계층으로 릴리즈 추적',
+      'FAIL 결과 기록 시 Jira REST API로 티켓 자동 생성 (이슈타입 id=10042 "버그")',
     ],
-    apis: [
-      { method: 'GET', path: '/api/companies', desc: '회사 목록' },
-      { method: 'PATCH', path: '/api/companies/{id}/activate', desc: '회사 활성화 (1개만)' },
-      { method: 'GET', path: '/api/products?companyId={id}', desc: '제품 목록' },
-      { method: 'GET', path: '/api/segments?productId={id}', desc: '세그먼트 트리 조회' },
-      { method: 'PATCH', path: '/api/segments/{id}/parent', desc: '부모 변경 (DnD)' },
-      { method: 'GET', path: '/api/test-cases?productId={id}', desc: '테스트 케이스 목록' },
-      { method: 'POST', path: '/api/test-cases/generate-draft', desc: 'AI 드래프트 생성' },
-    ],
-    schema: [
-      { table: 'company', desc: '회사 (활성 1개 제한)', key: 'id, name, is_active, created_at' },
-      { table: 'product', desc: '제품', key: 'id, company_id(FK), name, platform(ENUM)' },
-      { table: 'segment', desc: '세그먼트 트리 (Adjacency List)', key: 'id, name, product_id(FK), parent_id(FK self-ref)' },
-      { table: 'test_case', desc: '테스트 케이스', key: 'id, product_id(FK), path(bigint[]), title, steps(JSONB), priority, test_type, status' },
+    screenshots: [
+      {
+        src: `${IMG}/test-suite_01_company.png`,
+        caption: 'Company 목록 — Partial Unique Index로 활성 회사 1개만 보장. 활성화 토글을 누르면 DB 제약과 함께 GNB 컨텍스트가 전환된다.',
+      },
+      {
+        src: `${IMG}/test-suite_02_product.png`,
+        caption: 'Product 목록 — 선택한 Company 하위 제품을 Platform(WEB/DESKTOP/MOBILE/ETC) 구분으로 표시한다.',
+      },
+      {
+        src: `${IMG}/test-suite_03_tc_list.png`,
+        caption: 'TestCase 목록 (좌 Segment Tree, 우 TC Card) — Segment Tree는 Adjacency List를 재귀 렌더링, 선택 시 해당 path에 속한 TC만 필터링한다.',
+      },
+      {
+        src: `${IMG}/test-suite_04_tc_detail.png`,
+        caption: 'TC Card 상세 — Priority / Test Type / Status 배지, JSONB로 저장된 Steps(given-when-then) 미리보기, TC 이미지 썸네일.',
+      },
+      {
+        src: `${IMG}/test-suite_05_testrun_list.png`,
+        caption: 'Test Run 목록 — 재사용 가능한 TC 묶음을 Product 레벨에서 관리한다. Version Phase에서 실행 시 이 묶음을 참조한다.',
+      },
+      {
+        src: `${IMG}/test-suite_06_testrun_detail.png`,
+        caption: 'Test Run 상세 — 묶음에 포함된 TC 리스트. 중간 테이블 test_run_test_case의 order 컬럼으로 순서를 제어한다.',
+      },
+      {
+        src: `${IMG}/test-suite_07_version_list.png`,
+        caption: 'Version 리스트 — Product 하위 릴리즈 버전을 관리한다. 각 버전마다 Phase를 구성해 실행 단계를 분리한다.',
+      },
+      {
+        src: `${IMG}/test-suite_08_version_stats.png`,
+        caption: 'Version 통계 — PASS/FAIL/BLOCKED/SKIP 결과 집계. daily_test_snapshot 테이블로 일별 추이까지 누적한다.',
+      },
+      {
+        src: `${IMG}/test-suite_09_phase_create.png`,
+        caption: 'Version Phase 등록 — 실행할 Test Run을 선택하고 order를 지정. order Unique 제약을 제거해 자유 정렬을 허용한다.',
+      },
+      {
+        src: `${IMG}/test-suite_10_phase_run.png`,
+        caption: 'Phase 실행 화면 — TC별로 PASS/FAIL/BLOCKED/SKIP을 기록하고 코멘트 스레드를 남긴다.',
+      },
+      {
+        src: `${IMG}/test-suite_11_fail_ticket_new.png`,
+        caption: 'FAIL 기록 → 티켓 생성 플로우 — 실패 사유를 작성하면 Jira 이슈 자동 생성 트리거가 활성화된다.',
+      },
+      {
+        src: `${IMG}/test-suite_12_fail_ticket_link.png`,
+        caption: '기존 Jira 티켓과 연결 옵션 — 중복 이슈 방지를 위해 기존 티켓 검색 후 연결 가능.',
+      },
+      {
+        src: `${IMG}/test-suite_13_fail_ticket_linked.png`,
+        caption: '연동된 Jira 티켓 페이지 — 생성된 티켓이 TC 결과에 연결되어 추적된다. Jira AT 프로젝트, 이슈타입 id 10042(버그).',
+      },
+      {
+        src: `${IMG}/test-suite_14_highest_fail.png`,
+        caption: 'Highest Priority TC 실패는 배포 블로커 — 별도 배지로 강조하여 Release Readiness 판단 시 즉시 식별 가능.',
+      },
+      {
+        src: `${IMG}/test-suite_15_release_nogo.png`,
+        caption: 'Release Readiness 대시보드 — Aging Bug + Blocked TC + Highest 실패가 남아있으면 No-Go. 배포 판단을 정량 근거 위에서 내릴 수 있다.',
+      },
     ],
     testing: [
       { label: 'Service Unit', count: 25, detail: 'Company/Product/Segment/TestCase 서비스' },
@@ -314,10 +363,80 @@ export const featureDetails: Record<string, FeatureDetail> = {
     ],
   },
 
+  'test-studio': {
+    slug: 'test-studio',
+    name: 'Test Studio',
+    tagline: '문서 → Claude RAG → DRAFT TestCase 자동 생성 — QA의 반복 작성 노동을 제거',
+    description: [
+      'Markdown / PDF 스펙 문서를 투입하면 Knowledge Base + Words Convention + 기존 TestCase를 RAG 컨텍스트로 참조하여 DRAFT TestCase를 자동 생성한다.',
+      '비동기 Job 파이프라인으로 진행 상태를 추적하고, 생성된 DRAFT는 QA가 검토 후 ACTIVE 상태로 전환한다.',
+      'Claude가 추천한 Segment Path는 별도 컬럼에 보관 — 자동 주입하지 않고 사용자가 명시적으로 적용한다.',
+    ],
+    about: {
+      why: [
+        '매 릴리즈마다 QA는 디자인/스펙 문서를 읽고 TestCase를 수동 작성 — 수 시간~수 일 소요되는 반복 노동.',
+        '팀의 Words Convention, KB, 기존 TC 패턴을 매번 참고하기 어려워 일관성이 깨진다.',
+        '신입 QA는 컨벤션을 익히는 데만 수 주 — AI가 팀 자산을 자동 반영해주면 학습 비용이 낮아진다.',
+      ],
+      what: [
+        '문서 투입 → Claude RAG(KB + Convention + 기존 TC) → DRAFT TC 자동 생성 파이프라인.',
+        '비동기 Job(PENDING / PROCESSING / DONE / FAILED) 상태를 UI에서 실시간 추적.',
+        'Claude가 추천한 Segment Path를 DB에 보관하되 자동 주입은 하지 않음 — 1클릭 적용 / 다중 선택 일괄 적용 / DnD 수동 지정 UX 제공.',
+      ],
+      benefit: [
+        '문서 해석 → TC 초안 작성 시간을 수 시간 → 수 분 단위로 단축.',
+        '팀 KB·컨벤션·기존 TC 패턴이 생성 결과에 일관되게 반영되어 리뷰 부담이 감소.',
+        'QA는 반복적 초안 작성 대신 검토·검증에 집중할 수 있다.',
+      ],
+    },
+    techStack: ['Spring AI', 'Claude API', 'RAG Context Builder', '@Async Worker', 'Virtual Threads', 'Zustand'],
+    architecture: [
+      '문서 투입(Markdown 텍스트 또는 PDF 파일) → PENDING Job 생성, jobId 즉시 반환',
+      '@Async Worker: RAG 컨텍스트 빌더가 KB + Convention + Product 기존 TC를 수집',
+      'Claude API에 System Prompt(컨텍스트) + 문서 전달 → DRAFT TC JSON 배열 응답',
+      'TC 엔티티 저장 시 path는 []로 두고, suggestedSegmentPath(List<String>)를 별도 컬럼에 보관',
+      'Company 레벨 대시보드에서 Path 미배정 / 배정완료 2섹션으로 분리 표시',
+      'Segment Tree에 DnD 또는 1클릭 추천 적용으로 이름 기반 최장 접두사 매칭 → 실제 path(bigint[])로 변환',
+    ],
+    screenshots: [
+      {
+        src: `${IMG}/test-studio_01_dashboard.png`,
+        caption: 'Test Studio 홈 — Company 레벨 DRAFT TC 대시보드. Path 미배정 / 배정완료 2섹션 분리로 후속 작업이 필요한 TC를 즉시 식별할 수 있다.',
+      },
+      {
+        src: `${IMG}/test-studio_02_doc_upload.png`,
+        caption: '스펙 문서 투입 — Markdown 텍스트 또는 PDF 파일. 선택한 Product의 기존 TC 패턴과 팀 KB / Convention이 RAG 컨텍스트로 자동 주입된다.',
+      },
+      {
+        src: `${IMG}/test-studio_03_processing.png`,
+        caption: 'Job 실시간 추적 — PENDING → PROCESSING → DONE 상태를 3초 polling으로 반영. 실패 시 FAILED + error 메시지가 UI에 노출된다.',
+      },
+      {
+        src: `${IMG}/test-studio_04_complete.png`,
+        caption: '생성 완료 — Claude가 만든 DRAFT TC 목록. 각 TC에 Claude가 추정한 suggestedSegmentPath가 "🤖 추천" 배지와 함께 표시된다.',
+      },
+      {
+        src: `${IMG}/test-studio_05_path_assign.png`,
+        caption: 'Path 적용 UX — 단건 "추천 적용" 버튼, 다중 체크 후 일괄 적용, Segment Tree로 DnD 수동 지정. 서버가 이름 기반 최장 접두사 매칭으로 실제 path(bigint[])로 변환한다.',
+      },
+    ],
+    testing: [
+      { label: 'Service Unit', count: 18, detail: 'Job / RAG Context / Path 매칭' },
+      { label: 'Controller Unit', count: 9, detail: 'REST + 업로드 + Path 적용' },
+      { label: 'Integration', count: 4, detail: 'Job 파이프라인 + RAG 컨텍스트' },
+      { label: 'E2E (Playwright)', count: 11, detail: '문서 투입 → Job → DRAFT → Path 적용' },
+    ],
+    versions: [
+      { version: 'v1', date: '2026-04-19', type: '기능 추가', title: '문서 기반 AI TestCase 자동 생성', highlights: ['Markdown / PDF 투입 → Claude DRAFT 생성', 'RAG 컨텍스트 빌더 (KB + Convention + 기존 TC)', '비동기 Job 상태 추적'] },
+      { version: 'v1.1', date: '2026-04-20', type: '기능 개선', title: 'Test Studio UI 다듬기', highlights: ['Job 상태 뱃지 개선', '실패 시 error 메시지 노출'] },
+      { version: 'v2', date: '2026-04-20', type: '기능 개선', title: 'Header 승격 + Path 추천 보관 + 수동 적용 UX', highlights: ['Test Studio를 Header 최상위 메뉴로 승격', 'suggestedSegmentPath DB 영속화', '추천 1클릭 / 일괄 적용 / DnD 수동 지정'] },
+    ],
+  },
+
   qa: {
     slug: 'qa',
     name: 'QA Strategy',
-    tagline: '테스트 전략 & 자동화 파이프라인',
+    tagline: '328개 자동화 테스트 · JaCoCo 70% 강제 · Testcontainers pgvector 통합',
     description: [
       'Backend Unit(JUnit 5 + Mockito), Frontend Unit(Vitest), Integration(Testcontainers), E2E(Playwright) 4계층 테스트 피라미드를 구축했다.',
       '모든 PR은 CI에서 자동 테스트를 통과해야 머지되며, JaCoCo 70% 커버리지를 강제한다.',
@@ -334,7 +453,7 @@ export const featureDetails: Record<string, FeatureDetail> = {
         'E2E(Playwright): Docker Compose 풀스택 환경에서 API 65 + UI 33 = 98개 시나리오를 검증한다.',
       ],
       benefit: [
-        '310개 자동화 테스트로 회귀 버그를 빠르게 발견한다.',
+        '328개 자동화 테스트로 회귀 버그를 빠르게 발견한다.',
         'Testcontainers로 실제 DB 환경을 테스트하여 "로컬에서는 되는데 서버에서 안 돼요"를 방지한다.',
         '4-Agent Pipeline(코드→Unit→E2E→빌드)으로 구현부터 검증까지 자동화했다.',
       ],
@@ -348,8 +467,7 @@ export const featureDetails: Record<string, FeatureDetail> = {
       'CI Pipeline: backend-ci(JaCoCo 70%) + frontend-ci(lint 0 warnings) + e2e(전체 실행)',
       '4-Agent Pipeline: 코드 구현(A) → Unit Test(B) → E2E Test(C) → 빌드/검증(D)',
     ],
-    apis: [],
-    schema: [],
+    screenshots: [],
     testing: [
       { label: 'Backend Unit', count: 179, detail: 'JUnit 5 + Mockito (Service + Controller 전 도메인)' },
       { label: 'Frontend Unit', count: 33, detail: 'Vitest + React Testing Library (Hook + 컴포넌트)' },

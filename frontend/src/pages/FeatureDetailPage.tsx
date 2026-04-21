@@ -46,12 +46,30 @@ export default function FeatureDetailPage() {
           <AboutCard title="어떤 기능인가" items={feature.about.what} color="emerald" />
           <AboutCard title="QA에게 좋은 점" items={feature.about.benefit} color="violet" />
         </div>
-        {feature.about.screenshot && (
-          <div className="mt-8 border border-gray-200 rounded-2xl overflow-hidden">
-            <img src={feature.about.screenshot} alt={`${feature.name} screenshot`} className="w-full" />
-          </div>
-        )}
       </section>
+
+      {/* Screenshots */}
+      {feature.screenshots.length > 0 && (
+        <section className="mb-16">
+          <SectionHeader title="Screenshots" count={feature.screenshots.length} label="screens" />
+          <div className="space-y-8">
+            {feature.screenshots.map((s, i) => (
+              <figure key={i} className="border border-gray-200 rounded-2xl overflow-hidden bg-white">
+                <img
+                  src={s.src}
+                  alt={s.caption}
+                  loading="lazy"
+                  className="w-full block"
+                />
+                <figcaption className="px-6 py-4 text-sm text-gray-600 bg-gray-50 border-t border-gray-200 leading-relaxed">
+                  <span className="font-mono text-xs text-indigo-600 mr-2">#{String(i + 1).padStart(2, '0')}</span>
+                  {s.caption}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Architecture */}
       {feature.architecture.length > 0 && (
@@ -67,55 +85,6 @@ export default function FeatureDetailPage() {
               </li>
             ))}
           </ol>
-        </section>
-      )}
-
-      {/* API Endpoints */}
-      {feature.apis.length > 0 && (
-        <section className="mb-16">
-          <SectionHeader title="API Endpoints" />
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 text-left">
-                  <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">Method</th>
-                  <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Endpoint</th>
-                  <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {feature.apis.map((api, i) => (
-                  <tr key={i}>
-                    <td className="px-5 py-3">
-                      <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${methodColor(api.method)}`}>
-                        {api.method}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 font-mono text-sm text-gray-700">{api.path}</td>
-                    <td className="px-5 py-3 text-sm text-gray-500">{api.desc}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {/* Database Schema */}
-      {feature.schema.length > 0 && (
-        <section className="mb-16">
-          <SectionHeader title="Database Schema" />
-          <div className="space-y-4">
-            {feature.schema.map((s, i) => (
-              <div key={i} className="border border-gray-200 rounded-xl px-6 py-5">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="font-mono text-sm font-bold text-indigo-600">{s.table}</span>
-                  <span className="text-sm text-gray-500">{s.desc}</span>
-                </div>
-                <p className="font-mono text-xs text-gray-400 leading-relaxed">{s.key}</p>
-              </div>
-            ))}
-          </div>
         </section>
       )}
 
@@ -173,17 +142,6 @@ function SectionHeader({ title, count, label }: { title: string; count?: number;
       <div className="flex-1 h-px bg-indigo-200" />
     </div>
   )
-}
-
-function methodColor(method: string): string {
-  switch (method) {
-    case 'GET': return 'text-emerald-700 bg-emerald-50'
-    case 'POST': return 'text-blue-700 bg-blue-50'
-    case 'PUT': return 'text-amber-700 bg-amber-50'
-    case 'PATCH': return 'text-orange-700 bg-orange-50'
-    case 'DELETE': return 'text-red-700 bg-red-50'
-    default: return 'text-gray-700 bg-gray-50'
-  }
 }
 
 function typeColor(type: string): string {

@@ -25,16 +25,16 @@ test.describe('Resume Page UI E2E', () => {
   test('should switch tabs between 경력기술서 and 자기소개서', async ({ page }) => {
     await page.goto('/resume');
 
-    // Default: 경력기술서
-    await expect(page.getByText('QA Experience')).toBeVisible();
-
-    // Switch to 자기소개서
-    await page.getByRole('button', { name: '자기소개서' }).click();
+    // Default: 자기소개서
     await expect(page.getByText('Introduce')).toBeVisible();
 
-    // Switch back
+    // Switch to 경력기술서
     await page.getByRole('button', { name: '경력기술서' }).click();
     await expect(page.getByText('QA Experience')).toBeVisible();
+
+    // Switch back
+    await page.getByRole('button', { name: '자기소개서' }).click();
+    await expect(page.getByText('Introduce')).toBeVisible();
   });
 
   test('should redirect to /login when accessing /resume without auth', async ({ page }) => {

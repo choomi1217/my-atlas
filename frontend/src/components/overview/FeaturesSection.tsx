@@ -21,9 +21,15 @@ const features = [
   },
   {
     name: 'Product Test Suite',
-    lines: ['Company > Product > TestCase 3단계 드릴다운.', 'Segment 트리, Test Run, Version 관리.'],
+    lines: ['Company > Product > TestCase 3단계 드릴다운.', 'Segment 트리, Version/Phase, Jira 자동 연동.'],
     slug: 'test-suite',
-    tags: ['DnD', 'Tree', 'Drill-down'],
+    tags: ['DnD', 'Adjacency List', 'JSONB', 'Jira API'],
+  },
+  {
+    name: 'Test Studio',
+    lines: ['문서 → Claude RAG → DRAFT TestCase 자동 생성.', 'Segment Path 추천 + 1클릭 적용 UX.'],
+    slug: 'test-studio',
+    tags: ['Claude API', 'RAG', '@Async Worker'],
   },
   {
     name: 'QA Strategy',
