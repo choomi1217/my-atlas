@@ -1,11 +1,13 @@
 package com.myqaweb.senior;
 
 import com.myqaweb.common.EmbeddingService;
+import com.myqaweb.common.SlackNotificationService;
 import com.myqaweb.knowledgebase.KnowledgeBaseDto;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
 import com.myqaweb.knowledgebase.KnowledgeBaseService;
 import com.myqaweb.monitoring.AiUsageLogService;
+import com.myqaweb.settings.SettingsService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -54,14 +56,25 @@ class SeniorServiceImplTest {
     @Mock
     private AiUsageLogService aiUsageLogService;
 
+    @Mock
+    private SettingsService settingsService;
+
+    @Mock
+    private SlackNotificationService slackNotificationService;
+
     @InjectMocks
     private SeniorServiceImpl seniorService;
 
     private final LocalDateTime now = LocalDateTime.now();
 
-    // --- Helper: set up ChatClient mock chain (chatResponse streaming) ---
+    // --- Helpers ---
+
+    private void setupSettingsMock() {
+        lenient().when(settingsService.isAiEnabled()).thenReturn(true);
+    }
 
     private void setupChatClientMock() {
+        setupSettingsMock();
         ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
         ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
 
@@ -95,6 +108,7 @@ class SeniorServiceImplTest {
     ) {}
 
     private ChatClientMocks setupChatClientWithCaptor() {
+        setupSettingsMock();
         ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
         ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
 

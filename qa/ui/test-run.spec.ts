@@ -10,7 +10,7 @@ import {
 import axios from 'axios';
 
 const API_BASE_URL = process.env.API_URL || 'http://localhost:8080';
-const FRONTEND_URL = 'http://localhost:5173';
+const FRONTEND_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 interface ApiResponse<T> {
   success: boolean;

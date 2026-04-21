@@ -1,6 +1,7 @@
 package com.myqaweb.common;
 
 import com.myqaweb.monitoring.AiUsageLogService;
+import com.myqaweb.settings.SettingsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,11 +30,18 @@ class EmbeddingServiceTest {
     @Mock
     private AiUsageLogService aiUsageLogService;
 
+    @Mock
+    private SettingsService settingsService;
+
+    @Mock
+    private SlackNotificationService slackNotificationService;
+
     private EmbeddingService embeddingService;
 
     @BeforeEach
     void setUp() {
-        embeddingService = new EmbeddingService(Optional.of(embeddingModel), aiUsageLogService);
+        lenient().when(settingsService.isAiEnabled()).thenReturn(true);
+        embeddingService = new EmbeddingService(Optional.of(embeddingModel), aiUsageLogService, settingsService, slackNotificationService);
     }
 
     // --- embed ---

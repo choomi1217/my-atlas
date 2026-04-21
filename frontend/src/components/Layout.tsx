@@ -69,6 +69,20 @@ export default function Layout({ children }: LayoutProps) {
           {/* User */}
           {user && (
             <div className="flex items-center gap-3 shrink-0">
+              {user.role === 'ADMIN' && (
+                <NavLink
+                  to="/settings"
+                  className={({ isActive }) =>
+                    `px-2 py-1 rounded-md text-sm transition-colors ${
+                      isActive
+                        ? 'text-indigo-600 font-semibold bg-indigo-50'
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`
+                  }
+                >
+                  Settings
+                </NavLink>
+              )}
               <span className="text-sm text-gray-500">{user.username}</span>
               <button
                 onClick={handleLogout}

@@ -23,8 +23,7 @@ test.describe('Company List Page', () => {
     const companyName = 'E2E Test Company';
     await featuresPage.addCompany(companyName);
 
-    const companyExists = await page.getByText(companyName).isVisible();
-    expect(companyExists).toBe(true);
+    await expect(page.getByText(companyName)).toBeVisible();
   });
 
   test('should activate company and show Active badge', async ({ page }) => {
@@ -38,8 +37,7 @@ test.describe('Company List Page', () => {
     await card.getByRole('button', { name: /Activate/i }).click();
     await activatePromise;
 
-    const activeBadge = await page.getByText('Active', { exact: true }).isVisible();
-    expect(activeBadge).toBe(true);
+    await expect(page.getByText('Active', { exact: true })).toBeVisible();
   });
 
   test('should delete company via confirm dialog', async ({ page }) => {

@@ -28,6 +28,7 @@ public class AuthDto {
     public record AuthResponse(
             String token,
             String username,
-            Role role
+            Role role,
+            long sessionTimeoutSeconds
     ) {}
 }

@@ -1,20 +1,26 @@
 package com.myqaweb.senior;
 
 import com.myqaweb.common.EmbeddingService;
+import com.myqaweb.common.SlackNotificationService;
 import com.myqaweb.knowledgebase.KnowledgeBaseDto;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
 import com.myqaweb.knowledgebase.KnowledgeBaseService;
 import com.myqaweb.monitoring.AiFeature;
 import com.myqaweb.monitoring.AiUsageLogService;
+import com.myqaweb.settings.SettingsService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
@@ -44,12 +50,19 @@ public class SeniorServiceImpl implements SeniorService {
     private final KnowledgeBaseService knowledgeBaseService;
     private final ChatSessionService chatSessionService;
     private final AiUsageLogService aiUsageLogService;
+    private final SettingsService settingsService;
+    private final SlackNotificationService slackNotificationService;
 
     @Override
     public SseEmitter chat(ChatDto.ChatRequest request) {
+        if (!settingsService.isAiEnabled()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI features are currently disabled");
+        }
+
         SseEmitter emitter = new SseEmitter(120_000L);
 
         String userMessage = request.message();
+        String currentUsername = getCurrentUsername();
 
         // Build RAG context with optional FAQ context
         String systemPrompt = buildRagContext(userMessage, request.faqContext());
@@ -108,6 +121,10 @@ public class SeniorServiceImpl implements SeniorService {
                         aiUsageLogService.logUsage(AiFeature.SENIOR_CHAT, PROVIDER, MODEL,
                                 estimatedInput, estimatedOutput, durationMs, true, null);
                     }
+
+                    // Slack notification
+                    int estimatedTokens = (userMessage.length() + fullResponse.length()) / 4;
+                    slackNotificationService.notifyAiUsage(currentUsername, "Senior Chat", estimatedTokens);
 
                     // Save messages to DB after streaming completes
                     try {
@@ -192,6 +209,11 @@ public class SeniorServiceImpl implements SeniorService {
         } catch (Exception e) {
             log.warn("Failed to retrieve KB context via embedding search", e);
         }
+    }
+
+    private String getCurrentUsername() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : "unknown";
     }
 
     private void incrementHitCounts(List<KnowledgeBaseEntity> kbEntries) {

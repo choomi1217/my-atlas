@@ -1,5 +1,6 @@
 package com.myqaweb.auth;
 
+import com.myqaweb.settings.SettingsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,6 +14,7 @@ public class AuthServiceImpl implements AuthService {
     private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final SettingsService settingsService;
 
     @Override
     public AuthDto.AuthResponse login(AuthDto.LoginRequest request) {
@@ -24,8 +26,9 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String token = jwtProvider.generateToken(user.getUsername(), user.getRole());
+        long sessionTimeout = settingsService.getSessionTimeoutSeconds();
         log.info("User logged in: {}", user.getUsername());
-        return new AuthDto.AuthResponse(token, user.getUsername(), user.getRole());
+        return new AuthDto.AuthResponse(token, user.getUsername(), user.getRole(), sessionTimeout);
     }
 
     @Override
@@ -43,7 +46,8 @@ public class AuthServiceImpl implements AuthService {
 
         AppUserEntity saved = appUserRepository.save(entity);
         String token = jwtProvider.generateToken(saved.getUsername(), saved.getRole());
+        long sessionTimeout = settingsService.getSessionTimeoutSeconds();
         log.info("User registered: {} with role {}", saved.getUsername(), saved.getRole());
-        return new AuthDto.AuthResponse(token, saved.getUsername(), saved.getRole());
+        return new AuthDto.AuthResponse(token, saved.getUsername(), saved.getRole(), sessionTimeout);
     }
 }

@@ -34,7 +34,7 @@ class AuthControllerTest {
     @Test
     void login_success_returns200() throws Exception {
         // Arrange
-        AuthDto.AuthResponse authResponse = new AuthDto.AuthResponse("jwt-token-abc", "admin", Role.ADMIN);
+        AuthDto.AuthResponse authResponse = new AuthDto.AuthResponse("jwt-token-abc", "admin", Role.ADMIN, 3600);
         when(authService.login(any(AuthDto.LoginRequest.class))).thenReturn(authResponse);
 
         // Act & Assert
@@ -103,7 +103,7 @@ class AuthControllerTest {
     @Test
     void register_success_returns201() throws Exception {
         // Arrange
-        AuthDto.AuthResponse authResponse = new AuthDto.AuthResponse("jwt-token-new", "newuser", Role.USER);
+        AuthDto.AuthResponse authResponse = new AuthDto.AuthResponse("jwt-token-new", "newuser", Role.USER, 3600);
         when(authService.register(any(AuthDto.RegisterRequest.class))).thenReturn(authResponse);
 
         // Act & Assert
