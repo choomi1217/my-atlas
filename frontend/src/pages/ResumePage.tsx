@@ -6,7 +6,7 @@ import IntroTab from '@/components/resume/IntroTab'
 type Tab = 'work-exp' | 'intro'
 
 export default function ResumePage() {
-  const [activeTab, setActiveTab] = useState<Tab>('work-exp')
+  const [activeTab, setActiveTab] = useState<Tab>('intro')
 
   const navigateToWorkExp = useCallback((anchorId: string) => {
     setActiveTab('work-exp')

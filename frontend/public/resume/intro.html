@@ -23,12 +23,13 @@
     .page { max-width: 900px; margin: 0 auto; padding: 4rem 2rem 6rem; }
 
     /* ── HEADER ── */
-    .header { margin-bottom: 0; padding-bottom: 2.5rem; border-bottom: 2px solid var(--accent); }
+    .header { margin-bottom: 0; padding-bottom: 2.5rem; }
     .name { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 14px; }
     .header-row { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1.5rem; }
     .role-badge { display: inline-block; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-light); padding: 6px 18px; border-radius: 999px; margin-bottom: 10px; }
     .header-meta { display: flex; gap: 20px; flex-wrap: wrap; }
-    .header-meta span { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--text3); }
+    .header-meta a { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--text3); text-decoration: none; }
+    .header-meta a:hover { color: var(--accent); }
     .career-box { text-align: right; }
     .career-num { font-family: 'DM Mono', monospace; font-size: 32px; font-weight: 500; line-height: 1; }
     .career-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
@@ -41,6 +42,8 @@
     .tab:hover { color: var(--text2); background: var(--surface2); }
     .tab.active { color: var(--accent); background: var(--bg); border-bottom-color: transparent; font-weight: 700; position: relative; }
     .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--accent); }
+    .pdf-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-light); padding: 8px 16px; border-radius: 6px; text-decoration: none; transition: background 0.2s; }
+    .pdf-btn:hover { background: #e4d9ff; }
 
     /* ── SECTION ── */
     .section { margin-bottom: 3rem; }
@@ -51,16 +54,52 @@
     /* ── CONTENT CARD ── */
     .intro-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px 28px; margin-bottom: 20px; }
     .intro-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; letter-spacing: -0.01em; }
-    .intro-card p { font-size: 15px; color: var(--text2); line-height: 1.85; margin-bottom: 12px; }
+    .intro-card p { font-size: 14px; color: var(--text2); line-height: 1.75; margin-bottom: 12px; }
     .intro-card p:last-child { margin-bottom: 0; }
 
-    .footer { text-align: center; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); letter-spacing: 0.04em; }
+    /* ── TIMELINE ── */
+    .timeline-legend { display: flex; gap: 20px; margin-bottom: 14px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text3); }
+    .legend-bar { width: 18px; height: 9px; border-radius: 2px; border: 1px solid; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; border: 1px solid; }
+    .legend-edu { background: #ddd6fe; border-color: #c4b5fd; }
+    .legend-work { background: #8b5cf6; border-color: #7c3aed; }
+    .legend-cert { background: #d1d5db; border-color: #9ca3af; }
+
+    .timeline-chart { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .timeline-years { position: relative; height: 18px; margin-bottom: 6px; }
+    .timeline-years span { position: absolute; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); transform: translateX(-50%); }
+    .timeline-rows { position: relative; }
+    .timeline-grid { position: absolute; inset: 0; pointer-events: none; }
+    .timeline-grid i { position: absolute; top: 0; bottom: 0; width: 1px; background: #ede9fe; }
+    .tl-row { position: relative; height: 26px; }
+    .tl-bar { position: absolute; top: 8px; height: 11px; border-radius: 3px; border: 1px solid; z-index: 2; }
+    .tl-dot { position: absolute; top: 9px; width: 10px; height: 10px; border-radius: 50%; border: 1px solid; transform: translateX(-50%); z-index: 2; }
+    .tl-edu { background: #ddd6fe; border-color: #c4b5fd; }
+    .tl-work { background: #8b5cf6; border-color: #7c3aed; }
+    .tl-cert { background: #d1d5db; border-color: #9ca3af; }
+    .tl-label { position: absolute; top: 7px; font-size: 10px; color: var(--text2); white-space: nowrap; z-index: 3; }
+
+    .footer { display: flex; align-items: center; justify-content: center; gap: 24px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); letter-spacing: 0.04em; }
 
     @media (max-width: 680px) {
       .page { padding: 2.5rem 1.25rem 4rem; }
       .header-row { flex-direction: column; align-items: flex-start; }
       .career-box { text-align: left; }
       .name { font-size: 28px; }
+    }
+
+    /* ── PRINT ── */
+    @media print {
+      @page { size: A4; margin: 14mm 12mm; }
+      body { font-size: 11pt; background: white; }
+      .page { padding: 0; max-width: none; }
+      .tab-bar { display: none; }
+      .pdf-btn { display: none; }
+      .intro-card,
+      .section { break-inside: avoid; page-break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+      .footer { break-before: avoid; }
     }
   </style>
 </head>
@@ -74,7 +113,7 @@
       <div>
         <div class="role-badge">QA Engineer</div>
         <div class="header-meta">
-          <span>choomi1217@gmail.com</span>
+          <a href="mailto:choomi1217@gmail.com">choomi1217@gmail.com</a>
         </div>
       </div>
       <div class="career-box">
@@ -87,38 +126,92 @@
   <!-- TABS -->
   <div class="tab-bar">
     <a class="tab active" href="intro.html">자기소개서</a>
-    <a class="tab" href="./">경력기술서</a>
+    <a class="tab" href="index.html">경력기술서</a>
   </div>
 
   <!-- 자기소개서 본문 -->
   <div class="section">
     <div class="section-header">
-      <span class="section-title">About Me</span>
+      <span class="section-title">Introduce</span>
       <div class="section-line"></div>
     </div>
 
     <div class="intro-card">
-      <h3>지원 동기</h3>
-      <p><!-- 내용을 채워주세요 --></p>
-    </div>
-
-    <div class="intro-card">
-      <h3>QA로의 전환</h3>
-      <p><!-- 내용을 채워주세요 --></p>
-    </div>
-
-    <div class="intro-card">
-      <h3>강점</h3>
-      <p><!-- 내용을 채워주세요 --></p>
-    </div>
-
-    <div class="intro-card">
-      <h3>앞으로의 방향</h3>
-      <p><!-- 내용을 채워주세요 --></p>
+      <h3>안녕하세요. 조영미 입니다.</h3>
+      <p>3년간 백엔드 개발을 하며 테스트 코드의 가치를 직접 체감하고,<br />QA로 전향한 엔지니어입니다.</p>
+      <p>Playwright E2E, QA에 AI 기술 적용 등 1년의 QA 경력이 있고,<br />발전하기 위해 노력하고 있습니다.</p>
+      <p>my-atlas 프로젝트에서는 Spring Boot + React + Playwright + OpenAI + Claude 기반의<br />QA 시스템을 직접 설계, 개발, 테스트하고 있습니다.</p>
+      <p>매일 조금씩 발전하고,<br />품질을 높이는 일을 좋아합니다.</p>
     </div>
   </div>
 
-  <div class="footer">choomi1217@gmail.com</div>
+  <!-- Timeline -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Timeline</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="timeline-legend">
+      <span class="legend-item"><span class="legend-bar legend-edu"></span>Education</span>
+      <span class="legend-item"><span class="legend-bar legend-work"></span>Work</span>
+      <span class="legend-item"><span class="legend-dot legend-cert"></span>Certification</span>
+    </div>
+
+    <div class="timeline-chart">
+      <div class="timeline-years">
+        <span style="left: 0%">2017</span>
+        <span style="left: 10%">2018</span>
+        <span style="left: 20%">2019</span>
+        <span style="left: 30%">2020</span>
+        <span style="left: 40%">2021</span>
+        <span style="left: 50%">2022</span>
+        <span style="left: 60%">2023</span>
+        <span style="left: 70%">2024</span>
+        <span style="left: 80%">2025</span>
+        <span style="left: 90%">2026</span>
+        <span style="left: 100%">2027</span>
+      </div>
+
+      <div class="timeline-rows">
+        <div class="timeline-grid">
+          <i style="left: 0%"></i><i style="left: 10%"></i><i style="left: 20%"></i><i style="left: 30%"></i><i style="left: 40%"></i><i style="left: 50%"></i><i style="left: 60%"></i><i style="left: 70%"></i><i style="left: 80%"></i><i style="left: 90%"></i><i style="left: 100%"></i>
+        </div>
+
+        <div class="tl-row"><div class="tl-bar tl-edu" style="left: 1.67%; width: 40%"></div><span class="tl-label" style="left: 42.47%">대전보건대학교 컴퓨터정보과</span></div>
+        <div class="tl-row"><div class="tl-bar tl-edu" style="left: 27.5%; width: 1.67%"></div><span class="tl-label" style="left: 30.1%">빅데이터 분석가 양성과정</span></div>
+        <div class="tl-row"><div class="tl-dot tl-edu" style="left: 30.83%"></div><span class="tl-label" style="left: 32.3%">DBian SQL 튜닝</span></div>
+        <div class="tl-row"><div class="tl-bar tl-work" style="left: 40%; width: 22.5%"></div><span class="tl-label" style="left: 63.3%">도로명주소단</span></div>
+        <div class="tl-row"><div class="tl-dot tl-cert" style="left: 49.17%"></div><span class="tl-label" style="left: 50.7%">정보처리기사</span></div>
+        <div class="tl-row"><div class="tl-dot tl-cert" style="left: 50%"></div><span class="tl-label" style="left: 51.5%">SQLD</span></div>
+        <div class="tl-row"><div class="tl-dot tl-edu" style="left: 64.17%"></div><span class="tl-label" style="left: 65.7%">AWS Terraform</span></div>
+        <div class="tl-row"><div class="tl-bar tl-edu" style="left: 68.33%; width: 1.67%"></div><span class="tl-label" style="left: 70.8%">TDD Clean Code Java</span></div>
+        <div class="tl-row"><div class="tl-bar tl-work" style="left: 70.83%; width: 7.5%"></div><span class="tl-label" style="left: 79.1%">NFLUX</span></div>
+        <div class="tl-row"><div class="tl-bar tl-work" style="left: 82.5%; width: 10%"></div><span class="tl-label" style="left: 70%">Studio XID Korea</span></div>
+        <div class="tl-row"><div class="tl-bar tl-work" style="left: 81.67%; width: 2.5%"></div><span class="tl-label" style="left: 73%">my-atlas</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Contact</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="intro-card">
+      <p><strong>Phone</strong> &nbsp; 010-4449-6558</p>
+      <p><strong>Email</strong> &nbsp; <a href="mailto:whdudal1217@naver.com">whdudal1217@naver.com</a></p>
+      <p><strong>Blog</strong> &nbsp; <a href="https://choomi1217.github.io/">choomi1217.github.io</a></p>
+      <p><strong>GitHub</strong> &nbsp; <a href="https://github.com/choomi1217">github.com/choomi1217</a></p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a class="pdf-btn" href="조영미_자소서.pdf" download>⬇ PDF 다운로드</a>
+    <span>choomi1217@gmail.com</span>
+  </div>
 </div>
 </body>
 </html>
