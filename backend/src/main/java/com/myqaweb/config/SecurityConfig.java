@@ -1,12 +1,14 @@
 package com.myqaweb.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myqaweb.auth.JwtAuthenticationFilter;
 import com.myqaweb.auth.JwtProvider;
 import com.myqaweb.monitoring.ApiAccessLogFilter;
 import com.myqaweb.monitoring.ApiAccessLogRepository;
+import com.myqaweb.settings.SettingsService;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -30,15 +32,32 @@ public class SecurityConfig {
     }
 
     @Bean
+    public DynamicPublicAccessFilter dynamicPublicAccessFilter(SettingsService settingsService) {
+        return new DynamicPublicAccessFilter(settingsService);
+    }
+
+    @Bean
+    public AiRateLimitFilter aiRateLimitFilter(SettingsService settingsService, ObjectMapper objectMapper) {
+        return new AiRateLimitFilter(settingsService, objectMapper);
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            JwtAuthenticationFilter jwtAuthenticationFilter,
-                                           ApiAccessLogFilter apiAccessLogFilter) throws Exception {
+                                           ApiAccessLogFilter apiAccessLogFilter,
+                                           DynamicPublicAccessFilter dynamicPublicAccessFilter,
+                                           AiRateLimitFilter aiRateLimitFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // SSE/async 재dispatch는 원본 요청이 이미 인가를 통과했으므로 통과
+                        // (그렇지 않으면 Senior Chat SSE 완료 시 AccessDeniedException 스택 트레이스가 반복 로깅됨)
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR, DispatcherType.FORWARD, DispatcherType.INCLUDE).permitAll()
                         // 로그인은 누구나 접근 가능
                         .requestMatchers("/api/auth/login").permitAll()
+                        // 공개 설정 조회 (loginRequired 플래그만)
+                        .requestMatchers("/api/settings/public").permitAll()
                         // Actuator 헬스체크
                         .requestMatchers("/actuator/**").permitAll()
                         // 계정 생성은 ADMIN만
@@ -53,7 +72,9 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(apiAccessLogFilter, JwtAuthenticationFilter.class);
+                .addFilterAfter(dynamicPublicAccessFilter, JwtAuthenticationFilter.class)
+                .addFilterAfter(aiRateLimitFilter, DynamicPublicAccessFilter.class)
+                .addFilterAfter(apiAccessLogFilter, AiRateLimitFilter.class);
 
         return http.build();
     }

@@ -19,4 +19,10 @@ public interface SettingsService {
     boolean isAiEnabled();
 
     long getSessionTimeoutSeconds();
+
+    boolean isLoginRequired();
+
+    int getAiRateLimitPerIp();
+
+    int getAiRateLimitWindowSeconds();
 }

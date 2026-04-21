@@ -4,6 +4,7 @@ import { SystemSettings, UpdateSettingsRequest } from '@/types/settings'
 import UserManagementSection from '@/components/settings/UserManagementSection'
 import AiSettingsSection from '@/components/settings/AiSettingsSection'
 import SessionSettingsSection from '@/components/settings/SessionSettingsSection'
+import AccessControlSection from '@/components/settings/AccessControlSection'
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SystemSettings | null>(null)
@@ -47,6 +48,8 @@ export default function SettingsPage() {
       <AiSettingsSection settings={settings} onUpdate={handleUpdateSettings} />
 
       <SessionSettingsSection settings={settings} onUpdate={handleUpdateSettings} />
+
+      <AccessControlSection settings={settings} onUpdate={handleUpdateSettings} />
     </div>
   )
 }
