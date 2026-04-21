@@ -1,7 +1,7 @@
 package com.myqaweb.convention;
 
 import com.myqaweb.common.GlobalExceptionHandler;
-import com.myqaweb.common.S3ImageService;
+import com.myqaweb.common.ImageService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,7 +26,7 @@ class ConventionImageControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private S3ImageService s3ImageService;
+    private ImageService s3ImageService;
 
     @Test
     void upload_validImage_returns201() throws Exception {

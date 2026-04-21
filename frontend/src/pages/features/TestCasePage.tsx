@@ -20,6 +20,7 @@ import { SegmentTreeView } from '@/components/features/SegmentTreeView';
 import TestCaseFormModal from '@/components/features/TestCaseFormModal';
 import ConfirmDialog from '@/components/features/ConfirmDialog';
 import ImageRefText from '@/components/features/ImageRefText';
+import { TC_DND_MIME } from '@/utils/tcDnd';
 
 interface PathTreeNode {
   segmentIds: number[];
@@ -87,6 +88,11 @@ function PathTreeGroup({
             {node.testCases.map((tc) => (
               <div
                 key={tc.id}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(TC_DND_MIME, String(tc.id));
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
                 className={`group bg-white border rounded-lg shadow border-l-4 ${
                   tc.priority === 'HIGH'
                     ? 'border-l-red-400'
@@ -94,6 +100,8 @@ function PathTreeGroup({
                     ? 'border-l-yellow-400'
                     : 'border-l-gray-300'
                 }`}
+                data-testid="tc-card"
+                data-tc-id={tc.id}
               >
                 <div
                   onClick={() => {
@@ -254,6 +262,7 @@ export default function TestCasePage() {
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [modalEditData, setModalEditData] = useState<TestCase | null>(null);
+  const [modalEditPath, setModalEditPath] = useState<number[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
 
   useEffect(() => {
@@ -488,19 +497,38 @@ export default function TestCasePage() {
 
   const handleOpenAddModal = () => {
     setModalEditData(null);
+    setModalEditPath(selectedPath);
     setModalOpen(true);
   };
 
   const handleAddTestCaseFromTree = (path: number[]) => {
     setSelectedPath(path);
     setModalEditData(null);
+    setModalEditPath(path);
     setModalOpen(true);
   };
 
   const handleOpenEditModal = (tc: TestCase) => {
     setModalEditData(tc);
+    setModalEditPath(tc.path ?? []);
     setModalOpen(true);
   };
+
+  /** Handles TC Card drop on a Segment tree node — user-triggered Path reassignment. */
+  const handleTcDroppedOnSegment = useCallback(
+    async (testCaseId: number, path: number[]) => {
+      try {
+        const updated = await testCaseApi.updatePath(testCaseId, path);
+        setTestCases(
+          allTestCases.map((tc) => (tc.id === updated.id ? updated : tc))
+        );
+      } catch (err) {
+        console.error('Failed to update TC path via DnD:', err);
+        throw err;
+      }
+    },
+    [allTestCases]
+  );
 
   const handleModalSubmit = async (data: {
     title: string;
@@ -516,12 +544,12 @@ export default function TestCasePage() {
     if (!product) return;
 
     if (modalEditData) {
-      // Edit
+      // Edit — use the user-selected path from the modal picker.
       const updated = await testCaseApi.update(
         modalEditData.id,
         product.id,
         data.title,
-        modalEditData.path,
+        modalEditPath,
         data.description || undefined,
         data.promptText || undefined,
         data.priority,
@@ -533,11 +561,11 @@ export default function TestCasePage() {
       );
       setTestCases(allTestCases.map((tc) => (tc.id === modalEditData.id ? updated : tc)));
     } else {
-      // Create — return TC to keep modal open for image upload
+      // Create — path comes from the modal picker (defaults to selectedPath).
       const tc = await testCaseApi.create(
         product.id,
         data.title,
-        selectedPath,
+        modalEditPath,
         data.description || undefined,
         data.promptText || undefined,
         data.priority,
@@ -549,6 +577,7 @@ export default function TestCasePage() {
       );
       setTestCases([...allTestCases, tc]);
       setModalEditData(tc); // Switch modal to edit mode for image upload
+      setModalEditPath(tc.path ?? []);
       return tc;
     }
   };
@@ -609,13 +638,6 @@ export default function TestCasePage() {
                 </div>
               )}
             </div>
-            <Link
-              data-testid="test-studio-nav-link"
-              to={`/features/companies/${companyId}/products/${productId}/test-studio`}
-              className="flex-shrink-0 px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
-            >
-              Test Studio
-            </Link>
           </div>
 
           {/* Two-column layout: Path tree (left) + TestCase list (right) */}
@@ -634,6 +656,7 @@ export default function TestCasePage() {
                   onSegmentDeleted={handleSegmentDeleted}
                   onSegmentsUpdated={setSegments}
                   onAddTestCase={handleAddTestCaseFromTree}
+                  onTestCaseDroppedOnSegment={handleTcDroppedOnSegment}
                 />
               </div>
             </div>
@@ -690,7 +713,13 @@ export default function TestCasePage() {
                     {unassignedTestCases.map((tc) => (
                       <div
                         key={tc.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData(TC_DND_MIME, String(tc.id));
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
                         data-testid="unassigned-tc-card"
+                        data-tc-id={tc.id}
                         className={`group bg-white border rounded-lg shadow-sm border-l-4 ${
                           tc.priority === 'HIGH'
                             ? 'border-l-red-400'
@@ -770,7 +799,12 @@ export default function TestCasePage() {
         }}
         onSubmit={handleModalSubmit}
         initialData={modalEditData}
-        pathDisplay={resolvePathNames(modalEditData?.path || selectedPath)}
+        pathDisplay={resolvePathNames(modalEditPath)}
+        pathEdit={{
+          segments,
+          selectedPath: modalEditPath,
+          onChange: setModalEditPath,
+        }}
       />
 
       {/* Delete Confirm Dialog */}

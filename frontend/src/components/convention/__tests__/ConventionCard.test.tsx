@@ -65,7 +65,8 @@ describe('ConventionCard', () => {
     );
     // No img element should be present
     expect(screen.queryByAltText('QA')).not.toBeInTheDocument();
-    // SVG placeholder should be present (check for the SVG element)
+    // SVG placeholder and "No Image" text should be present
+    expect(screen.getByText('No Image')).toBeInTheDocument();
     const svgElements = document.querySelectorAll('svg');
     // There should be at least the placeholder SVG (plus the delete button SVG)
     expect(svgElements.length).toBeGreaterThanOrEqual(1);

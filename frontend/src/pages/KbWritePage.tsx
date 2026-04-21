@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import MDEditor from '@uiw/react-md-editor';
 import { kbApi } from '@/api/senior';
 import { useImageUpload } from '@/hooks/useImageUpload';
-import CategoryAutocomplete from '@/components/kb/CategoryAutocomplete';
+import CategoryAutocomplete from '@/components/common/CategoryAutocomplete';
+import { kbCategoryApi } from '@/api/senior';
 
 export default function KbWritePage() {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export default function KbWritePage() {
 
       {/* Category */}
       <div className="mb-4">
-        <CategoryAutocomplete value={category} onChange={setCategory} />
+        <CategoryAutocomplete value={category} onChange={setCategory} fetchAll={kbCategoryApi.getAll} placeholder="카테고리 (예: Test Design, Automation)" />
       </div>
 
       {/* Image Upload Button */}

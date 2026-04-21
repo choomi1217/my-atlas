@@ -1,6 +1,7 @@
 package com.myqaweb.knowledgebase;
 
 import com.myqaweb.common.ApiResponse;
+import com.myqaweb.common.CategoryDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,20 +18,20 @@ public class KbCategoryController {
     private final KbCategoryService categoryService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<KbCategoryDto.CategoryResponse>>> list() {
+    public ResponseEntity<ApiResponse<List<CategoryDto.CategoryResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.ok(categoryService.findAll()));
     }
 
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<List<KbCategoryDto.CategoryResponse>>> search(
+    public ResponseEntity<ApiResponse<List<CategoryDto.CategoryResponse>>> search(
             @RequestParam(value = "q", required = false, defaultValue = "") String query) {
         return ResponseEntity.ok(ApiResponse.ok(categoryService.search(query)));
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<KbCategoryDto.CategoryResponse>> create(
-            @Valid @RequestBody KbCategoryDto.CategoryRequest request) {
-        KbCategoryDto.CategoryResponse created = categoryService.create(request.name());
+    public ResponseEntity<ApiResponse<CategoryDto.CategoryResponse>> create(
+            @Valid @RequestBody CategoryDto.CategoryRequest request) {
+        CategoryDto.CategoryResponse created = categoryService.create(request.name());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Category created", created));
     }

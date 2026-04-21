@@ -119,6 +119,17 @@ public class TestStudioServiceImpl implements TestStudioService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<TestStudioJobDto.JobResponse> listJobsByCompany(Long companyId) {
+        if (companyId == null) {
+            throw new IllegalArgumentException("companyId is required");
+        }
+        return jobRepository.findAllByCompanyIdOrderByCreatedAtDesc(companyId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public void deleteJob(Long id) {
         if (!jobRepository.existsById(id)) {

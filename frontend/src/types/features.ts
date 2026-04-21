@@ -96,6 +96,7 @@ export interface TestCase {
   id: number;
   productId: number;
   path: number[];
+  suggestedSegmentPath?: string[] | null;
   title: string;
   description?: string;
   promptText?: string;
@@ -109,6 +110,20 @@ export interface TestCase {
   createdAt: string;
   updatedAt: string;
   testStudioJobId?: number;
+}
+
+/**
+ * Response from POST /api/test-cases/{id}/apply-suggested-path
+ * and POST /api/test-cases/bulk-apply-suggested-path.
+ */
+export interface ApplySuggestedPathResult {
+  testCaseId: number;
+  resolvedPath: number[];
+  resolvedLength: number;
+  fullMatch: boolean;
+  suggestedLength: number;
+  createdSegmentCount: number;
+  error: string | null;
 }
 
 /**

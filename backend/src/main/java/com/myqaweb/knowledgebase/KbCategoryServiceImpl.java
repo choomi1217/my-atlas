@@ -1,5 +1,6 @@
 package com.myqaweb.knowledgebase;
 
+import com.myqaweb.common.CategoryDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +17,7 @@ public class KbCategoryServiceImpl implements KbCategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<KbCategoryDto.CategoryResponse> findAll() {
+    public List<CategoryDto.CategoryResponse> findAll() {
         return categoryRepository.findAll().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -24,7 +25,7 @@ public class KbCategoryServiceImpl implements KbCategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<KbCategoryDto.CategoryResponse> search(String query) {
+    public List<CategoryDto.CategoryResponse> search(String query) {
         if (query == null || query.isBlank()) {
             return findAll();
         }
@@ -34,7 +35,7 @@ public class KbCategoryServiceImpl implements KbCategoryService {
     }
 
     @Override
-    public KbCategoryDto.CategoryResponse create(String name) {
+    public CategoryDto.CategoryResponse create(String name) {
         if (categoryRepository.existsByName(name.trim())) {
             throw new IllegalStateException("Category already exists: " + name);
         }
@@ -54,7 +55,7 @@ public class KbCategoryServiceImpl implements KbCategoryService {
         }
     }
 
-    private KbCategoryDto.CategoryResponse toResponse(KbCategoryEntity entity) {
-        return new KbCategoryDto.CategoryResponse(entity.getId(), entity.getName(), entity.getCreatedAt());
+    private CategoryDto.CategoryResponse toResponse(KbCategoryEntity entity) {
+        return new CategoryDto.CategoryResponse(entity.getId(), entity.getName(), entity.getCreatedAt());
     }
 }

@@ -26,6 +26,9 @@ class ConventionServiceImplTest {
     @Mock
     private ConventionRepository conventionRepository;
 
+    @Mock
+    private WordCategoryService wordCategoryService;
+
     @InjectMocks
     private ConventionServiceImpl conventionService;
 
