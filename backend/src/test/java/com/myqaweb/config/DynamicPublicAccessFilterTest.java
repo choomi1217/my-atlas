@@ -178,6 +178,22 @@ class DynamicPublicAccessFilterTest {
     }
 
     @Test
+    @DisplayName("isLoginRequired() 가 예외를 던져도 500 으로 전파되지 않고 login_required=true 로 폴백한다")
+    void isLoginRequiredThrows_fallsBackToTrueAndDoesNotThrow() throws Exception {
+        when(settingsService.isLoginRequired())
+                .thenThrow(new RuntimeException("DB connection glitch"));
+        configureRequest("GET", "/api/companies");
+
+        // 예외가 전파되면 여기서 테스트가 실패한다 — 체인까지 통과해야 함
+        filter.doFilter(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication(),
+                "폴백은 login_required=true 이므로 Anonymous 주입이 일어나면 안 된다");
+        assertSame(request, chain.getRequest(),
+                "예외가 발생해도 filterChain 은 계속 진행되어야 한다");
+    }
+
+    @Test
     @DisplayName("filterChain.doFilter는 어떤 경로/상태에서도 호출된다")
     void doFilter_alwaysInvokesChain() throws Exception {
         when(settingsService.isLoginRequired()).thenReturn(false);
