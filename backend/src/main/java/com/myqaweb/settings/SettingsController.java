@@ -3,6 +3,8 @@ package com.myqaweb.settings;
 import com.myqaweb.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SettingsController {
 
+    private static final Logger log = LoggerFactory.getLogger(SettingsController.class);
+
     private final SettingsService settingsService;
 
     @GetMapping
@@ -24,9 +28,14 @@ public class SettingsController {
 
     @GetMapping("/public")
     public ResponseEntity<ApiResponse<SettingsDto.PublicSettingsResponse>> getPublicSettings() {
-        SettingsDto.PublicSettingsResponse publicSettings =
-                new SettingsDto.PublicSettingsResponse(settingsService.isLoginRequired());
-        return ResponseEntity.ok(ApiResponse.ok(publicSettings));
+        boolean loginRequired;
+        try {
+            loginRequired = settingsService.isLoginRequired();
+        } catch (Exception ex) {
+            log.warn("isLoginRequired() failed — defaulting to true", ex);
+            loginRequired = true;
+        }
+        return ResponseEntity.ok(ApiResponse.ok(new SettingsDto.PublicSettingsResponse(loginRequired)));
     }
 
     @PatchMapping
