@@ -13,6 +13,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import java.util.Optional;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -208,6 +210,57 @@ class TestCaseControllerTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         verify(testCaseService).delete(1L);
+    }
+
+    // --- POST /api/test-cases/generate-draft ---
+
+    // --- GET /api/test-cases/{id}/images ---
+
+    @Test
+    void getImages_returnsUrlsWithImagesFeaturePrefix() throws Exception {
+        // Arrange — image stored with bare UUID filename, response should build /images/feature/ URL
+        TestCaseImageEntity img = new TestCaseImageEntity();
+        img.setId(42L);
+        img.setFilename("47fefb1c-d1d2-4c10-8ba9-44d1a19c9f35.png");
+        img.setOriginalName("screenshot.png");
+        img.setOrderIndex(1);
+        when(testCaseImageRepository.findAllByTestCaseIdOrderByOrderIndex(100L))
+                .thenReturn(List.of(img));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/test-cases/100/images"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].url")
+                        .value("/images/feature/47fefb1c-d1d2-4c10-8ba9-44d1a19c9f35.png"));
+    }
+
+    // --- POST /api/test-cases/{id}/images ---
+
+    @Test
+    void addImage_returnsUrlWithImagesFeaturePrefix() throws Exception {
+        // Arrange
+        TestCaseEntity testCase = new TestCaseEntity();
+        testCase.setId(100L);
+        when(testCaseRepository.findById(100L)).thenReturn(Optional.of(testCase));
+        when(testCaseImageRepository.countByTestCaseId(100L)).thenReturn(0);
+
+        TestCaseImageEntity saved = new TestCaseImageEntity();
+        saved.setId(7L);
+        saved.setFilename("abc123.png");
+        saved.setOriginalName("pic.png");
+        saved.setOrderIndex(1);
+        when(testCaseImageRepository.save(any(TestCaseImageEntity.class))).thenReturn(saved);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/test-cases/100/images")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"filename": "abc123.png", "originalName": "pic.png"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.url").value("/images/feature/abc123.png"));
     }
 
     // --- POST /api/test-cases/generate-draft ---

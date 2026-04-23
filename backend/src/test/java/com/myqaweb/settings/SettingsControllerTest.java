@@ -85,6 +85,20 @@ class SettingsControllerTest {
         verify(settingsService).isLoginRequired();
     }
 
+    @Test
+    void getPublicSettings_whenServiceThrows_fallsBackToLoginRequiredTrue() throws Exception {
+        when(settingsService.isLoginRequired())
+                .thenThrow(new RuntimeException("DB glitch"));
+
+        // Must not surface 500 — fall back to safe default so frontend AuthContext can boot.
+        mockMvc.perform(get("/api/settings/public"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.loginRequired").value(true));
+
+        verify(settingsService).isLoginRequired();
+    }
+
     // --- PATCH /api/settings ---
 
     @Test

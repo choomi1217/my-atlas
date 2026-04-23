@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import static com.myqaweb.feature.TestCaseImageUrlResolver.toImageUrl;
+
 @RestController
 @RequestMapping("/api/test-cases")
 @RequiredArgsConstructor
@@ -72,7 +74,7 @@ public class TestCaseController {
                         .stream()
                         .map(img -> new TestCaseDto.TestCaseImageResponse(
                                 img.getId(), img.getFilename(), img.getOriginalName(),
-                                img.getOrderIndex(), "/api/feature-images/" + img.getFilename()))
+                                img.getOrderIndex(), toImageUrl(img.getFilename())))
                         .toList();
         return ResponseEntity.ok(ApiResponse.ok(images));
     }
@@ -98,7 +100,7 @@ public class TestCaseController {
         TestCaseImageEntity saved = testCaseImageRepository.save(entity);
         TestCaseDto.TestCaseImageResponse response = new TestCaseDto.TestCaseImageResponse(
                 saved.getId(), saved.getFilename(), saved.getOriginalName(),
-                saved.getOrderIndex(), "/api/feature-images/" + saved.getFilename());
+                saved.getOrderIndex(), toImageUrl(saved.getFilename()));
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
     }
 
