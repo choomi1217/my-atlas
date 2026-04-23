@@ -124,18 +124,42 @@
 
     /* ── PRINT ── */
     @media print {
-      @page { size: A4; margin: 14mm 12mm; }
-      body { font-size: 11pt; background: white; }
+      @page { size: A4; margin: 12mm 11mm; }
+      body { font-size: 10pt; background: white; }
       .page { padding: 0; max-width: none; }
       .tab-bar { display: none; }
       .pdf-btn { display: none; }
       .project-card,
+      .timeline { break-inside: avoid; page-break-inside: avoid; }
       .project-accent,
-      .timeline,
-      .skills-table { break-inside: avoid; page-break-inside: avoid; }
-      .section { margin-bottom: 2rem; }
+      .skills-table { break-inside: auto; page-break-inside: auto; }
+      .bullet-row,
+      .skills-row { break-inside: avoid; page-break-inside: avoid; }
+      .section { break-inside: auto; page-break-inside: auto; margin-bottom: 1.25rem; }
+      .section-header { margin-bottom: 1rem; break-after: avoid; page-break-after: avoid; }
+      .exp-row { margin-bottom: 1.25rem; }
+      .exp-left { break-after: avoid; page-break-after: avoid; }
+      .project-card { padding: 12px 16px; margin-bottom: 8px; }
+      .project-title { font-size: 13pt; margin-bottom: 8px; }
+      .bullet-row { margin-bottom: 4px; }
+      .bullet-text { font-size: 10pt; line-height: 1.55; }
+      .bullet { margin-top: 7px; }
+      .sub-label { margin: 10px 0 6px; }
+      .result-badge { font-size: 9pt; padding: 3px 10px; margin-top: 8px; }
+      .tags { margin-top: 10px; padding-top: 10px; gap: 5px; }
+      .tag { font-size: 9pt; padding: 3px 10px; }
+      .company-name { font-size: 15pt; margin-bottom: 4px; }
+      .company-role { font-size: 11pt; margin-bottom: 3px; }
+      .company-period { font-size: 10pt; }
+      .timeline-row { padding: 10px 16px; }
+      .t-period { font-size: 9pt; padding: 3px 9px; }
+      .t-desc { font-size: 10pt; line-height: 1.55; }
+      .skills-row { padding: 12px 18px; }
+      .skills-label { font-size: 10pt; min-width: 130px; }
+      .skill-pill { font-size: 10pt; padding: 4px 12px; }
+      .divider { margin: 1.5rem 0; }
       a { color: inherit; text-decoration: none; }
-      .footer { break-before: avoid; }
+      .footer { break-before: avoid; margin-top: 2rem; padding-top: 1.25rem; }
     }
   </style>
 </head>
@@ -192,12 +216,13 @@
         <!-- User Testing 소켓 테스트 -->
         <div class="project-card">
           <div class="project-title">User Testing - 모바일 / 웹 환경 소켓 테스트</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Chrome DevTools Throttling, 실제 네트워크 차단, 모바일 앱 백그라운드 전환으로 네트워크 불안정 환경 테스트</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">iOS / Android 백그라운드 전환 후 재접속 정상 여부, Participant 이탈 후 10분 세션 유지 및 자동 종료, 10분 내 재접속 시 세션 복구 테스트</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Moderator / Participant / Observer 등 8명 동시 참가 시나리오에서 소켓 연결 안정성 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Chrome DevTools Throttling을 통해 느린 네트워크 환경 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">모바일 앱 백그라운드 전환으로 네트워크 불안정 환경 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">백그라운드 전환 후 재접속 시 세션 복구 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">여러명이 소켓 통신 참가시 안정성 테스트</span></div>
           <span class="result-badge badge-green">네트워크 불안정·다중 환경에서 세션 복구 검증</span>
           <div class="tags">
-            <span class="tag tag-blue">WebSocket Test</span><span class="tag tag-gray">Android · iOS</span><span class="tag tag-gray">네트워크 불안정</span><span class="tag tag-gray">세션 관리</span>
+            <span class="tag tag-blue">iOS, Android Application Test</span><span class="tag tag-gray">소켓 테스트</span><span class="tag tag-gray">소켓 개발 경험을 바탕으로 network 디버깅 가능</span>
           </div>
         </div>
 
@@ -231,30 +256,18 @@
           </div>
         </div>
 
-        <!-- reCAPTCHA -->
+        <!-- reCaptcha v2 -->
         <div class="project-card">
-          <div class="project-title">reCAPTCHA 봇 차단 성공률 테스트</div>
+          <div class="project-title">reCaptcha v2 봇 차단 성공률 테스트</div>
           <div class="sub-label">Problem</div>
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Email Abusing 발생 → 봇 차단 필요</span></div>
           <div class="sub-label">Solution</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">reCAPTCHA v2 도입</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">reCAPTCHA v3 검증 로직 통합 테스트</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Playwright로 Email 전송 기능 테스트 후, 응답값에서 reCAPTCHA 점수 확인</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">reCaptcha v2 도입</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">reCaptcha v2 검증 로직 통합 테스트</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Playwright로 Email 전송 기능 테스트 후, 응답값에서 reCaptcha v2 점수 확인</span></div>
           <span class="result-badge badge-green">Email Abusing 재발 차단 확인</span>
           <div class="tags">
-            <span class="tag tag-blue">Playwright</span><span class="tag tag-blue">reCAPTCHA</span><span class="tag tag-gray">보안 QA</span>
-          </div>
-        </div>
-
-        <!-- Test Case 설계 -->
-        <div class="project-card">
-          <div class="project-title">Test Case 설계</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">경계값 테스트 — 경계 이하·경계·경계 초과 케이스로 파일 용량 제한(1GB) 검증</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">상태 전이 조합 전수 검증</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">권한(역할·플랜·멤버십)에 따른 기능 접근 시나리오 설계</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">ISTQB 및 테스트 방법론 기반 Test Case 설계</span></div>
-          <div class="tags">
-            <span class="tag tag-gray">경계값 분석</span><span class="tag tag-gray">상태 전이 테스트</span><span class="tag tag-gray">권한 기반 테스트</span><span class="tag tag-gray">ISTQB</span>
+            <span class="tag tag-blue">Playwright</span><span class="tag tag-blue">reCaptcha v2</span><span class="tag tag-gray">보안 QA</span>
           </div>
         </div>
 
@@ -279,10 +292,67 @@
           <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">Account, Membership, Role, Plan을 관리하는 테스트 환경 설계</span></div>
           <span class="result-badge badge-green">계정·권한 매트릭스 자동화 환경 구축</span>
           <div class="tags">
-            <span class="tag tag-blue">Playwright</span><span class="tag tag-blue">JSON Manifest</span><span class="tag tag-gray">GitHub Actions</span><span class="tag tag-gray">AWS</span>
+            <span class="tag tag-blue">Playwright</span>
           </div>
         </div>
 
+        <!-- Test Case 설계 -->
+        <div class="project-card">
+          <div class="project-title">Test Case 설계</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">경계값 테스트 — 경계 이하·경계·경계 초과 케이스로 파일 용량 제한(1GB) 검증</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">상태 전이 조합 전수 검증</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">권한(역할·플랜·멤버십)에 따른 기능 접근 시나리오 설계</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">ISTQB 및 테스트 방법론 기반 Test Case 설계</span></div>
+          <div class="tags">
+            <span class="tag tag-gray">경계값 분석</span><span class="tag tag-gray">상태 전이 테스트</span><span class="tag tag-gray">권한 기반 테스트</span><span class="tag tag-gray">ISTQB</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 개인 프로젝트 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Side Project</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="exp-row">
+      <div class="exp-left">
+        <div class="company-name">my-atlas<span class="company-name-dot">.</span></div>
+        <div class="company-role">개인 프로젝트</div>
+        <div class="company-period">2026.02 — 현재</div>
+      </div>
+
+      <div class="exp-right">
+        <div class="project-accent">
+          <div class="project-accent-title">QA 지식 관리 & AI 테스트 자동화 웹 애플리케이션</div>
+          <div class="project-accent-sub"><a href="https://youngmi.works" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none;">youngmi.works</a> · github.com/choomi1217/my-atlas</div>
+
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">QA 업무 효율화를 위해 직접 설계·개발 중인 풀스택 웹 서비스. <br/> Spring Boot + React + PostgreSQL(pgvector) 기반</span></div>
+
+          <div class="sub-label">구현 완료 기능</div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>My Senior (AI QA 챗봇)</strong> — 사용자 질문을 임베딩하여 pgvector 코사인 유사도 검색으로 관련 QA 지식을 컨텍스트로 주입, Claude API로 SSE 스트리밍 답변 생성. 채팅 세션 저장·Chat→KB 전환 구현</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Knowledge Base</strong> — PDF 도서 업로드 시 자동 청킹·임베딩 파이프라인, Pin/Unpin(최대 15건), 카테고리 자동완성, 소프트 삭제, 검색/정렬</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Feature Registry</strong> — Company → Product → TestCase 3단계 드릴다운, Segment DnD 계층 관리, Version/Phase/TestResult, Jira 연동(FAIL 시 자동 티켓 생성)</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Test Studio</strong> — 문서 기반 Claude API로 DRAFT TestCase 자동 생성</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Word Conventions</strong> — 팀 용어 표준화 CRUD + 이미지 첨부</span></div>
+          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Platform</strong> — JWT 인증 + Spring Security, AWS ALB + HTTPS 배포, GitHub Actions CI/CD (JaCoCo 70%)</span></div>
+
+          <div class="sub-label">테스트 커버리지</div>
+          <div class="test-stats">
+            <span class="test-stat">Backend Unit 529개 통과</span>
+            <span class="test-stat">Frontend Unit 54개 통과</span>
+            <span class="test-stat">E2E Playwright 289개 통과</span>
+            <span class="test-stat">Testcontainers pgvector Integration Test</span>
+          </div>
+
+          <div class="tags" style="margin-top:18px; padding-top:18px; border-top:1px solid var(--border);">
+            <span class="tag tag-blue">Spring Boot 3</span><span class="tag tag-blue">Java 21</span><span class="tag tag-blue">Spring AI</span><span class="tag tag-blue">React + TypeScript</span><span class="tag tag-blue">pgvector</span><span class="tag tag-green">Playwright</span><span class="tag tag-green">Testcontainers</span><span class="tag tag-gray">Docker Compose</span><span class="tag tag-gray">Claude API</span><span class="tag tag-gray">AWS</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -335,51 +405,6 @@
       </div>
     </div>
 
-  </div>
-
-  <!-- 개인 프로젝트 -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-title">Side Project</span>
-      <div class="section-line"></div>
-    </div>
-
-    <div class="exp-row">
-      <div class="exp-left">
-        <div class="company-name">my-atlas<span class="company-name-dot">.</span></div>
-        <div class="company-role">개인 프로젝트</div>
-        <div class="company-period">2026.02 — 현재</div>
-      </div>
-
-      <div class="exp-right">
-        <div class="project-accent">
-          <div class="project-accent-title">QA 지식 관리 & AI 테스트 자동화 웹 애플리케이션</div>
-          <div class="project-accent-sub">github.com/choomi1217/my-atlas</div>
-
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text">QA 업무 효율화를 위해 직접 설계·개발 중인 풀스택 웹 서비스. <br/> Spring Boot + React + PostgreSQL(pgvector) 기반</span></div>
-
-          <div class="sub-label">구현 완료 기능</div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>My Senior (AI QA 챗봇)</strong> — 사용자 질문을 임베딩하여 pgvector 코사인 유사도 검색으로 관련 QA 지식을 컨텍스트로 주입, Claude API로 SSE 스트리밍 답변 생성. 채팅 세션 저장·Chat→KB 전환 구현</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Knowledge Base</strong> — PDF 도서 업로드 시 자동 청킹·임베딩 파이프라인, Pin/Unpin(최대 15건), 카테고리 자동완성, 소프트 삭제, 검색/정렬</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Feature Registry</strong> — Company → Product → TestCase 3단계 드릴다운, Segment DnD 계층 관리, Version/Phase/TestResult, Jira 연동(FAIL 시 자동 티켓 생성)</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Test Studio</strong> — 문서 기반 Claude API로 DRAFT TestCase 자동 생성</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Word Conventions</strong> — 팀 용어 표준화 CRUD + 이미지 첨부</span></div>
-          <div class="bullet-row"><div class="bullet"></div><span class="bullet-text"><strong>Platform</strong> — JWT 인증 + Spring Security, AWS ALB + HTTPS 배포, GitHub Actions CI/CD (JaCoCo 70%)</span></div>
-
-          <div class="sub-label">테스트 커버리지</div>
-          <div class="test-stats">
-            <span class="test-stat">Backend Unit 529개 통과</span>
-            <span class="test-stat">Frontend Unit 54개 통과</span>
-            <span class="test-stat">E2E Playwright 289개 통과</span>
-            <span class="test-stat">Testcontainers pgvector Integration Test</span>
-          </div>
-
-          <div class="tags" style="margin-top:18px; padding-top:18px; border-top:1px solid var(--border);">
-            <span class="tag tag-blue">Spring Boot 3</span><span class="tag tag-blue">Java 21</span><span class="tag tag-blue">Spring AI</span><span class="tag tag-blue">React + TypeScript</span><span class="tag tag-blue">pgvector</span><span class="tag tag-green">Playwright</span><span class="tag tag-green">Testcontainers</span><span class="tag tag-gray">Docker Compose</span><span class="tag tag-gray">Claude API</span><span class="tag tag-gray">AWS</span>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- 기술 스택 -->
