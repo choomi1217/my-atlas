@@ -147,43 +147,52 @@ test.describe('Platform v9 — Public Access API (login_required=false)', () => 
     expect(Array.isArray(body.data)).toBe(true);
   });
 
-  test('POST /api/companies — anonymous blocked (401 or 403)', async () => {
+  test('POST /api/companies — anonymous allowed in demo mode (creates)', async () => {
+    // Hotfix: loginRequired=false acts as full demo mode — writes allowed to
+    // any non-ADMIN endpoint. ADMIN-only paths (settings/admin/auth-register)
+    // remain protected by SecurityConfig role matchers.
     const resp = await anonRequest.post('/api/companies', {
-      data: { name: 'E2E should reject' },
+      data: { name: 'E2E demo mode write' },
     });
-    // Not in whitelist → still requires authentication
-    expect([401, 403]).toContain(resp.status());
+    expect(resp.status()).toBe(201);
+    const body = await resp.json() as { data: { id: number } };
+    expect(body.data.id).toBeGreaterThan(0);
+
+    // Clean up with admin token (anonymous DELETE would also work, but use admin
+    // to keep the teardown independent of what we're validating here).
+    await adminRequest.delete(`/api/companies/${body.data.id}`);
   });
 
-  test('DELETE /api/companies/{id} — anonymous blocked (401 or 403)', async () => {
-    // Pick any existing id to ensure not masked by 404
-    const listResp = await adminRequest.get('/api/companies');
-    const list = (await listResp.json() as any).data as Array<{ id: number }>;
-    expect(list.length).toBeGreaterThan(0);
-    const id = list[0].id;
+  test('DELETE /api/companies/{id} — anonymous allowed in demo mode', async () => {
+    // Create a disposable company first via admin, then let anonymous delete it
+    const createResp = await adminRequest.post('/api/companies', {
+      data: { name: 'E2E demo anon delete' },
+    });
+    const id = (await createResp.json() as { data: { id: number } }).data.id;
 
     const resp = await anonRequest.delete(`/api/companies/${id}`);
-    expect([401, 403]).toContain(resp.status());
+    expect(resp.status()).toBe(200);
   });
 
-  test('PUT /api/kb/{id} — anonymous blocked (401 or 403)', async () => {
-    const resp = await anonRequest.put('/api/kb/999', {
+  test('PUT /api/kb/{id} — anonymous hits handler (404 for missing id, not 401/403)', async () => {
+    // Demo mode lets the request reach the controller; missing id → 404 from service.
+    const resp = await anonRequest.put('/api/kb/999999', {
       data: { title: 'x', content: 'y', category: 'z' },
     });
-    expect([401, 403]).toContain(resp.status());
+    expect([400, 404]).toContain(resp.status());
   });
 
-  test('GET /api/settings — anonymous blocked (401 or 403)', async () => {
+  test('GET /api/settings — anonymous blocked (ADMIN-only stays protected in demo mode)', async () => {
     const resp = await anonRequest.get('/api/settings');
     expect([401, 403]).toContain(resp.status());
   });
 
-  test('GET /api/settings/users — anonymous blocked (401 or 403)', async () => {
+  test('GET /api/settings/users — anonymous blocked (ADMIN-only stays protected in demo mode)', async () => {
     const resp = await anonRequest.get('/api/settings/users');
     expect([401, 403]).toContain(resp.status());
   });
 
-  test('POST /api/auth/register — anonymous blocked (401 or 403)', async () => {
+  test('POST /api/auth/register — anonymous blocked (ADMIN-only stays protected in demo mode)', async () => {
     const resp = await anonRequest.post('/api/auth/register', {
       data: { username: 'e2e_x', password: 'pass1234', role: 'USER' },
     });
