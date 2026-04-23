@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.myqaweb.feature.TestCaseImageUrlResolver.toImageUrl;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -326,7 +328,7 @@ public class TestCaseServiceImpl implements TestCaseService {
                                 img.getFilename(),
                                 img.getOriginalName(),
                                 img.getOrderIndex(),
-                                "/api/feature-images/" + img.getFilename()
+                                toImageUrl(img.getFilename())
                         ))
                         .toList();
 
