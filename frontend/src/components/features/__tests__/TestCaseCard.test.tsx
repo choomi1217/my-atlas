@@ -15,7 +15,7 @@ const baseTC: TestCase = {
   description: 'Login flow description',
   preconditions: 'User is on login page',
   steps: [{ order: 0, action: 'click login', expected: 'redirected' }],
-  expectedResult: 'User is logged in',
+  expectedResults: ['User is logged in'],
   priority: 'HIGH',
   testType: 'FUNCTIONAL',
   status: 'ACTIVE',
@@ -92,9 +92,22 @@ describe('TestCaseCard', () => {
     expect(finalEl).toHaveTextContent('Final Expected Result');
   });
 
-  it('expectedResult 가 빈 값이면 Final Expected Result 영역을 렌더링하지 않는다', () => {
-    renderCard({ expectedResult: '' }, true);
+  it('expectedResults 가 빈 배열이면 Final Expected Result 영역을 렌더링하지 않는다', () => {
+    renderCard({ expectedResults: [] }, true);
     expect(screen.queryByTestId('tc-final-expected')).not.toBeInTheDocument();
+  });
+
+  it('expectedResults 에 다중 항목이 있으면 ol > li 형태로 모두 렌더한다', () => {
+    renderCard(
+      { expectedResults: ['QA에 대한 올바른 대답 출력', 'MD 형식으로 대답 출력'] },
+      true,
+    );
+    const list = screen.getByTestId('tc-final-expected-list');
+    const items = screen.getAllByTestId('tc-final-expected-item');
+    expect(list.tagName).toBe('OL');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('QA에 대한 올바른 대답 출력');
+    expect(items[1]).toHaveTextContent('MD 형식으로 대답 출력');
   });
 
   it('Header 클릭 시 onToggle 콜백 호출', () => {

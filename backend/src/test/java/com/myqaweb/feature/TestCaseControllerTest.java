@@ -51,7 +51,7 @@ class TestCaseControllerTest {
         List<TestCaseDto.TestCaseResponse> testCases = List.of(
                 new TestCaseDto.TestCaseResponse(1L, 10L, new Long[]{1L, 2L}, null, "Login test",
                         "Verify login", null, "User exists", List.of(new TestStep(1, "Click login", "Form shown")),
-                        "Login success", Priority.HIGH, TestType.FUNCTIONAL, TestStatus.ACTIVE, List.of(), now, now, null)
+                        List.of("Login success"), Priority.HIGH, TestType.FUNCTIONAL, TestStatus.ACTIVE, List.of(), now, now, null)
         );
         when(testCaseService.getByProductId(10L)).thenReturn(testCases);
 
@@ -127,7 +127,7 @@ class TestCaseControllerTest {
         // Arrange
         TestCaseDto.TestCaseResponse created = new TestCaseDto.TestCaseResponse(
                 1L, 10L, new Long[]{1L}, null, "New TC", "Desc", null, null,
-                List.of(), "Expected", Priority.MEDIUM, TestType.SMOKE, TestStatus.DRAFT, List.of(), now, now, null);
+                List.of(), List.of("Expected"), Priority.MEDIUM, TestType.SMOKE, TestStatus.DRAFT, List.of(), now, now, null);
         when(testCaseService.create(any(TestCaseDto.TestCaseRequest.class))).thenReturn(created);
 
         // Act & Assert
@@ -140,7 +140,7 @@ class TestCaseControllerTest {
                                   "title": "New TC",
                                   "description": "Desc",
                                   "steps": [],
-                                  "expectedResult": "Expected",
+                                  "expectedResults": ["Expected"],
                                   "priority": "MEDIUM",
                                   "testType": "SMOKE",
                                   "status": "DRAFT"
@@ -174,7 +174,7 @@ class TestCaseControllerTest {
         // Arrange
         TestCaseDto.TestCaseResponse updated = new TestCaseDto.TestCaseResponse(
                 1L, 10L, new Long[]{1L}, null, "Updated TC", "Updated", null, null,
-                List.of(), "Updated Expected", Priority.HIGH, TestType.REGRESSION, TestStatus.ACTIVE, List.of(), now, now, null);
+                List.of(), List.of("Updated Expected"), Priority.HIGH, TestType.REGRESSION, TestStatus.ACTIVE, List.of(), now, now, null);
         when(testCaseService.update(eq(1L), any(TestCaseDto.TestCaseRequest.class))).thenReturn(updated);
 
         // Act & Assert
@@ -270,7 +270,7 @@ class TestCaseControllerTest {
         // Arrange
         List<TestCaseDto.TestCaseResponse> drafts = List.of(
                 new TestCaseDto.TestCaseResponse(1L, 10L, new Long[]{1L}, null, "AI Draft 1",
-                        "AI generated", null, null, List.of(), "Pass",
+                        "AI generated", null, null, List.of(), List.of("Pass"),
                         Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT, List.of(), now, now, null)
         );
         when(testCaseService.generateDraft(any(TestCaseDto.GenerateDraftRequest.class))).thenReturn(drafts);

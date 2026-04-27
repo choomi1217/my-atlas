@@ -123,12 +123,12 @@ export default function TestCaseCard({
 
           <TestCaseSteps steps={testCase.steps} images={testCase.images} />
 
-          {testCase.expectedResult && (
+          {testCase.expectedResults && testCase.expectedResults.length > 0 && (
             <div
               data-testid="tc-final-expected"
               className="mt-4 border-l-[3px] border-green-600 bg-green-50 p-3.5 rounded-md"
             >
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-2">
                 <svg
                   className="w-4 h-4 text-green-700"
                   fill="none"
@@ -146,12 +146,16 @@ export default function TestCaseCard({
                   Final Expected Result
                 </span>
               </div>
-              <div className="text-sm leading-relaxed text-gray-800">
-                <ImageRefText
-                  text={testCase.expectedResult}
-                  images={testCase.images}
-                />
-              </div>
+              <ol
+                data-testid="tc-final-expected-list"
+                className="list-decimal pl-5 space-y-1 text-sm leading-relaxed text-gray-800"
+              >
+                {testCase.expectedResults.map((item, idx) => (
+                  <li key={idx} data-testid="tc-final-expected-item">
+                    <ImageRefText text={item} images={testCase.images} />
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
         </div>

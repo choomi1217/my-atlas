@@ -429,9 +429,14 @@ export default function TestCasePage() {
     status: TestCaseStatus;
     preconditions: string;
     steps: { order: number; action: string; expected: string }[];
-    expectedResult: string;
+    expectedResults: string[];
   }): Promise<TestCase | void> => {
     if (!product) return;
+
+    const trimmedExpected = data.expectedResults
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    const expectedPayload = trimmedExpected.length > 0 ? trimmedExpected : undefined;
 
     if (modalEditData) {
       // Edit — use the user-selected path from the modal picker.
@@ -447,7 +452,7 @@ export default function TestCasePage() {
         data.status,
         data.preconditions || undefined,
         data.steps.some((s) => s.action) ? data.steps : undefined,
-        data.expectedResult || undefined
+        expectedPayload
       );
       setTestCases(allTestCases.map((tc) => (tc.id === modalEditData.id ? updated : tc)));
     } else {
@@ -463,7 +468,7 @@ export default function TestCasePage() {
         data.status,
         data.preconditions || undefined,
         data.steps.some((s) => s.action) ? data.steps : undefined,
-        data.expectedResult || undefined
+        expectedPayload
       );
       setTestCases([...allTestCases, tc]);
       setModalEditData(tc); // Switch modal to edit mode for image upload

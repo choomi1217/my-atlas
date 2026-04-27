@@ -51,7 +51,10 @@ test.describe('TestCase 카드 가독성 (PR-B — DL 패턴)', () => {
           { order: 1, action: 'Enter credentials', expected: 'Submit button enabled' },
           { order: 2, action: 'Click Submit', expected: 'Redirected' },
         ],
-        expectedResult: 'User lands on /dashboard with active session',
+        expectedResults: [
+          'User lands on /dashboard with active session',
+          'Session token is stored in cookie',
+        ],
         priority: 'HIGH',
         testType: 'FUNCTIONAL',
         status: 'ACTIVE',
@@ -122,5 +125,20 @@ test.describe('TestCase 카드 가독성 (PR-B — DL 패턴)', () => {
     // Body 안에는 Created 가 없어야 함 (Header 로 이동)
     const body = card.locator('[data-testid="tc-body"]');
     await expect(body.locator('text=/Created:/')).toHaveCount(0);
+  });
+
+  test('Final Expected Result 가 다중 항목일 때 ol > li 형태로 모두 노출된다', async ({ page }) => {
+    const card = page.locator('[data-testid="tc-card"]').first();
+    const list = card.locator('[data-testid="tc-final-expected-list"]');
+    const items = card.locator('[data-testid="tc-final-expected-item"]');
+
+    // ol 태그 검증
+    await expect(list).toBeVisible();
+    expect(await list.evaluate((el) => el.tagName)).toBe('OL');
+
+    // beforeAll 에서 expectedResults 2 개를 입력했으므로 2 개 항목 노출
+    await expect(items).toHaveCount(2);
+    await expect(items.nth(0)).toContainText('User lands on /dashboard with active session');
+    await expect(items.nth(1)).toContainText('Session token is stored in cookie');
   });
 });

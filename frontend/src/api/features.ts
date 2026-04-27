@@ -252,7 +252,7 @@ export const testCaseApi = {
     status: TestCaseStatus = TestCaseStatus.DRAFT,
     preconditions?: string,
     steps?: TestStep[],
-    expectedResult?: string
+    expectedResults?: string[]
   ): Promise<TestCase> => {
     const response = await apiClient.post<ApiResponse<TestCase>>(
       '/api/test-cases',
@@ -264,7 +264,7 @@ export const testCaseApi = {
         promptText,
         preconditions,
         steps: steps || [],
-        expectedResult,
+        expectedResults,
         priority,
         testType,
         status,
@@ -285,7 +285,7 @@ export const testCaseApi = {
     status: TestCaseStatus = TestCaseStatus.DRAFT,
     preconditions?: string,
     steps?: TestStep[],
-    expectedResult?: string
+    expectedResults?: string[]
   ): Promise<TestCase> => {
     const response = await apiClient.put<ApiResponse<TestCase>>(
       `/api/test-cases/${id}`,
@@ -297,7 +297,7 @@ export const testCaseApi = {
         promptText,
         preconditions,
         steps: steps || [],
-        expectedResult,
+        expectedResults,
         priority,
         testType,
         status,

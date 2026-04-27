@@ -20,7 +20,7 @@ interface TestCaseFormData {
   status: TestCaseStatus;
   preconditions: string;
   steps: TestStep[];
-  expectedResult: string;
+  expectedResults: string[];
 }
 
 interface TestCaseFormModalProps {
@@ -50,7 +50,7 @@ const emptyForm: TestCaseFormData = {
   status: TestCaseStatus.ACTIVE,
   preconditions: '',
   steps: [{ order: 1, action: '', expected: '' }],
-  expectedResult: '',
+  expectedResults: [''],
 };
 
 /** Dropdown button to insert `image #N` text into an input field */
@@ -182,7 +182,10 @@ export default function TestCaseFormModal({
           initialData.steps && initialData.steps.length > 0
             ? initialData.steps
             : [{ order: 1, action: '', expected: '' }],
-        expectedResult: initialData.expectedResult || '',
+        expectedResults:
+          initialData.expectedResults && initialData.expectedResults.length > 0
+            ? initialData.expectedResults
+            : [''],
       });
       // BUG-2 fix: always fetch images from API (not stale initialData.images)
       if (initialData.id) {
@@ -280,12 +283,25 @@ export default function TestCaseFormModal({
     updateStep(idx, field, current ? `${current} ${text}` : text);
   };
 
-  const insertImageRefToExpectedResult = (text: string) => {
-    const current = form.expectedResult;
-    setForm({
-      ...form,
-      expectedResult: current ? `${current} ${text}` : text,
-    });
+  const updateExpectedResult = (idx: number, value: string) => {
+    const updated = [...form.expectedResults];
+    updated[idx] = value;
+    setForm({ ...form, expectedResults: updated });
+  };
+
+  const insertImageRefToExpectedResult = (idx: number, text: string) => {
+    const current = form.expectedResults[idx] || '';
+    updateExpectedResult(idx, current ? `${current} ${text}` : text);
+  };
+
+  const addExpectedResult = () => {
+    setForm({ ...form, expectedResults: [...form.expectedResults, ''] });
+  };
+
+  const removeExpectedResult = (idx: number) => {
+    if (form.expectedResults.length <= 1) return;
+    const updated = form.expectedResults.filter((_, i) => i !== idx);
+    setForm({ ...form, expectedResults: updated });
   };
 
   const addStep = () => {
@@ -608,33 +624,67 @@ export default function TestCaseFormModal({
               </div>
             </div>
 
-            {/* Expected Result */}
+            {/* Final Expected Results — multiple */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Expected Result
+                Final Expected Results
               </label>
-              <div className="flex items-start gap-1">
-                <textarea
-                  value={form.expectedResult}
-                  onChange={(e) =>
-                    setForm({ ...form, expectedResult: e.target.value })
-                  }
-                  placeholder="Expected result..."
-                  rows={2}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm
-                             focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                />
-                <ImageInsertButton
-                  images={images}
-                  onInsert={insertImageRefToExpectedResult}
-                />
+              <div className="bg-gray-50 p-3 rounded border space-y-2">
+                {form.expectedResults.map((expected, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-start gap-2 bg-white p-2 rounded border"
+                    data-testid="expected-result-row"
+                  >
+                    <span className="text-xs text-gray-400 mt-2 flex-shrink-0">
+                      #{idx + 1}
+                    </span>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={expected}
+                          onChange={(e) =>
+                            updateExpectedResult(idx, e.target.value)
+                          }
+                          placeholder="Expected result..."
+                          className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm
+                                     focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                        />
+                        <ImageInsertButton
+                          images={images}
+                          onInsert={(text) =>
+                            insertImageRefToExpectedResult(idx, text)
+                          }
+                        />
+                      </div>
+                      <ImageRefPreview
+                        text={expected}
+                        images={images}
+                        onHover={handleImageHover}
+                        onLeave={() => setHoveredImage(null)}
+                      />
+                    </div>
+                    {form.expectedResults.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeExpectedResult(idx)}
+                        className="text-gray-300 hover:text-red-500 text-sm mt-2 flex-shrink-0"
+                        aria-label="Remove expected result"
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addExpectedResult}
+                  className="text-sm px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                >
+                  + Add Expected Result
+                </button>
               </div>
-              <ImageRefPreview
-                text={form.expectedResult}
-                images={images}
-                onHover={handleImageHover}
-                onLeave={() => setHoveredImage(null)}
-              />
             </div>
           </div>
 

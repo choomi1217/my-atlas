@@ -108,6 +108,27 @@ Product 직속 자식으로 여러 Segment 를 둘 수 있어야 합니다.
 2. 현재 SegmentServiceImpl 에서 Root 생성을 막는 별도 검증 없음 — UI 에서 부모 강제 선택을 풀기만 하면 됨
 3. SegmentTreeView 의 렌더링은 이미 `parent_id IS NULL` 인 Segment 를 최상위로 그림 — 다중 Root 도 자동 지원
 
+### Final Expected Result 다중 항목 지원
+
+Steps 처럼 Final Expected Result 도 여러 항목을 추가/삭제할 수 있어야 합니다.
+
+- 현재 문제점
+1. Expected Result 가 단일 텍스트 필드로 정의되어 있어 사용자가 "1. ..., 2. ..." 식으로 한 문자열에 우겨넣고 있음
+2. 시각적으로 줄바꿈 / 번호 매김 일관성이 없고, 검증 단위가 흐려짐
+
+- 유저 시나리오
+1. Form 에서 "+ Add Expected Result" 버튼으로 항목 추가
+2. 각 항목은 단일 라인 입력 + 이미지 참조 (`{img:N}`) 삽입 지원
+3. 항목이 2 개 이상이면 우측 `×` 버튼으로 개별 삭제 가능 (최소 1 개 유지)
+4. 카드 펼침 시 Final Expected Result 영역에 `<ol>` 번호 매김 리스트로 노출
+
+- 참고
+1. **Schema 변경**: `test_case.expected_result TEXT` → `test_case.expected_results JSONB` (string 배열). 기존 단일 값은 1-element 배열로 backfill 후 구 컬럼 drop
+2. Backend: `TestCaseEntity.expectedResult: String` → `expectedResults: List<String>` (`@JdbcTypeCode(SqlTypes.JSON)`, Steps 와 동일 패턴)
+3. Backend DTO / Service / TestStudio Generator (DRAFT TC 응답) 모두 `expectedResults` 로 통일
+4. Frontend types/api/components 모두 `expectedResults: string[]` 로 통일
+5. TestCaseFormModal 의 단일 textarea 를 Steps 같은 다중 row 입력 + Add/Remove 버튼으로 교체
+
 ### 같은 레벨 Segment 정렬 순서 변경
 
 같은 부모 하위 형제 Segment 의 정렬 순서를 사용자가 변경할 수 있어야 합니다.

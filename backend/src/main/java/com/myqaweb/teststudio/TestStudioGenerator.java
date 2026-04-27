@@ -233,11 +233,14 @@ public class TestStudioGenerator {
                                         .limit(2)
                                         .map(s -> s.action() + " → " + s.expected())
                                         .collect(Collectors.joining("; "));
+                        String expectedSummary = tc.getExpectedResults() == null || tc.getExpectedResults().isEmpty()
+                                ? ""
+                                : String.join(" / ", tc.getExpectedResults());
                         return "- " + safe(tc.getTitle())
                                 + (stepsSummary.isEmpty() ? "" : " | Steps: " + truncate(stepsSummary, 200))
-                                + (tc.getExpectedResult() != null
-                                        ? " | Expected: " + truncate(safe(tc.getExpectedResult()), 200)
-                                        : "");
+                                + (expectedSummary.isEmpty()
+                                        ? ""
+                                        : " | Expected: " + truncate(expectedSummary, 200));
                     })
                     .collect(Collectors.joining("\n"));
         } catch (Exception e) {
@@ -278,7 +281,7 @@ public class TestStudioGenerator {
                     "title": string,
                     "preconditions": string,
                     "steps": [ { "order": number, "action": string, "expected": string } ],
-                    "expectedResult": string,
+                    "expectedResults": [ string, ... ],
                     "priority": "HIGH" | "MEDIUM" | "LOW",
                     "testType": "SMOKE" | "FUNCTIONAL" | "REGRESSION" | "E2E",
                     "suggestedSegmentPath": [ string, ... ]
@@ -385,7 +388,7 @@ public class TestStudioGenerator {
         tc.setTitle(draft.title() != null ? draft.title() : "Untitled DRAFT");
         tc.setPreconditions(draft.preconditions());
         tc.setSteps(draft.steps() != null ? draft.steps() : new ArrayList<TestStep>());
-        tc.setExpectedResult(draft.expectedResult());
+        tc.setExpectedResults(draft.expectedResults());
         tc.setPriority(draft.priority() != null ? draft.priority() : Priority.MEDIUM);
         tc.setTestType(draft.testType() != null ? draft.testType() : TestType.FUNCTIONAL);
         tc.setStatus(TestStatus.DRAFT);
