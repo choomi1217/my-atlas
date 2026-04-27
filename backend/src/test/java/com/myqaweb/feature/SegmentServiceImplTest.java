@@ -12,6 +12,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,8 +36,8 @@ class SegmentServiceImplTest {
 
         company = new CompanyEntity(1L, "Test Company", true, LocalDateTime.now());
         product = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", null, LocalDateTime.now());
-        rootSegment = new SegmentEntity(1L, "Main", product, null);
-        childSegment = new SegmentEntity(2L, "Login", product, rootSegment);
+        rootSegment = new SegmentEntity(1L, "Main", product, null, 0);
+        childSegment = new SegmentEntity(2L, "Login", product, rootSegment, 0);
     }
 
     @Test
@@ -94,7 +95,7 @@ class SegmentServiceImplTest {
     @Test
     void testCreateParentFromDifferentProduct() {
         ProductEntity otherProduct = new ProductEntity(2L, company, "Other", Platform.WEB, "Other", null, LocalDateTime.now());
-        SegmentEntity otherSegment = new SegmentEntity(10L, "Other Root", otherProduct, null);
+        SegmentEntity otherSegment = new SegmentEntity(10L, "Other Root", otherProduct, null, 0);
 
         SegmentDto.SegmentRequest request = new SegmentDto.SegmentRequest(1L, "Child", 10L);
 
@@ -107,7 +108,7 @@ class SegmentServiceImplTest {
     @Test
     void testUpdate() {
         when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
-        SegmentEntity updatedSegment = new SegmentEntity(1L, "Main Page", product, null);
+        SegmentEntity updatedSegment = new SegmentEntity(1L, "Main Page", product, null, 0);
         when(segmentRepository.save(any())).thenReturn(updatedSegment);
 
         SegmentDto.SegmentResponse result = segmentService.update(1L, "Main Page");
@@ -123,8 +124,8 @@ class SegmentServiceImplTest {
 
     @Test
     void testReparentSuccess() {
-        SegmentEntity newRoot = new SegmentEntity(3L, "New Root", product, null);
-        SegmentEntity reparentedRoot = new SegmentEntity(1L, "Main", product, newRoot);
+        SegmentEntity newRoot = new SegmentEntity(3L, "New Root", product, null, 0);
+        SegmentEntity reparentedRoot = new SegmentEntity(1L, "Main", product, newRoot, 0);
 
         when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
         when(segmentRepository.findById(3L)).thenReturn(Optional.of(newRoot));
@@ -140,7 +141,7 @@ class SegmentServiceImplTest {
     @Test
     void testReparentToNull() {
         when(segmentRepository.findById(2L)).thenReturn(Optional.of(childSegment));
-        SegmentEntity madeRoot = new SegmentEntity(2L, "Login", product, null);
+        SegmentEntity madeRoot = new SegmentEntity(2L, "Login", product, null, 0);
         when(segmentRepository.save(any())).thenReturn(madeRoot);
 
         SegmentDto.SegmentResponse result = segmentService.reparent(2L, null);
@@ -167,7 +168,7 @@ class SegmentServiceImplTest {
     @Test
     void testReparentDifferentProduct() {
         ProductEntity otherProduct = new ProductEntity(2L, company, "Other", Platform.WEB, "Other", null, LocalDateTime.now());
-        SegmentEntity otherSegment = new SegmentEntity(10L, "Other Root", otherProduct, null);
+        SegmentEntity otherSegment = new SegmentEntity(10L, "Other Root", otherProduct, null, 0);
 
         when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
         when(segmentRepository.findById(10L)).thenReturn(Optional.of(otherSegment));
@@ -197,7 +198,7 @@ class SegmentServiceImplTest {
     @Test
     void testReparentCircularReference_GrandchildAsParent() {
         // Try to set grandchild as parent of root (circular)
-        SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment);
+        SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment, 0);
 
         when(segmentRepository.findById(1L)).thenReturn(Optional.of(rootSegment));
         when(segmentRepository.findAllByParentId(1L)).thenReturn(List.of(childSegment));
@@ -208,7 +209,7 @@ class SegmentServiceImplTest {
 
     @Test
     void testIsDescendant_True() {
-        SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment);
+        SegmentEntity grandchild = new SegmentEntity(3L, "FB Auth", product, childSegment, 0);
 
         when(segmentRepository.findAllByParentId(1L)).thenReturn(List.of(childSegment));
         when(segmentRepository.findAllByParentId(2L)).thenReturn(List.of(grandchild));
@@ -242,5 +243,85 @@ class SegmentServiceImplTest {
         when(segmentRepository.findAllByParentId(1L)).thenReturn(List.of(childSegment));
 
         assertThrows(IllegalArgumentException.class, () -> segmentService.validateReparent(1L, 2L));
+    }
+
+    // --- orderIndex / reorder ---
+
+    @Test
+    void create_setsOrderIndexFromMaxPlusOne() {
+        when(productRepository.findById(1L)).thenReturn(java.util.Optional.of(product));
+        when(segmentRepository.findMaxOrderIndex(1L, null)).thenReturn(2);
+        when(segmentRepository.save(any(SegmentEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SegmentDto.SegmentRequest request = new SegmentDto.SegmentRequest(1L, "FAQ", null);
+        segmentService.create(request);
+
+        org.mockito.ArgumentCaptor<SegmentEntity> captor =
+                org.mockito.ArgumentCaptor.forClass(SegmentEntity.class);
+        verify(segmentRepository).save(captor.capture());
+        assertEquals(3, captor.getValue().getOrderIndex());
+    }
+
+    @Test
+    void create_firstRootInProduct_orderIndexIsZero() {
+        when(productRepository.findById(1L)).thenReturn(java.util.Optional.of(product));
+        when(segmentRepository.findMaxOrderIndex(1L, null)).thenReturn(-1);
+        when(segmentRepository.save(any(SegmentEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        segmentService.create(new SegmentDto.SegmentRequest(1L, "First Root", null));
+
+        org.mockito.ArgumentCaptor<SegmentEntity> captor =
+                org.mockito.ArgumentCaptor.forClass(SegmentEntity.class);
+        verify(segmentRepository).save(captor.capture());
+        assertEquals(0, captor.getValue().getOrderIndex());
+    }
+
+    @Test
+    void reorder_assignsOrderIndexInRequestedOrder() {
+        SegmentEntity s1 = new SegmentEntity(10L, "A", product, null, 5);
+        SegmentEntity s2 = new SegmentEntity(20L, "B", product, null, 7);
+        SegmentEntity s3 = new SegmentEntity(30L, "C", product, null, 9);
+        when(segmentRepository.findAllById(java.util.List.of(30L, 10L, 20L)))
+                .thenReturn(java.util.List.of(s1, s2, s3));
+
+        segmentService.reorder(new SegmentDto.ReorderRequest(1L, null,
+                java.util.List.of(30L, 10L, 20L)));
+
+        assertEquals(1, s1.getOrderIndex());  // A is now at position 1
+        assertEquals(2, s2.getOrderIndex());  // B is now at position 2
+        assertEquals(0, s3.getOrderIndex());  // C is now at position 0
+        verify(segmentRepository).saveAll(anyList());
+    }
+
+    @Test
+    void reorder_throwsWhenSegmentBelongsToDifferentProduct() {
+        ProductEntity otherProduct = new ProductEntity(99L, company, "Other", Platform.WEB,
+                "desc", null, LocalDateTime.now());
+        SegmentEntity s = new SegmentEntity(10L, "X", otherProduct, null, 0);
+        when(segmentRepository.findAllById(java.util.List.of(10L))).thenReturn(java.util.List.of(s));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                segmentService.reorder(new SegmentDto.ReorderRequest(1L, null, java.util.List.of(10L))));
+        verify(segmentRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void reorder_throwsWhenSegmentHasDifferentParent() {
+        SegmentEntity otherParent = new SegmentEntity(99L, "OtherParent", product, null, 0);
+        SegmentEntity s = new SegmentEntity(10L, "X", product, otherParent, 0);
+        when(segmentRepository.findAllById(java.util.List.of(10L))).thenReturn(java.util.List.of(s));
+
+        // Request specifies parentId = null, but segment's actual parent is 99L → mismatch
+        assertThrows(IllegalArgumentException.class, () ->
+                segmentService.reorder(new SegmentDto.ReorderRequest(1L, null, java.util.List.of(10L))));
+        verify(segmentRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void reorder_throwsWhenSomeSegmentIdMissing() {
+        when(segmentRepository.findAllById(java.util.List.of(99L))).thenReturn(java.util.List.of());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                segmentService.reorder(new SegmentDto.ReorderRequest(1L, null, java.util.List.of(99L))));
     }
 }

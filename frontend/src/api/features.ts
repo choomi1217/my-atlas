@@ -177,6 +177,18 @@ export const segmentApi = {
     );
     return response.data.data;
   },
+
+  reorder: async (
+    productId: number,
+    parentId: number | null,
+    segmentIds: number[]
+  ): Promise<void> => {
+    await apiClient.patch('/api/segments/reorder', {
+      productId,
+      parentId,
+      segmentIds,
+    });
+  },
 };
 
 /**
