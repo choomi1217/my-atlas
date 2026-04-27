@@ -249,18 +249,26 @@ VersionPhase 가 이미 `orderIndex` + reorder API 패턴을 사용 중이므로
 | Frontend 신규 | TestCaseCard.tsx, TestCaseSteps.tsx 컴포넌트 추출 |
 | Frontend 수정 | TestCasePage.tsx 헤더 정리, SegmentTreeView.tsx DnD 분기, SegmentTreePicker 부모 선택 optional |
 
-### 4-Agent Pipeline 적용
+### 4-Agent Pipeline + User 육안 확인 적용
 
-각 PR 은 `.claude/agents/` 정의된 4-Agent Pipeline 을 끝까지 실행한다. Agent-D 가 통과하기 전까지 PR 생성 금지.
+각 PR 은 `.claude/agents/` 정의된 4-Agent Pipeline 을 끝까지 실행한 뒤, **User 육안 확인 (Visual Verification)** 단계를 거쳐야 PR 이 생성된다.
 
-| Agent | 파일 | 책임 |
+| Agent / Step | 파일 | 책임 |
 |-------|------|------|
 | Agent-A | `.claude/agents/code-implementor.md` | 코드 구현 |
 | Agent-B | `.claude/agents/unit-test-writer.md` | 단위/통합 테스트 (Backend JUnit + Frontend Vitest) |
 | Agent-C | `.claude/agents/e2e-test-writer.md` | Playwright E2E 테스트 |
 | Agent-D | `.claude/agents/build-verifier.md` | Backend build → docker compose up → E2E 전체 → docker compose down |
+| **Step-5 (Visual)** | — | **풀스택 기동 후 User 가 브라우저로 직접 동작/UI 확인 (Claude 는 docker compose up 으로 환경 제공)** |
 
-각 PR 의 Step 은 A → B → C → D 순서로 진행하며, 어느 단계든 실패 시 다음 단계로 넘어가지 않는다.
+각 PR 의 Step 은 A → B → C → D → Visual 순서로 진행한다. 어느 단계든 실패 시 다음 단계로 넘어가지 않으며, **User 육안 OK 가 떨어진 후에만 PR 생성**.
+
+**Visual Verification 표준 절차 (모든 PR 공통):**
+1. Claude 가 `docker compose up -d --build` 으로 풀스택 기동 (worktree 포트: backend `:8085`, frontend `:5178`)
+2. Claude 가 헬스체크 (`/actuator/health` 200, frontend 200) 후 User 에게 확인 요청
+3. User 가 브라우저로 변경된 페이지/플로우 직접 검증
+4. User OK → Claude 가 push + `gh pr create` (User 승인 후 머지는 User 가 직접)
+5. User NG → 수정 후 Agent-A 부터 재실행
 
 ---
 
@@ -412,7 +420,32 @@ cd .. && docker compose down
 - [x] 잔존 3 failures: `loginRequired` toggle DB 상태 leak (registry_v17.1 noted 사전 회귀, PR-A 무관)
 - [x] docker compose down 으로 teardown 완료
 
-**Agent-D 통과 — PR-A 생성 가능 (User 승인 후 `gh pr create`).**
+**Agent-D 통과 — Step A-5 (Visual Verification) 으로 진행.**
+
+---
+
+### Step A-5 — User 육안 확인 (Visual Verification)
+
+Agent-D 통과 후 Claude 는 풀스택을 기동하여 User 가 브라우저로 직접 변경 사항을 확인할 수 있도록 한다.
+
+**기동 명령:**
+```bash
+cd /Users/yeongmi/dev/qa/my-atlas/.claude/worktrees/registry && docker compose up -d --build
+# Backend:  http://localhost:8085
+# Frontend: http://localhost:5178
+```
+
+**User 확인 체크포인트:**
+- [ ] `http://localhost:5178/features` 진입 — Companies 타이틀 위에 "Product Test Suite" 헤더가 더 이상 없음
+- [ ] Product 진입 후 TestCasePage — Breadcrumb 만 노출, 본문에 큰 헤더 (`<h1>` product 이름 + Test Cases 부제목) 없음
+- [ ] TestCasePage 의 좌우 여백이 다른 페이지(VersionListPage 등)와 일관됨
+- [ ] 기존 기능 회귀 없음 (Path tree, TC 카드 펼침, Add Test Case 버튼 등 정상 동작)
+
+**Claude 진행 절차:**
+1. `docker compose up -d --build` + 헬스체크 후 User 에게 URL 안내
+2. User 가 OK → `git push -u origin <branch>` + `gh pr create` 실행
+3. User 가 NG → Agent-A 단계로 돌아가 수정 후 재진행
+4. PR 생성 후 docker compose down (또는 다음 PR 작업을 위해 유지)
 
 ---
 
@@ -759,7 +792,24 @@ cd .. && docker compose down
 - [ ] 기존 segment-dnd / test-run / version 등 회귀 없음
 - [ ] docker compose down 으로 teardown
 
-**Agent-D 통과 후에만 PR-B 생성.**
+**Agent-D 통과 — Step B-5 (Visual Verification) 으로 진행.**
+
+---
+
+### Step B-5 — User 육안 확인 (Visual Verification)
+
+**기동 명령:** `docker compose up -d --build` (worktree 포트 :8085 / :5178)
+
+**User 확인 체크포인트:**
+- [ ] TC 카드 펼침 시 Header zone (제목 + 뱃지 + Edit/Delete + Created) 과 Body zone 이 `border-bottom` 으로 명확히 구획
+- [ ] Body 가 Definition List 패턴 (라벨 120px 고정폭, secondary color, uppercase) 으로 노출
+- [ ] Steps 영역이 `[원형 뱃지] | ACTION | STEP EXPECTED` 3열 grid 표 형식
+- [ ] Final Expected Result 가 Steps **다음**에 위치하며 좌측 3px green accent border + green background + 체크 아이콘
+- [ ] 라벨이 "EXPECTED" → "STEP EXPECTED", "Final Expected Result" 명시 변경 반영
+- [ ] Created 일자가 Header 우측 하단에 11px tertiary color 로 약화 배치 (Body 영역에서 제거)
+- [ ] 기존 회귀 없음 (Edit/Delete 동작, 펼침/접기, 이미지 참조 ImageRefText 등)
+
+**Claude 진행 절차:** PR-A 와 동일 (User OK → push + gh pr create / User NG → Agent-A 재실행).
 
 ---
 
@@ -1335,7 +1385,29 @@ cd .. && docker compose down
 - [ ] 기존 회귀 0 (test-case-card, test-suite-layout, version, test-run 등)
 - [ ] docker compose down
 
-**Agent-D 통과 후에만 PR-C 생성.**
+**Agent-D 통과 — Step C-5 (Visual Verification) 으로 진행.**
+
+---
+
+### Step C-5 — User 육안 확인 (Visual Verification)
+
+**기동 명령:** `docker compose up -d --build` (worktree 포트 :8085 / :5178)
+**DB 상태 확인:** `docker compose exec backend bash -c "cat /app/logs/backend_*.log | grep 'segment.*order_index' | tail -5"` 로 마이그레이션 적용 확인
+
+**User 확인 체크포인트:**
+- [ ] SegmentTreePicker 에서 "(Root — Product 직속)" 옵션 선택 가능
+- [ ] Product 직속 자식으로 형제 Segment 2 개 이상 생성 가능 (예: `My Senior > [FAQ, Chat]`)
+- [ ] 같은 부모 하위 형제 Segment 의 DnD 순서 변경 (FAQ ↔ Chat) 후 새로 고침해도 순서 유지
+- [ ] DnD 가 reparent (다른 부모 이동) vs reorder (같은 부모 내 순서 변경) 를 정확히 구분
+- [ ] 기존 단일 Root Segment 트리 회귀 없음 (예: 기존 `My Senior > Senior > FAQ` 식 구조 정상 노출)
+- [ ] Segment 삭제, 이름 수정 등 기존 CRUD 회귀 없음
+- [ ] TestCase 의 path 가 Segment ID 배열 기반이므로 정렬 변경 후에도 TC 노출 정상
+
+**Claude 진행 절차:** PR-A 와 동일 (User OK → push + gh pr create / User NG → Agent-A 재실행).
+
+PR-C 머지 후 추가 작업:
+- 메인 DB 에 마이그레이션 자동 적용 — 적용 결과 직접 확인 (`\d segment` 로 order_index 컬럼 + 인덱스 존재)
+- 다른 worktree 도 develop pull 시 마이그레이션 동기화됨 — 각 worktree 의 Flyway 가 자동 적용
 
 ---
 
@@ -1418,17 +1490,18 @@ cd .. && docker compose down
 
 ## PR 진행 순서 및 머지 전략
 
-| 순서 | PR | Base | Agent Pipeline | 머지 전략 | 리뷰 포커스 |
-|------|----|------|----------------|---------|-------------|
-| 1 | PR-A — UI / Header 정리 | develop | A-1 → A-2 → A-3 → A-4 통과 후 PR | Squash | 시각적 회귀, 다른 페이지와의 일관성 |
-| 2 | PR-B — TC 카드 가독성 | develop | B-1 → B-2 → B-3 → B-4 통과 후 PR | Squash | DL 구조, Final Expected 강조, 컴포넌트 분리 |
-| 3 | PR-C — Segment Root + 정렬 | develop | C-1 → C-2 → C-3 → C-4 통과 후 PR | Squash | DB 마이그레이션, DnD 분기 정확성, E2E 안정성 |
+| 순서 | PR | Base | Pipeline | 머지 전략 | 리뷰 포커스 |
+|------|----|------|----------|---------|-------------|
+| 1 | PR-A — UI / Header 정리 | develop | A-1 → A-2 → A-3 → A-4 → **A-5 (Visual)** 통과 후 PR | Squash | 시각적 회귀, 다른 페이지와의 일관성 |
+| 2 | PR-B — TC 카드 가독성 | develop | B-1 → B-2 → B-3 → B-4 → **B-5 (Visual)** 통과 후 PR | Squash | DL 구조, Final Expected 강조, 컴포넌트 분리 |
+| 3 | PR-C — Segment Root + 정렬 | develop | C-1 → C-2 → C-3 → C-4 → **C-5 (Visual)** 통과 후 PR | Squash | DB 마이그레이션, DnD 분기 정확성, E2E 안정성 |
 
 **머지 게이트 (각 PR 공통):**
-- ❌ Agent-D 가 통과하지 않으면 PR 생성 금지 (CLAUDE.md 의 absolute rule)
+- ❌ Agent-D 가 통과하지 않으면 Visual 단계로 넘어가지 않음
 - ❌ E2E "did not run" 테스트가 있으면 통과로 간주하지 않음
 - ❌ Agent-A→B→C→D 중 어느 단계든 실패 시 다음 단계로 넘어가지 않음
-- ✅ User 승인 후 `gh pr create` (Claude 가 PR 생성), 머지는 User 가 직접
+- ❌ **User 가 육안 확인 OK 하지 않은 상태에서 PR 생성 금지 (Step-5 강제)**
+- ✅ User OK 후 `gh pr create` (Claude 가 PR 생성), 머지는 User 가 직접
 
 **머지 후 절차:**
 - 각 PR 머지 후 `./scripts/wt.sh sync registry` 로 worktree 동기화
