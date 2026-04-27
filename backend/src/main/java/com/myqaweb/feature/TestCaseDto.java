@@ -15,7 +15,7 @@ public class TestCaseDto {
         String promptText,
         String preconditions,
         List<TestStep> steps,
-        String expectedResult,
+        List<String> expectedResults,
         Priority priority,
         TestType testType,
         TestStatus status
@@ -31,7 +31,7 @@ public class TestCaseDto {
         String promptText,
         String preconditions,
         List<TestStep> steps,
-        String expectedResult,
+        List<String> expectedResults,
         Priority priority,
         TestType testType,
         TestStatus status,

@@ -45,7 +45,7 @@ class TestCasePathControllerTest {
         TestCaseDto.TestCaseResponse updated = new TestCaseDto.TestCaseResponse(
                 1L, 10L, new Long[]{12L, 34L}, new String[]{"결제", "NFC"},
                 "Login test", "desc", null, null, List.of(),
-                "ok", Priority.HIGH, TestType.FUNCTIONAL, TestStatus.ACTIVE,
+                List.of("ok"), Priority.HIGH, TestType.FUNCTIONAL, TestStatus.ACTIVE,
                 List.of(), now, now, null);
         when(testCaseService.updatePath(eq(1L), any(Long[].class))).thenReturn(updated);
 

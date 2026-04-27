@@ -102,7 +102,7 @@ export interface TestCase {
   promptText?: string;
   preconditions?: string;
   steps: TestStep[];
-  expectedResult?: string;
+  expectedResults?: string[];
   priority: TestCasePriority;
   testType: TestCaseType;
   status: TestCaseStatus;
