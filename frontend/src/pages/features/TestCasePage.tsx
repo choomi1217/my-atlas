@@ -19,7 +19,7 @@ import { Breadcrumb } from '@/components/features/Breadcrumb';
 import { SegmentTreeView } from '@/components/features/SegmentTreeView';
 import TestCaseFormModal from '@/components/features/TestCaseFormModal';
 import ConfirmDialog from '@/components/features/ConfirmDialog';
-import ImageRefText from '@/components/features/ImageRefText';
+import TestCaseCard from '@/components/features/TestCaseCard';
 import { TC_DND_MIME } from '@/utils/tcDnd';
 
 interface PathTreeNode {
@@ -86,128 +86,18 @@ function PathTreeGroup({
             className="space-y-3 mb-3"
           >
             {node.testCases.map((tc) => (
-              <div
+              <TestCaseCard
                 key={tc.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(TC_DND_MIME, String(tc.id));
-                  e.dataTransfer.effectAllowed = 'move';
+                testCase={tc}
+                isExpanded={expandedId === tc.id}
+                onToggle={() => {
+                  const next = expandedId === tc.id ? null : tc.id;
+                  setExpandedId(next);
+                  if (next !== null) setSelectedPath(tc.path);
                 }}
-                className={`group bg-white border rounded-lg shadow border-l-4 ${
-                  tc.priority === 'HIGH'
-                    ? 'border-l-red-400'
-                    : tc.priority === 'MEDIUM'
-                    ? 'border-l-yellow-400'
-                    : 'border-l-gray-300'
-                }`}
-                data-testid="tc-card"
-                data-tc-id={tc.id}
-              >
-                <div
-                  onClick={() => {
-                    const next = expandedId === tc.id ? null : tc.id;
-                    setExpandedId(next);
-                    if (next !== null) setSelectedPath(tc.path);
-                  }}
-                  className="p-4 cursor-pointer hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold">{tc.title}</h4>
-                      <div className="flex gap-2 mt-2">
-                        <span
-                          className={`text-xs px-2 py-1 rounded font-medium ${
-                            tc.priority === 'HIGH'
-                              ? 'bg-red-100 text-red-700'
-                              : tc.priority === 'MEDIUM'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}
-                        >
-                          {tc.priority}
-                        </span>
-                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                          {tc.testType}
-                        </span>
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                          {tc.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEditModal(tc);
-                        }}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-600 hover:bg-blue-200 rounded"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget({ id: tc.id, title: tc.title });
-                        }}
-                        className="px-3 py-1 text-sm bg-red-100 text-red-600 hover:bg-red-200 rounded"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded Details */}
-                {expandedId === tc.id && (
-                  <div className="p-4 bg-gray-50 border-t text-sm">
-                    {tc.description && (
-                      <div className="mb-3">
-                        <label className="font-bold">Description:</label>
-                        <p className="mt-1 text-gray-700">{tc.description}</p>
-                      </div>
-                    )}
-
-                    {tc.preconditions && (
-                      <div className="mb-3">
-                        <label className="font-bold">Preconditions:</label>
-                        <p className="mt-1 text-gray-700">{tc.preconditions}</p>
-                      </div>
-                    )}
-
-                    {tc.steps && tc.steps.length > 0 && (
-                      <div className="mb-3">
-                        <label className="font-bold">Steps:</label>
-                        <ol className="mt-1 ml-4 list-decimal space-y-1">
-                          {tc.steps.map((step, idx) => (
-                            <li key={idx}>
-                              <span className="font-semibold">
-                                <ImageRefText text={step.action} images={tc.images} />
-                              </span>
-                              <br />
-                              <span className="text-gray-600">
-                                Expected: <ImageRefText text={step.expected} images={tc.images} />
-                              </span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-
-                    {tc.expectedResult && (
-                      <div>
-                        <label className="font-bold">Expected Result:</label>
-                        <p className="mt-1 text-gray-700">
-                          <ImageRefText text={tc.expectedResult} images={tc.images} />
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="mt-3 text-xs text-gray-500">
-                      Created: {new Date(tc.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                )}
-              </div>
+                onEdit={(target) => handleOpenEditModal(target)}
+                onDelete={(info) => setDeleteTarget(info)}
+              />
             ))}
           </div>
         )}
