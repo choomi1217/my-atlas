@@ -609,36 +609,29 @@ export default function TestCasePage() {
         product={{ id: product.id, name: product.name }}
       />
 
-      <div className="flex-1 overflow-auto p-6">
-        <div>
-          {/* Header */}
-          <div className="mb-6 flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-              <p className="text-gray-600">Test Cases</p>
-              {(statusFilter || jobIdFilter !== null) && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
-                  <span>필터 적용:</span>
-                  {statusFilter && (
-                    <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded">
-                      status={statusFilter}
-                    </span>
-                  )}
-                  {jobIdFilter !== null && (
-                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded">
-                      jobId={jobIdFilter}
-                    </span>
-                  )}
-                  <Link
-                    to={`/features/companies/${companyId}/products/${productId}`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    필터 해제
-                  </Link>
-                </div>
+      <div className="flex-1 overflow-auto p-6" data-testid="tc-page-container">
+        <div className="max-w-7xl mx-auto w-full">
+          {(statusFilter || jobIdFilter !== null) && (
+            <div className="mb-4 flex items-center gap-2 text-xs text-gray-600">
+              <span>필터 적용:</span>
+              {statusFilter && (
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded">
+                  status={statusFilter}
+                </span>
               )}
+              {jobIdFilter !== null && (
+                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded">
+                  jobId={jobIdFilter}
+                </span>
+              )}
+              <Link
+                to={`/features/companies/${companyId}/products/${productId}`}
+                className="text-blue-600 hover:underline"
+              >
+                필터 해제
+              </Link>
             </div>
-          </div>
+          )}
 
           {/* Two-column layout: Path tree (left) + TestCase list (right) */}
           <div className="flex gap-6 items-start">
