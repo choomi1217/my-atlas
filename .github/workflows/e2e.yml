@@ -208,20 +208,35 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -euo pipefail
+
             cd /home/ec2-user/my-atlas
-            git pull origin main
-            docker compose up -d --build backend
+
+            # Sync to origin/main. --ff-only fails if repo diverged (manual edits on EC2)
+            # instead of silently continuing with stale code — that silent failure caused
+            # run 24818251884 to report "success" while prod stayed on v8.
+            git fetch origin main
+            git merge --ff-only origin/main
+
+            DEPLOYED_SHA=$(git rev-parse HEAD)
+            echo "Deploying commit: $DEPLOYED_SHA"
+
+            # --force-recreate ensures container restarts even when image digest is unchanged
+            # (e.g. Docker buildx cache hit). Previously a cache-hit build produced the same
+            # image digest → compose saw "no change" → container kept running old code.
+            docker compose up -d --build --force-recreate backend
+
             echo "Waiting for backend to start..."
             for i in 1 2 3 4 5 6; do
               sleep 10
               if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
-                echo "Backend deployed successfully!"
+                echo "Backend deployed successfully at commit $DEPLOYED_SHA"
                 exit 0
               fi
               echo "Attempt $i: backend not ready yet..."
             done
             echo "Backend failed to start within 60s"
-            docker logs myqaweb-backend --tail 30
+            docker logs myqaweb-backend --tail 50
             exit 1
 
   deploy-frontend:
@@ -260,8 +275,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
 
-      - name: Deploy to S3
+      - name: Deploy to S3 (frontend bucket)
         run: aws s3 sync frontend/dist/ s3://my-atlas-frontend/ --delete
+
+      # CloudFront routes /images/* → my-atlas-images bucket (for backend-uploaded images),
+      # which shadows the frontend bucket's own /images/features/ static assets. Without
+      # this second sync, Feature detail page screenshots 404 at CloudFront (SPA fallback
+      # returns index.html with content-type text/html). See ops_v26 for background.
+      - name: Sync feature-detail static images to images bucket
+        run: |
+          if [ -d frontend/dist/images/features ]; then
+            aws s3 sync frontend/dist/images/features/ s3://my-atlas-images/images/features/ \
+              --cache-control 'public,max-age=3600'
+          else
+            echo "No frontend/dist/images/features/ — skipping images-bucket sync"
+          fi
 
       - name: Invalidate CloudFront cache
         run: aws cloudfront create-invalidation --distribution-id EVMWQ4ZH85AXV --paths "/*"
