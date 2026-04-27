@@ -12,7 +12,9 @@
 프로덕션(`youngmi.works` / `api.youngmi.works`) 에 세 가지 증상이 동시에 관측됨.
 
 1. **TestCase 첨부 이미지 엑박** — `https://youngmi.works/api/feature-images/{uuid}.png` 경로로 응답이 내려옴. `/api/feature-images/` 는 `V202604171158__migrate_image_urls_to_s3.sql` 이후 더 이상 핸들러가 없는 경로 (실제 이미지는 `/images/feature/` 로 S3/CloudFront 에 서빙). 백엔드가 응답 URL 을 하드코딩으로 조립하면서 마이그레이션 이후에도 옛 경로를 그대로 붙이고 있었음.
+
 2. **Feature 상세 페이지 스크린샷 엑박** — `https://youngmi.works/images/features/senior_01_faq_list.png` 등 27장. 파일 자체는 `origin/main` `frontend/public/images/features/` 에 커밋돼 있음. 따라서 **CI deploy-frontend 가 실패했거나 S3 sync 결과에 해당 디렉터리가 반영되지 않은 배포 이슈**.
+
 3. **`/api/settings/public` 500 + 로그인 on/off 토글 미동작** — Platform v9 기능. PATCH 는 200 OK 로 저장되지만 GET 이 500. 프론트 `AuthContext` 의 catch 블록이 safe default `loginRequired=true` 로 폴백하면서 "Off 로 설정했는데도 로그인 강제" 증상 발생.
 
    **프로드 진단 결과 (docs/ops/sh.log, 2026-04-22)** — **PR #107 이 main 에 머지됐으나 deploy-backend 가 프로드에 반영되지 않음. 프로드는 Platform v8 코드로 동작 중**:
@@ -35,7 +37,7 @@
 | `backend/src/main/java/com/myqaweb/feature/TestCaseImageUrlResolver.java` (신규) | bare filename 은 `/images/feature/` prefix 추가, 이미 `/` 로 시작하는 값(마이그레이션으로 경로가 박힌 row, legacy `/api/feature-images/...`) 은 그대로 통과 |
 | `backend/src/main/java/com/myqaweb/feature/TestCaseController.java` (L75, L101) | 하드코딩 `"/api/feature-images/" +` → `toImageUrl()` 호출 |
 | `backend/src/main/java/com/myqaweb/feature/TestCaseServiceImpl.java` (L329) | 동일 |
-| `backend/src/main/java/com/myqaweb/config/DynamicPublicAccessFilter.java` | (1) `isLoginRequired()` 를 try/catch 로 감싸 예외 시 `true` 폴백 (500 전파 차단). (2) **whitelist 제거 — demo mode 전면 허용**: `loginRequired=false` 일 때 unauthenticated `/api/**` 전체에 anonymous auth 주입. ADMIN 전용 경로는 SecurityConfig 의 `.hasRole("ADMIN")` 매처가 여전히 보호. |
+| `backend/src/main/java/com/myqaweb/config/DynamicPublicAccessFilter.java` | `isLoginRequired()` 를 try/catch 로 감싸 예외 시 `true` 폴백 (500 전파 차단) |
 | `backend/src/main/java/com/myqaweb/settings/SettingsController.java` | `/api/settings/public` 도 동일한 방어 — `isLoginRequired()` 실패 시 `{loginRequired: true}` 로 200 응답 |
 
 ### 운영 조치 (배포 단계 — sh.log 진단에 따른 실제 복구 순서)
@@ -102,19 +104,7 @@ curl -I https://youngmi.works/images/features/senior_01_faq_list.png
 
 ---
 
-## Demo mode 의미 확장 (스코프 추가)
-
-User 가 로컬 검증 중 "login off 상태에서 POST /api/convention-images 가 403" 증상을 보고 → Platform v9 의 whitelist 기반 설계가 "visitors 가 전체 기능 체험" 의도와 어긋남을 확인. 이번 hotfix 로 whitelist 를 제거하고 demo mode 에서 write 도 전면 허용. 자세한 내용은 `platform_v12.md` 의 "Demo mode 의미 확장 — whitelist 제거" 섹션 참조.
-
-검증:
-- `curl -X POST http://localhost:8087/api/companies` (no auth) → **201 Created**
-- `curl http://localhost:8087/api/settings` (no auth) → **403** (ADMIN-only 유지)
-- `curl -X POST http://localhost:8087/api/auth/register` (no auth) → **403** (ADMIN-only 유지)
-
----
-
 ## 후속
 
 - public-access.spec.ts 의 snapshot→restore 패턴이 로컬에서 DB 상태 leak 발생 시 인접 테스트를 깨뜨림. 안전한 기본값(`loginRequired=true`) 으로 항상 복원하도록 리팩토링 검토 (qa 후속 v10 또는 v11 에서 처리).
 - 프론트엔드 배포 검증 자동화 — deploy 후 `/images/features/` 기대 파일 개수를 확인하는 smoke 스텝 추가 검토.
-- Demo mode 에서 `/api/kb/upload-pdf`, `/api/senior/chat` 등 비용성 엔드포인트에 대한 rate limit 강화 검토 (AiRateLimitFilter 확장 또는 IP quota).
