@@ -20,6 +20,7 @@ public class KnowledgeBaseDto {
             Long id,
             String title,
             String content,
+            String snippet,
             String category,
             String source,
             int hitCount,

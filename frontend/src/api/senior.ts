@@ -47,28 +47,69 @@ export const chatApi = {
         const decoder = new TextDecoder();
         let returnedSessionId: number | undefined;
 
+        // SSE event accumulator state. Per the SSE spec, an event ends on a blank
+        // line and multi-line `data:` fields are joined by `\n`. The previous
+        // implementation called onChunk per `data:` line and dropped those
+        // newlines, collapsing markdown headings/lists/code blocks onto a single
+        // line. This implementation buffers across chunk boundaries and joins
+        // multi-line data with `\n` so streaming markdown renders identically to
+        // the persisted DB content.
+        let buffer = '';
+        let currentEventName = '';
+        let currentDataLines: string[] = [];
+
+        function dispatchEvent() {
+          if (currentDataLines.length === 0 && currentEventName === '') return;
+          const data = currentDataLines.join('\n');
+          if (currentEventName === 'sessionId') {
+            const parsed = parseInt(data, 10);
+            if (!Number.isNaN(parsed)) returnedSessionId = parsed;
+          } else if (currentDataLines.length > 0) {
+            onChunk(data);
+          }
+          currentEventName = '';
+          currentDataLines = [];
+        }
+
+        function processLine(line: string) {
+          if (line === '') {
+            dispatchEvent();
+            return;
+          }
+          if (line.startsWith(':')) return; // SSE comment
+          const colonIdx = line.indexOf(':');
+          const field = colonIdx === -1 ? line : line.slice(0, colonIdx);
+          let value = colonIdx === -1 ? '' : line.slice(colonIdx + 1);
+          // SSE: a single leading space after the colon is removed
+          if (value.startsWith(' ')) value = value.slice(1);
+          if (field === 'event') {
+            currentEventName = value;
+          } else if (field === 'data') {
+            currentDataLines.push(value);
+          }
+          // ignore id/retry fields
+        }
+
         function read() {
           reader!.read().then(({ done, value }) => {
             if (done) {
+              if (buffer.length > 0) {
+                const trailing = buffer.replace(/\r$/, '');
+                processLine(trailing);
+                buffer = '';
+              }
+              dispatchEvent();
               onDone(returnedSessionId);
               return;
             }
-            const text = decoder.decode(value, { stream: true });
-            // Parse SSE format: data:chunk\n\n or event:sessionId\ndata:123\n\n
-            const lines = text.split('\n');
-            let currentEvent = '';
-            for (const line of lines) {
-              if (line.startsWith('event:')) {
-                currentEvent = line.slice(6).trim();
-              } else if (line.startsWith('data:')) {
-                const data = line.slice(5);
-                if (currentEvent === 'sessionId') {
-                  returnedSessionId = parseInt(data, 10);
-                  currentEvent = '';
-                } else {
-                  onChunk(data);
-                }
-              }
+            buffer += decoder.decode(value, { stream: true });
+            // Normalize CRLF to LF, then split line-by-line
+            buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            let newlineIdx: number;
+            while ((newlineIdx = buffer.indexOf('\n')) >= 0) {
+              const line = buffer.slice(0, newlineIdx);
+              buffer = buffer.slice(newlineIdx + 1);
+              processLine(line);
             }
             read();
           });

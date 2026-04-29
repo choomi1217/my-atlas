@@ -1,98 +1,67 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { useSeniorChat } from '@/hooks/useSeniorChat';
-import { useChatSessions } from '@/hooks/useChatSessions';
-import { KbItem, KbRequest } from '@/types/senior';
-import { kbApi } from '@/api/senior';
-import ChatView from '@/components/senior/ChatView';
-import FaqView from '@/components/senior/FaqView';
+import { useNavigate } from 'react-router-dom';
+import { useCuratedFaq } from '@/hooks/useCuratedFaq';
+import { KbItem } from '@/types/senior';
+import HeroSection from '@/components/senior/HeroSection';
+import RecommendedChips from '@/components/senior/RecommendedChips';
+import FaqSection from '@/components/senior/FaqSection';
 
-type SeniorView = 'faq' | 'chat';
+/**
+ * Resolve chip query string per requirement ④:
+ *   - PDF KB → source (book title)
+ *   - Manual KB → category (fallback to title)
+ */
+function resolveChipQuery(item: KbItem): string {
+  if (item.source && item.source.trim()) return item.source;
+  if (item.category && item.category.trim()) return item.category;
+  return item.title;
+}
 
 export default function SeniorPage() {
-  const [activeView, setActiveView] = useState<SeniorView>('faq');
-  const chatInputRef = useRef<HTMLTextAreaElement>(null);
-  const chat = useSeniorChat();
-  const { sessions, fetchSessions, deleteSession, renameSession } = useChatSessions();
+  const navigate = useNavigate();
+  const { faqs, isLoading, error } = useCuratedFaq();
 
-  const handleSendToChat = useCallback((item: KbItem) => {
-    chat.setFaqContext(item);
-    setActiveView('chat');
-  }, [chat]);
+  const navigateToChat = (message: string) => {
+    const query = encodeURIComponent(message);
+    navigate(`/senior/chat?q=${query}`);
+  };
 
-  const handleGoToChat = useCallback(() => {
-    setActiveView('chat');
-  }, []);
+  const handleHeroSubmit = (message: string) => {
+    navigateToChat(message);
+  };
 
-  const handleSelectSession = useCallback(async (id: number) => {
-    await chat.loadSession(id);
-    setActiveView('chat');
-  }, [chat]);
+  const handleChipClick = (item: KbItem) => {
+    navigateToChat(resolveChipQuery(item));
+  };
 
-  const handleNewSession = useCallback(() => {
-    chat.clearChat();
-    setActiveView('chat');
-  }, [chat]);
+  const handleFaqSendToChat = (item: KbItem) => {
+    navigateToChat(item.title);
+  };
 
-  const handleDeleteSession = useCallback(async (id: number) => {
-    await deleteSession(id);
-    // If deleted session is the active one, clear chat
-    if (chat.sessionId === id) {
-      chat.clearChat();
-    }
-  }, [deleteSession, chat]);
-
-  const handleSaveToKb = useCallback(async (request: KbRequest) => {
-    await kbApi.create(request);
-  }, []);
-
-  // Refresh sessions when streaming completes (new session may have been created)
-  useEffect(() => {
-    if (!chat.isStreaming && chat.sessionId) {
-      fetchSessions();
-    }
-  }, [chat.isStreaming, chat.sessionId, fetchSessions]);
-
-  // Auto-focus chat input when switching to chat with faqContext
-  useEffect(() => {
-    if (activeView === 'chat') {
-      setTimeout(() => chatInputRef.current?.focus(), 100);
-    }
-  }, [activeView]);
+  const handleShowAll = () => {
+    navigate('/senior/faq');
+  };
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-800">My Senior</h2>
-        <button
-          onClick={() => setActiveView(activeView === 'faq' ? 'chat' : 'faq')}
-          className="px-4 py-1.5 text-sm font-medium text-white bg-indigo-600
-                     rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          {activeView === 'faq' ? 'Chat \u2192' : '\u2190 FAQ'}
-        </button>
-      </div>
-
-      {/* Views */}
-      {activeView === 'faq' && (
-        <FaqView onSendToChat={handleSendToChat} onGoToChat={handleGoToChat} />
+      {/* Hero Section + Chips */}
+      <HeroSection onSubmit={handleHeroSubmit} />
+      {!isLoading && !error && (
+        <div className="mt-2 px-2">
+          <RecommendedChips items={faqs} onChipClick={handleChipClick} maxItems={6} />
+        </div>
       )}
-      {activeView === 'chat' && (
-        <ChatView
-          messages={chat.messages}
-          isStreaming={chat.isStreaming}
-          error={chat.error}
-          faqContext={chat.faqContext}
-          onSendMessage={chat.sendMessage}
-          onClearChat={handleNewSession}
-          onSaveToKb={handleSaveToKb}
-          inputRef={chatInputRef}
-          sessions={sessions}
-          activeSessionId={chat.sessionId}
-          onSelectSession={handleSelectSession}
-          onNewSession={handleNewSession}
-          onDeleteSession={handleDeleteSession}
-          onRenameSession={renameSession}
+
+      {/* FAQ Section */}
+      {error ? (
+        <div className="mt-10 text-red-500 text-sm text-center">
+          FAQ 로딩 실패: {error}
+        </div>
+      ) : (
+        <FaqSection
+          items={faqs}
+          onSendToChat={handleFaqSendToChat}
+          onShowAll={handleShowAll}
+          maxVisible={6}
         />
       )}
     </div>

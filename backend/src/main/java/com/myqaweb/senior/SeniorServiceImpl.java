@@ -13,6 +13,10 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -77,9 +81,15 @@ public class SeniorServiceImpl implements SeniorService {
         long startMs = System.currentTimeMillis();
         AtomicReference<Usage> usageRef = new AtomicReference<>();
 
-        Flux<ChatResponse> stream = chatClient.prompt()
-                .system(systemPrompt)
-                .user(userMessage)
+        // Use Message objects directly (bypass Spring AI's ST template parser).
+        // KB content piped into the system prompt may contain `(`, `<`, `$` etc.
+        // that the StringTemplate renderer used by `.system(String)/.user(String)`
+        // cannot parse — see "The template string is not valid." failures.
+        List<Message> messages = List.of(
+                new SystemMessage(systemPrompt),
+                new UserMessage(userMessage)
+        );
+        Flux<ChatResponse> stream = chatClient.prompt(new Prompt(messages))
                 .stream()
                 .chatResponse();
 
@@ -207,10 +217,6 @@ public class SeniorServiceImpl implements SeniorService {
                 sb.append("\n");
             }
 
-            // Increment hit counts for retrieved KB entries
-            incrementHitCounts(manualResults);
-            incrementHitCounts(pdfResults);
-
         } catch (Exception e) {
             log.warn("Failed to retrieve KB context via embedding search", e);
         }
@@ -235,16 +241,6 @@ public class SeniorServiceImpl implements SeniorService {
             return request.getRemoteAddr();
         } catch (Exception e) {
             return null;
-        }
-    }
-
-    private void incrementHitCounts(List<KnowledgeBaseEntity> kbEntries) {
-        for (KnowledgeBaseEntity kb : kbEntries) {
-            try {
-                knowledgeBaseRepository.incrementHitCount(kb.getId());
-            } catch (Exception e) {
-                log.warn("Failed to increment hit count for KB id={}", kb.getId(), e);
-            }
         }
     }
 
