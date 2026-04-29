@@ -116,10 +116,16 @@ function ResultRow({
                 </table>
               </div>
             )}
-            {tc.expectedResult && (
+            {tc.expectedResults && tc.expectedResults.length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-1">Expected Result</h4>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap"><ImageRefText text={tc.expectedResult} images={tc.images} /></p>
+                <ol className="list-decimal pl-5 text-sm text-gray-600 space-y-1 whitespace-pre-wrap">
+                  {tc.expectedResults.map((item, idx) => (
+                    <li key={idx}>
+                      <ImageRefText text={item} images={tc.images} />
+                    </li>
+                  ))}
+                </ol>
               </div>
             )}
             <div>

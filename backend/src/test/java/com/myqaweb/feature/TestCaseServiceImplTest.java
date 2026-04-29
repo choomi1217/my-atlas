@@ -77,7 +77,7 @@ class TestCaseServiceImplTest {
                 "Social login feature", "Allow users to login with social accounts",
                 "User is on login page",
                 List.of(new TestStep(1, "Click social login", "OAuth popup opens")),
-                "Redirected to main page",
+                List.of("Redirected to main page"),
                 Priority.HIGH, TestType.FUNCTIONAL, TestStatus.DRAFT, null,
                 LocalDateTime.now(), LocalDateTime.now()
         );
@@ -99,7 +99,7 @@ class TestCaseServiceImplTest {
         TestCaseDto.TestCaseRequest request = new TestCaseDto.TestCaseRequest(
                 1L, new Long[]{1L, 2L}, "Test login",
                 "Social login desc", "Prompt text",
-                "Precondition", List.of(), "Expected result",
+                "Precondition", List.of(), List.of("Expected result"),
                 Priority.MEDIUM, TestType.FUNCTIONAL, TestStatus.DRAFT
         );
 
@@ -119,7 +119,7 @@ class TestCaseServiceImplTest {
         TestCaseDto.TestCaseRequest request = new TestCaseDto.TestCaseRequest(
                 1L, new Long[]{1L}, "Updated test",
                 "Updated desc", "Updated prompt",
-                "Updated precondition", List.of(), "Updated expected",
+                "Updated precondition", List.of(), List.of("Updated expected"),
                 Priority.LOW, TestType.REGRESSION, TestStatus.ACTIVE
         );
 
@@ -127,7 +127,7 @@ class TestCaseServiceImplTest {
                 1L, product, new Long[]{1L}, null, "Updated test",
                 "Updated desc", "Updated prompt",
                 "Updated precondition",
-                List.of(), "Updated expected",
+                List.of(), List.of("Updated expected"),
                 Priority.LOW, TestType.REGRESSION, TestStatus.ACTIVE, null,
                 testCase.getCreatedAt(), LocalDateTime.now()
         );

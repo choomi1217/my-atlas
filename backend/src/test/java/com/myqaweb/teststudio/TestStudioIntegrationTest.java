@@ -70,7 +70,7 @@ class TestStudioIntegrationTest extends BaseIntegrationTest {
                 "title": "[IT] Integration TC 1",
                 "preconditions": "System up",
                 "steps": [{"order": 1, "action": "Do thing", "expected": "Ok"}],
-                "expectedResult": "Works",
+                "expectedResults": ["Works"],
                 "priority": "HIGH",
                 "testType": "FUNCTIONAL",
                 "suggestedSegmentPath": ["Integration"]
@@ -79,7 +79,7 @@ class TestStudioIntegrationTest extends BaseIntegrationTest {
                 "title": "[IT] Integration TC 2",
                 "preconditions": "System up",
                 "steps": [{"order": 1, "action": "Other thing", "expected": "Ok"}],
-                "expectedResult": "Works too",
+                "expectedResults": ["Works too"],
                 "priority": "LOW",
                 "testType": "REGRESSION",
                 "suggestedSegmentPath": ["Integration"]

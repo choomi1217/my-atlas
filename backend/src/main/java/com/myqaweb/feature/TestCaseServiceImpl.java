@@ -66,7 +66,7 @@ public class TestCaseServiceImpl implements TestCaseService {
         entity.setPromptText(request.promptText());
         entity.setPreconditions(request.preconditions());
         entity.setSteps(request.steps() != null ? request.steps() : new ArrayList<>());
-        entity.setExpectedResult(request.expectedResult());
+        entity.setExpectedResults(request.expectedResults());
         entity.setPriority(request.priority() != null ? request.priority() : Priority.MEDIUM);
         entity.setTestType(request.testType() != null ? request.testType() : TestType.FUNCTIONAL);
         entity.setStatus(request.status() != null ? request.status() : TestStatus.DRAFT);
@@ -86,7 +86,7 @@ public class TestCaseServiceImpl implements TestCaseService {
         entity.setPromptText(request.promptText());
         entity.setPreconditions(request.preconditions());
         entity.setSteps(request.steps() != null ? request.steps() : new ArrayList<>());
-        entity.setExpectedResult(request.expectedResult());
+        entity.setExpectedResults(request.expectedResults());
         entity.setPriority(request.priority() != null ? request.priority() : Priority.MEDIUM);
         entity.setTestType(request.testType() != null ? request.testType() : TestType.FUNCTIONAL);
         entity.setStatus(request.status() != null ? request.status() : TestStatus.DRAFT);
@@ -342,7 +342,7 @@ public class TestCaseServiceImpl implements TestCaseService {
                 entity.getPromptText(),
                 entity.getPreconditions(),
                 entity.getSteps(),
-                entity.getExpectedResult(),
+                entity.getExpectedResults(),
                 entity.getPriority(),
                 entity.getTestType(),
                 entity.getStatus(),
