@@ -2,8 +2,9 @@
 
 > 변경 유형: 기능 개선  
 > 작성일: 2026-04-27  
+> 완료일: 2026-04-29  
 > 버전: v18  
-> 상태: 진행 중
+> 상태: 완료 (PR-A #121 + PR-B #123 + PR-C #124, User 승인 대기)
 
 ---
 
@@ -479,10 +480,10 @@ cd /Users/yeongmi/dev/qa/my-atlas/.claude/worktrees/registry && docker compose u
 ```
 
 **User 확인 체크포인트:**
-- [ ] `http://localhost:5178/features` 진입 — Companies 타이틀 위에 "Product Test Suite" 헤더가 더 이상 없음
-- [ ] Product 진입 후 TestCasePage — Breadcrumb 만 노출, 본문에 큰 헤더 (`<h1>` product 이름 + Test Cases 부제목) 없음
-- [ ] TestCasePage 의 좌우 여백이 다른 페이지(VersionListPage 등)와 일관됨
-- [ ] 기존 기능 회귀 없음 (Path tree, TC 카드 펼침, Add Test Case 버튼 등 정상 동작)
+- [x] `http://localhost:5178/features` 진입 — Companies 타이틀 위에 "Product Test Suite" 헤더가 더 이상 없음
+- [x] Product 진입 후 TestCasePage — Breadcrumb 만 노출, 본문에 큰 헤더 (`<h1>` product 이름 + Test Cases 부제목) 없음
+- [x] TestCasePage 의 좌우 여백이 다른 페이지(VersionListPage 등)와 일관됨
+- [x] 기존 기능 회귀 없음 (Path tree, TC 카드 펼침, Add Test Case 버튼 등 정상 동작)
 
 **Claude 진행 절차:**
 1. `docker compose up -d --build` + 헬스체크 후 User 에게 URL 안내
@@ -835,7 +836,7 @@ cd .. && docker compose down
 - [x] PR-B 코드 변경에 의한 deterministic regression 0 건
 - [x] 사전 회귀 3 건 (auth.spec.ts:107, login.spec.ts:85, resume.spec.ts:40) — `test.fixme` quarantine 적용 + 추적 주석 (Pre-existing E2E Quarantine 섹션 참조)
 - [x] Intermittent flake 3+ 건 (test-run / test-studio / version 등) — isolation 통과, 격리 보류, follow-up 모니터링
-- [ ] docker compose down 으로 teardown (Visual Verification 후 진행)
+- [x] docker compose down 으로 teardown (Visual Verification 후 진행)
 
 **Agent-D 통과 — Step B-5 (Visual Verification) 으로 진행.**
 
@@ -846,13 +847,13 @@ cd .. && docker compose down
 **기동 명령:** `docker compose up -d --build` (worktree 포트 :8085 / :5178)
 
 **User 확인 체크포인트:**
-- [ ] TC 카드 펼침 시 Header zone (제목 + 뱃지 + Edit/Delete + Created) 과 Body zone 이 `border-bottom` 으로 명확히 구획
-- [ ] Body 가 Definition List 패턴 (라벨 120px 고정폭, secondary color, uppercase) 으로 노출
-- [ ] Steps 영역이 `[원형 뱃지] | ACTION | STEP EXPECTED` 3열 grid 표 형식
-- [ ] Final Expected Result 가 Steps **다음**에 위치하며 좌측 3px green accent border + green background + 체크 아이콘
-- [ ] 라벨이 "EXPECTED" → "STEP EXPECTED", "Final Expected Result" 명시 변경 반영
-- [ ] Created 일자가 Header 우측 하단에 11px tertiary color 로 약화 배치 (Body 영역에서 제거)
-- [ ] 기존 회귀 없음 (Edit/Delete 동작, 펼침/접기, 이미지 참조 ImageRefText 등)
+- [x] TC 카드 펼침 시 Header zone (제목 + 뱃지 + Edit/Delete + Created) 과 Body zone 이 `border-bottom` 으로 명확히 구획
+- [x] Body 가 Definition List 패턴 (라벨 120px 고정폭, secondary color, uppercase) 으로 노출
+- [x] Steps 영역이 `[원형 뱃지] | ACTION | STEP EXPECTED` 3열 grid 표 형식
+- [x] Final Expected Result 가 Steps **다음**에 위치하며 좌측 3px green accent border + green background + 체크 아이콘
+- [x] 라벨이 "EXPECTED" → "STEP EXPECTED", "Final Expected Result" 명시 변경 반영
+- [x] Created 일자가 Header 우측 하단에 11px tertiary color 로 약화 배치 (Body 영역에서 제거)
+- [x] 기존 회귀 없음 (Edit/Delete 동작, 펼침/접기, 이미지 참조 ImageRefText 등)
 
 **Claude 진행 절차:** PR-A 와 동일 (User OK → push + gh pr create / User NG → Agent-A 재실행).
 
@@ -1430,7 +1431,7 @@ cd .. && docker compose down
 - [x] segment-dnd.spec.ts 신규 2 시나리오 + 기존 8 = 10/10 통과
 - [x] PR-A / PR-B 회귀 없음 (test-suite-layout 3, test-case-card 5, product-panel 5 모두 통과)
 - [x] 잔존 2 failures (test-run.spec.ts:194, version.spec.ts:121) — isolation 에서 통과하는 intermittent flake, PR-C 무관 (기존 PR-B noted "Intermittent flake — 격리 보류" 카테고리)
-- [ ] docker compose down
+- [x] docker compose down
 
 **Agent-D 통과 — Step C-5 (Visual Verification) 으로 진행.**
 
@@ -1442,13 +1443,13 @@ cd .. && docker compose down
 **DB 상태 확인:** `docker compose exec backend bash -c "cat /app/logs/backend_*.log | grep 'segment.*order_index' | tail -5"` 로 마이그레이션 적용 확인
 
 **User 확인 체크포인트:**
-- [ ] SegmentTreePicker 에서 "(Root — Product 직속)" 옵션 선택 가능
-- [ ] Product 직속 자식으로 형제 Segment 2 개 이상 생성 가능 (예: `My Senior > [FAQ, Chat]`)
-- [ ] 같은 부모 하위 형제 Segment 의 DnD 순서 변경 (FAQ ↔ Chat) 후 새로 고침해도 순서 유지
-- [ ] DnD 가 reparent (다른 부모 이동) vs reorder (같은 부모 내 순서 변경) 를 정확히 구분
-- [ ] 기존 단일 Root Segment 트리 회귀 없음 (예: 기존 `My Senior > Senior > FAQ` 식 구조 정상 노출)
-- [ ] Segment 삭제, 이름 수정 등 기존 CRUD 회귀 없음
-- [ ] TestCase 의 path 가 Segment ID 배열 기반이므로 정렬 변경 후에도 TC 노출 정상
+- [x] SegmentTreePicker 에서 "(Root — Product 직속)" 옵션 선택 가능
+- [x] Product 직속 자식으로 형제 Segment 2 개 이상 생성 가능 (예: `My Senior > [FAQ, Chat]`)
+- [x] 같은 부모 하위 형제 Segment 의 DnD 순서 변경 (FAQ ↔ Chat) 후 새로 고침해도 순서 유지
+- [x] DnD 가 reparent (다른 부모 이동) vs reorder (같은 부모 내 순서 변경) 를 정확히 구분
+- [x] 기존 단일 Root Segment 트리 회귀 없음 (예: 기존 `My Senior > Senior > FAQ` 식 구조 정상 노출)
+- [x] Segment 삭제, 이름 수정 등 기존 CRUD 회귀 없음
+- [x] TestCase 의 path 가 Segment ID 배열 기반이므로 정렬 변경 후에도 TC 노출 정상
 
 **Claude 진행 절차:** PR-A 와 동일 (User OK → push + gh pr create / User NG → Agent-A 재실행).
 
@@ -1610,3 +1611,85 @@ test.fixme('should redirect to /login when accessing protected route without aut
 - "정보가 다 있는데 안 읽힌다" 라는 QA 피드백 해소
 - Segment 구조가 사용자의 멘탈 모델(Product = 카테고리, Segment = 기능 단위)과 일치
 - Test Suite 페이지가 다른 도메인 페이지와 같은 양식으로 보여 학습 곡선 완화
+
+---
+
+## [최종 요약]
+
+### PR 목록 (모두 stacked, User 승인 대기)
+
+| PR | URL | Base | Commits | 변경량 |
+|----|-----|------|---------|--------|
+| PR-A | [#121](https://github.com/choomi1217/my-atlas/pull/121) | develop | 2 | +1836 / -35 (8 files) |
+| PR-B | [#123](https://github.com/choomi1217/my-atlas/pull/123) | feature/registry-ui-header | 4 | +853 / -160 (29 files) |
+| PR-C | [#124](https://github.com/choomi1217/my-atlas/pull/124) | feature/registry-tc-card | 2 | +797 / -80 (21 files) |
+
+### 구현된 요구사항 (5개 → 8개로 확장)
+
+원본 요구사항 5개 + Visual Verification 후 추가 요구사항 3개:
+
+| # | 요구사항 | PR | 비고 |
+|---|---------|----|----|
+| 1 | UI / BreadCrumb Header 정리 | PR-A | CompanyListPage Breadcrumb 제거 + TestCasePage 헤더 중복 제거 + max-w-7xl 통일 |
+| 2 | Test Case 카드 가독성 (DL 패턴) | PR-B | TestCaseCard / TestCaseSteps 추출, Inverted Hierarchy, Final Expected green accent |
+| 3 | Final Expected Result 다중 항목 (이미지 첨부 케이스) | PR-B | DB schema 변경 (TEXT → JSONB array), Form 다중 row 입력, ol 리스트 렌더 |
+| 4 | Segment 다중 Root 지원 | PR-C | + Root Path 버튼, Product 직속 형제 Segment |
+| 5 | 같은 레벨 Segment 형제 정렬 | PR-C | order_index 컬럼 + ▲▼ 버튼 + reorder API |
+| 6 | **Promote to Root** (Visual 후 추가) | PR-C | 컨텍스트 메뉴 "Root 로 이동" |
+| 7 | **모든 Path 삼각형 통일** (Visual 후 추가) | PR-C | leaf `-` → `▶ (disabled)` |
+| 8 | **Last-root 삭제 보호** (Visual 후 추가) | PR-C | Frontend disabled + Backend gate |
+
+### 산출물 통계
+
+**DB Migration**: 2 신규
+- `V202604272107__convert_expected_result_to_array.sql` (PR-B)
+- `V202604272155__add_segment_order_index.sql` (PR-C)
+
+**Backend**: 8 파일 수정 + 1 신규
+- 수정: SegmentEntity / Repository / Service(Impl/Interface) / Controller / Dto, TestCaseEntity / Dto / Service, TestStudio Generator / DraftDto
+- 신규 마이그레이션 SQL × 2
+
+**Frontend**: 6 파일 수정 + 2 신규
+- 신규: `TestCaseCard.tsx`, `TestCaseSteps.tsx`
+- 수정: `CompanyListPage`, `TestCasePage`, `TestCaseFormModal`, `SegmentTreeView`, `types/features.ts`, `api/features.ts`
+- 회귀 영향: `TestRunDetailPage`, `VersionPhaseDetailPage` (expectedResults 다중 항목 렌더링)
+
+**Tests**:
+- Vitest: 60 → 78 (+18 신규 시나리오)
+  - `pages/features/__tests__/CompanyListPage.test.tsx` (3)
+  - `pages/features/__tests__/TestCasePage.test.tsx` (3)
+  - `components/features/__tests__/TestCaseCard.test.tsx` (9)
+  - `components/features/__tests__/TestCaseSteps.test.tsx` (5)
+  - `components/features/__tests__/SegmentTreeView.test.tsx` (4)
+- Backend JUnit: 기존 + SegmentService 9 + SegmentController 2 + TestCase mock 업데이트
+- Playwright: 신규 spec 3 (`test-suite-layout`, `test-case-card`, `segment-reorder`) + 기존 spec 확장 (`segment-dnd` 2 추가, `product-panel` 회귀 수정)
+
+### Pre-existing E2E Quarantine (별도 follow-up)
+
+PR-B Agent-D 검증 중 발견된 결정적 사전 회귀 3 건 — `test.fixme` 격리 + 추적 주석 + follow-up 계획 문서화:
+- `qa/api/auth.spec.ts:107`
+- `qa/ui/login.spec.ts:85`
+- `qa/ui/resume.spec.ts:40`
+
+원인 공통: `loginRequired` 토글 DB 상태 leak. follow-up PR 권장 작업:
+1. `loginRequired` 토글 DB seed 안정화 (앱 시작 시 default reset 또는 test-helper 강제 false)
+2. Spec 간 데이터 격리 강화 (`cleanupAllTestData` 전역 호출 의존성 제거)
+3. 격리된 3 건 root cause 수정 후 `test.fixme` → `test` 복원
+
+### 머지 가이드 (User)
+
+권장 순서:
+1. **PR-A (#121)** 머지 → develop 반영, PR-B base 자동 develop 으로 전환
+2. **PR-B (#123)** 머지 → develop 반영, PR-C base 자동 develop 으로 전환
+3. **PR-C (#124)** 머지 → 마이그레이션 V202604272107 + V202604272155 자동 적용
+
+각 PR 머지 후 `./scripts/wt.sh sync registry` 로 worktree 동기화. 모든 PR 머지 완료 후 develop → main 릴리즈 PR 별도 작성.
+
+### 4-Agent Pipeline + Visual 적용 결과
+
+각 PR 모두 A → B → C → D → Visual 5 단계 완주:
+- Agent-A: 코드 구현
+- Agent-B: 단위 / 통합 테스트
+- Agent-C: Playwright E2E
+- Agent-D: Backend build + Frontend lint/test + 풀스택 + E2E 전체 + teardown
+- Step-5 Visual: User 육안 확인 후 PR 생성 (실제로 PR-B 와 PR-C 모두 Visual 단계에서 추가 요구사항 발견 → 즉시 반영 후 재 검증)
