@@ -38,8 +38,8 @@ class SegmentControllerTest {
     void listByProduct_returnsOk() throws Exception {
         // Arrange
         List<SegmentDto.SegmentResponse> segments = List.of(
-                new SegmentDto.SegmentResponse(1L, "Login", 10L, null),
-                new SegmentDto.SegmentResponse(2L, "Login > OAuth", 10L, 1L)
+                new SegmentDto.SegmentResponse(1L, "Login", 10L, null, 0),
+                new SegmentDto.SegmentResponse(2L, "Login > OAuth", 10L, 1L, 0)
         );
         when(segmentService.findByProductId(10L)).thenReturn(segments);
 
@@ -60,7 +60,7 @@ class SegmentControllerTest {
     @Test
     void create_returns201() throws Exception {
         // Arrange
-        SegmentDto.SegmentResponse created = new SegmentDto.SegmentResponse(1L, "Login", 10L, null);
+        SegmentDto.SegmentResponse created = new SegmentDto.SegmentResponse(1L, "Login", 10L, null, 0);
         when(segmentService.create(any(SegmentDto.SegmentRequest.class))).thenReturn(created);
 
         // Act & Assert
@@ -80,7 +80,7 @@ class SegmentControllerTest {
     @Test
     void createChild_returns201() throws Exception {
         // Arrange
-        SegmentDto.SegmentResponse created = new SegmentDto.SegmentResponse(2L, "OAuth", 10L, 1L);
+        SegmentDto.SegmentResponse created = new SegmentDto.SegmentResponse(2L, "OAuth", 10L, 1L, 0);
         when(segmentService.create(any(SegmentDto.SegmentRequest.class))).thenReturn(created);
 
         // Act & Assert
@@ -99,7 +99,7 @@ class SegmentControllerTest {
     @Test
     void update_returnsOk() throws Exception {
         // Arrange
-        SegmentDto.SegmentResponse updated = new SegmentDto.SegmentResponse(1L, "Login Updated", 10L, null);
+        SegmentDto.SegmentResponse updated = new SegmentDto.SegmentResponse(1L, "Login Updated", 10L, null, 0);
         when(segmentService.update(eq(1L), eq("Login Updated"))).thenReturn(updated);
 
         // Act & Assert
@@ -163,7 +163,7 @@ class SegmentControllerTest {
     @Test
     void reparent_returnsOk() throws Exception {
         // Arrange
-        SegmentDto.SegmentResponse reparented = new SegmentDto.SegmentResponse(1L, "Login", 10L, 3L);
+        SegmentDto.SegmentResponse reparented = new SegmentDto.SegmentResponse(1L, "Login", 10L, 3L, 0);
         when(segmentService.reparent(eq(1L), eq(3L))).thenReturn(reparented);
 
         // Act & Assert
@@ -183,7 +183,7 @@ class SegmentControllerTest {
     @Test
     void reparent_toNull_returnsOk() throws Exception {
         // Arrange
-        SegmentDto.SegmentResponse reparented = new SegmentDto.SegmentResponse(2L, "Login", 10L, null);
+        SegmentDto.SegmentResponse reparented = new SegmentDto.SegmentResponse(2L, "Login", 10L, null, 0);
         when(segmentService.reparent(eq(2L), isNull())).thenReturn(reparented);
 
         // Act & Assert
@@ -249,5 +249,34 @@ class SegmentControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Cannot set a descendant segment as parent (circular reference)"));
+    }
+
+    // --- Reorder Tests ---
+
+    @Test
+    void reorder_returns200() throws Exception {
+        // Act & Assert
+        mockMvc.perform(patch("/api/segments/reorder")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"productId": 10, "parentId": null, "segmentIds": [3, 1, 2]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(segmentService).reorder(any(SegmentDto.ReorderRequest.class));
+    }
+
+    @Test
+    void reorder_returns400WhenSegmentIdsEmpty() throws Exception {
+        // Act & Assert — @NotEmpty on segmentIds rejects empty list
+        mockMvc.perform(patch("/api/segments/reorder")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"productId": 10, "parentId": null, "segmentIds": []}
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verify(segmentService, never()).reorder(any());
     }
 }

@@ -39,6 +39,7 @@ export interface Segment {
   name: string;
   productId: number;
   parentId: number | null;
+  orderIndex: number;
 }
 
 /**

@@ -148,23 +148,57 @@ test.describe('Segment API E2E', () => {
   });
 
   test('DELETE /api/segments/{id} - delete root cascades children', async () => {
-    // Recreate for deletion test
-    const rootResp = await request.post('/api/segments', {
-      data: { productId, name: 'DeleteRoot', parentId: null },
+    // Isolated product to avoid DB pollution from sibling tests
+    const productResp = await request.post('/api/products', {
+      data: { companyId, name: 'E2E Delete Cascade Product', platform: 'WEB' },
     });
-    const rootBody = await rootResp.json() as { data: { id: number } };
-    const delRootId = rootBody.data.id;
+    const isolatedProductId = (await productResp.json() as { data: { id: number } }).data.id;
+
+    // Setup: 2 roots (last-root guard requires sibling) + 1 child under DeleteRoot
+    const rootResp = await request.post('/api/segments', {
+      data: { productId: isolatedProductId, name: 'DeleteRoot', parentId: null },
+    });
+    const delRootId = (await rootResp.json() as { data: { id: number } }).data.id;
 
     await request.post('/api/segments', {
-      data: { productId, name: 'DeleteChild', parentId: delRootId },
+      data: { productId: isolatedProductId, name: 'DeleteChild', parentId: delRootId },
     });
+
+    const siblingResp = await request.post('/api/segments', {
+      data: { productId: isolatedProductId, name: 'SiblingRoot', parentId: null },
+    });
+    const siblingId = (await siblingResp.json() as { data: { id: number } }).data.id;
 
     const response = await request.delete(`/api/segments/${delRootId}`);
     expect(response.status()).toBe(200);
 
-    const listResponse = await request.get(`/api/segments?productId=${productId}`);
-    const listBody = await listResponse.json() as { data: unknown[] };
-    expect(listBody.data.length).toBe(0);
+    // DeleteRoot + DeleteChild cascade-deleted; SiblingRoot remains
+    const listResponse = await request.get(`/api/segments?productId=${isolatedProductId}`);
+    const listBody = await listResponse.json() as { data: { id: number }[] };
+    expect(listBody.data.length).toBe(1);
+    expect(listBody.data[0].id).toBe(siblingId);
+
+    // Cleanup
+    await request.delete(`/api/products/${isolatedProductId}`).catch(() => {});
+  });
+
+  test('DELETE /api/segments/{id} - cannot delete last root segment in product', async () => {
+    // Fresh product to guarantee single-root state, isolated from sibling tests
+    const productResp = await request.post('/api/products', {
+      data: { companyId, name: 'E2E LastRoot Guard Product', platform: 'WEB' },
+    });
+    const guardProductId = (await productResp.json() as { data: { id: number } }).data.id;
+
+    const onlyRoot = await request.post('/api/segments', {
+      data: { productId: guardProductId, name: 'OnlyRoot', parentId: null },
+    });
+    const onlyRootId = (await onlyRoot.json() as { data: { id: number } }).data.id;
+
+    const response = await request.delete(`/api/segments/${onlyRootId}`);
+    expect(response.status()).toBe(400);
+
+    // Cleanup: delete the product (cascades segments)
+    await request.delete(`/api/products/${guardProductId}`).catch(() => {});
   });
 
   test.afterAll(async () => {

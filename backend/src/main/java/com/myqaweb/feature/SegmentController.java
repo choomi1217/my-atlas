@@ -53,4 +53,11 @@ public class SegmentController {
         SegmentDto.SegmentResponse response = segmentService.reparent(id, request.parentId());
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
+
+    @PatchMapping("/reorder")
+    public ResponseEntity<ApiResponse<Void>> reorder(
+            @Valid @RequestBody SegmentDto.ReorderRequest request) {
+        segmentService.reorder(request);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
 }

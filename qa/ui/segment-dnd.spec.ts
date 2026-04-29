@@ -193,4 +193,42 @@ test.describe('Segment Drag and Drop (DnD) E2E', () => {
     expect(await featuresPage.isSegmentVisible('E2E DnD Test-A/B')).toBe(true);
     expect(await featuresPage.isSegmentVisible('E2E DnD Test_C@D')).toBe(true);
   });
+
+  // --- PR-C: Multi-Root + Sibling Reorder ---
+
+  test('Product 직속 자식으로 다중 Root Segment 가 형제로 노출된다', async ({ page }) => {
+    await createTestSegment(productId, 'E2E Root FAQ');
+    await createTestSegment(productId, 'E2E Root Chat');
+
+    await featuresPage.gotoTestCases(companyId, productId);
+
+    // 둘 다 root 레벨로 노출되어야 함 (Product 이름 중복 없음)
+    expect(await featuresPage.isSegmentVisible('E2E Root FAQ')).toBe(true);
+    expect(await featuresPage.isSegmentVisible('E2E Root Chat')).toBe(true);
+
+    // + Root Path 버튼 노출 (다중 Root 추가 진입점)
+    await expect(page.locator('[data-testid="segment-add-root"]')).toBeVisible();
+  });
+
+  test('▲▼ 버튼으로 같은 레벨 Segment 형제 정렬 순서 변경', async ({ page }) => {
+    const segA = await createTestSegment(productId, 'E2E Order A');
+    const segB = await createTestSegment(productId, 'E2E Order B');
+    const segC = await createTestSegment(productId, 'E2E Order C');
+
+    await featuresPage.gotoTestCases(companyId, productId);
+
+    // 초기 순서: A, B, C — A 의 ▲ 는 비활성, C 의 ▼ 는 비활성
+    await expect(page.locator(`[data-testid="segment-move-up-${segA.id}"]`)).toBeDisabled();
+    await expect(page.locator(`[data-testid="segment-move-down-${segC.id}"]`)).toBeDisabled();
+
+    // B 를 ▲ 로 위로 이동 → 새 순서: B, A, C
+    // hover state 가 필요해서 force click 으로 이동
+    await page.locator(`[data-testid="segment-move-up-${segB.id}"]`).click({ force: true });
+    await page.waitForResponse((r) => r.url().includes('/api/segments/reorder') && r.status() === 200);
+
+    // 새로 고침 후에도 B 가 첫 번째에 위치해야 함
+    await page.reload();
+    await expect(page.locator(`[data-testid="segment-move-up-${segB.id}"]`)).toBeDisabled();
+    await expect(page.locator(`[data-testid="segment-move-up-${segA.id}"]`)).not.toBeDisabled();
+  });
 });
