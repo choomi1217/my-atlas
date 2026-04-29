@@ -26,4 +26,10 @@ public interface SegmentRepository extends JpaRepository<SegmentEntity, Long> {
          + "AND ((:parentId IS NULL AND s.parent IS NULL) OR s.parent.id = :parentId)")
     Integer findMaxOrderIndex(@Param("productId") Long productId,
                               @Param("parentId") Long parentId);
+
+    /**
+     * Counts root segments (parent IS NULL) within a product.
+     * Used to prevent deletion of the last root segment.
+     */
+    long countByProductIdAndParentIsNull(Long productId);
 }

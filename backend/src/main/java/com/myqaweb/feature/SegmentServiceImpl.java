@@ -106,6 +106,19 @@ public class SegmentServiceImpl implements SegmentService {
 
     @Override
     public void delete(Long id) {
+        SegmentEntity entity = segmentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Segment not found: " + id));
+
+        // Guard: cannot delete the last root segment in a product (would leave product without any path)
+        if (entity.getParent() == null) {
+            long rootCount = segmentRepository.countByProductIdAndParentIsNull(
+                    entity.getProduct().getId());
+            if (rootCount <= 1) {
+                throw new IllegalArgumentException(
+                        "Cannot delete the last root segment in this product");
+            }
+        }
+
         segmentRepository.deleteById(id);
     }
 

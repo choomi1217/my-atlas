@@ -144,6 +144,28 @@ Steps 처럼 Final Expected Result 도 여러 항목을 추가/삭제할 수 있
 3. Reorder API 는 Phase 의 `reorderTestRuns` 패턴을 참고 (기존 `version_phase` 가 한 번 적용한 적 있는 패턴)
 4. DnD 동작은 기존 SegmentTreeView 의 DnD (parent 변경) 와 호환되어야 함 — 같은 부모 내 reorder vs 다른 부모로 reparent 구분
 
+### Promote to Root + Last-root 보호 + 시각 일관성 (Visual Verification 후 추가)
+
+PR-C Step C-5 사용자 육안 확인 중 발견된 추가 요구사항:
+
+**1. Promote to Root 진입점 부재 → 컨텍스트 메뉴에 추가**
+- 자식 Segment 를 Root 로 승격할 UI 가 없었음 (DnD reparent 는 *다른 segment 위* 로만 drop, parentId=null 로는 갈 수 없음)
+- 우클릭 컨텍스트 메뉴에 "**Root 로 이동**" 항목 추가 (parentId !== null 인 노드에만 노출)
+- 백엔드의 기존 `reparent(id, null)` 재사용 — validateReparent 가 null 허용
+
+**2. Leaf 노드 시각 일관성 — 모든 Path 는 삼각형 (▶/▼) 으로 통일**
+- 기존: leaf = `-` (대시) / has-children = `▶/▼` (혼란스러운 시각 차이)
+- 변경: leaf = `▶` (text-gray-300, no cursor, no hover, disabled) / has-children = `▶/▼` (text-gray-400, interactive)
+- 자동 갱신: `childrenMap` 이 `useMemo([segments])` 라 reparent / reorder / delete / create 시 isLeaf 상태 자동 재계산 → 별도 effect 불필요
+
+**3. Last-root 삭제 보호 (다중 Root 가 가능해진 후 필수)**
+- 다중 Root 허용 → "Root 는 1개" 가정 깨짐 → Root 삭제 정책 재정의 필요
+- 정책: Root 가 2개 이상이면 삭제 가능, 1개 이하이면 삭제 불가 (Product 가 Path 없는 상태가 되는 것 방지)
+- Frontend: 컨텍스트 메뉴 "Path 삭제" 버튼 disabled + tooltip "마지막 Root Path 는 삭제할 수 없습니다"
+- Backend: `SegmentServiceImpl.delete` 에 가드 — `parent IS NULL` 이고 `countByProductIdAndParentIsNull == 1` 이면 IllegalArgumentException
+- Repository: `countByProductIdAndParentIsNull(productId)` 메서드 추가
+- 검증: API 직접 호출도 차단 (Frontend disabled 만으로는 우회 가능)
+
 ---
 
 ## 현재 코드 분석 (Context)

@@ -13,6 +13,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -117,9 +118,32 @@ class SegmentServiceImplTest {
     }
 
     @Test
-    void testDelete() {
+    void testDelete_childSegment_succeeds() {
+        // childSegment has parent (rootSegment), so root-count guard does not apply
+        when(segmentRepository.findById(2L)).thenReturn(java.util.Optional.of(childSegment));
+
+        segmentService.delete(2L);
+
+        verify(segmentRepository).deleteById(2L);
+    }
+
+    @Test
+    void testDelete_rootSegment_succeeds_whenSiblingRootsExist() {
+        when(segmentRepository.findById(1L)).thenReturn(java.util.Optional.of(rootSegment));
+        when(segmentRepository.countByProductIdAndParentIsNull(1L)).thenReturn(2L);
+
         segmentService.delete(1L);
+
         verify(segmentRepository).deleteById(1L);
+    }
+
+    @Test
+    void testDelete_lastRootSegment_throws() {
+        when(segmentRepository.findById(1L)).thenReturn(java.util.Optional.of(rootSegment));
+        when(segmentRepository.countByProductIdAndParentIsNull(1L)).thenReturn(1L);
+
+        assertThrows(IllegalArgumentException.class, () -> segmentService.delete(1L));
+        verify(segmentRepository, never()).deleteById(anyLong());
     }
 
     @Test

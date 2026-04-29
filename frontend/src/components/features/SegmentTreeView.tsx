@@ -216,11 +216,35 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
   }, [contextMenu, onAddTestCase]);
 
   const handleRequestDeletePath = useCallback(() => {
-    if (!contextMenu || contextMenu.isRoot) return;
+    if (!contextMenu) return;
+    if (contextMenu.isRoot) {
+      // Last-root guard: must have at least 2 roots to delete one
+      const rootCount = segments.filter((s) => s.parentId === null).length;
+      if (rootCount <= 1) return;
+    }
     const seg = segments.find((s) => s.id === contextMenu.segmentId);
     setDeleteTarget({ id: contextMenu.segmentId, name: seg?.name || '' });
     setContextMenu(null);
   }, [contextMenu, segments]);
+
+  const handlePromoteToRoot = useCallback(async () => {
+    if (!contextMenu || contextMenu.isRoot) return;
+    const segmentId = contextMenu.segmentId;
+    setContextMenu(null);
+    setIsUpdating(true);
+    try {
+      const updated = await segmentApi.reparent(segmentId, null);
+      const newSegments = segments.map((s) => (s.id === updated.id ? updated : s));
+      onSegmentsUpdated(newSegments);
+      showToast('Root 로 이동했습니다.', 'success');
+    } catch (error) {
+      console.error('Failed to promote to root:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Root 이동 실패';
+      showToast(`Root 이동 실패: ${errorMsg}`, 'error');
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [contextMenu, segments, onSegmentsUpdated, showToast]);
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
@@ -553,7 +577,7 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
               </span>
             ) : (
               <span className="w-4 text-center text-gray-300 flex-shrink-0">
-                -
+                ▶
               </span>
             )}
             <span
@@ -681,6 +705,16 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
             >
               하단에 Path 추가
             </button>
+            {!contextMenu.isRoot && (
+              <button
+                onClick={handlePromoteToRoot}
+                disabled={isUpdating}
+                data-testid="segment-promote-to-root"
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 disabled:opacity-50"
+              >
+                Root 로 이동
+              </button>
+            )}
             {onAddTestCase && (
               <>
                 <hr className="my-1" />
@@ -693,17 +727,27 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
               </>
             )}
             <hr className="my-1" />
-            <button
-              onClick={handleRequestDeletePath}
-              disabled={contextMenu.isRoot}
-              className={`w-full text-left px-4 py-2 text-sm ${
-                contextMenu.isRoot
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-red-600 hover:bg-red-50'
-              }`}
-            >
-              Path 삭제
-            </button>
+            {(() => {
+              // Root path 는 형제가 2개 이상일 때만 삭제 가능 (마지막 root 보호)
+              const cannotDelete = contextMenu.isRoot && rootSegments.length <= 1;
+              const title = cannotDelete
+                ? '마지막 Root Path 는 삭제할 수 없습니다'
+                : undefined;
+              return (
+                <button
+                  onClick={handleRequestDeletePath}
+                  disabled={cannotDelete}
+                  title={title}
+                  className={`w-full text-left px-4 py-2 text-sm ${
+                    cannotDelete
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : 'text-red-600 hover:bg-red-50'
+                  }`}
+                >
+                  Path 삭제
+                </button>
+              );
+            })()}
           </div>
         )}
       </div>
