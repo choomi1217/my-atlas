@@ -1,7 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import TestCaseCard from '../TestCaseCard';
-import { TestCase } from '@/types/features';
+import {
+  TestCase,
+  TestCasePriority,
+  TestCaseType,
+  TestCaseStatus,
+} from '@/types/features';
 
 vi.mock('../ImageRefText', () => ({
   default: ({ text }: { text: string }) => <span>{text}</span>,
@@ -16,18 +21,18 @@ const baseTC: TestCase = {
   preconditions: 'User is on login page',
   steps: [{ order: 0, action: 'click login', expected: 'redirected' }],
   expectedResults: ['User is logged in'],
-  priority: 'HIGH',
-  testType: 'FUNCTIONAL',
-  status: 'ACTIVE',
+  priority: TestCasePriority.HIGH,
+  testType: TestCaseType.FUNCTIONAL,
+  status: TestCaseStatus.ACTIVE,
   images: [],
   createdAt: '2026-04-27T00:00:00Z',
   updatedAt: '2026-04-27T00:00:00Z',
 };
 
 describe('TestCaseCard', () => {
-  let onToggle: ReturnType<typeof vi.fn>;
-  let onEdit: ReturnType<typeof vi.fn>;
-  let onDelete: ReturnType<typeof vi.fn>;
+  let onToggle: Mock;
+  let onEdit: Mock;
+  let onDelete: Mock;
 
   beforeEach(() => {
     onToggle = vi.fn();
@@ -128,12 +133,12 @@ describe('TestCaseCard', () => {
   });
 
   it('priority 에 따라 카드 좌측 border 색상이 바뀐다', () => {
-    const { rerender } = renderCard({ priority: 'HIGH' });
+    const { rerender } = renderCard({ priority: TestCasePriority.HIGH });
     expect(screen.getByTestId('tc-card').className).toContain('border-l-red-400');
 
     rerender(
       <TestCaseCard
-        testCase={{ ...baseTC, priority: 'MEDIUM' }}
+        testCase={{ ...baseTC, priority: TestCasePriority.MEDIUM }}
         isExpanded={false}
         onToggle={onToggle}
         onEdit={onEdit}
@@ -144,7 +149,7 @@ describe('TestCaseCard', () => {
 
     rerender(
       <TestCaseCard
-        testCase={{ ...baseTC, priority: 'LOW' }}
+        testCase={{ ...baseTC, priority: TestCasePriority.LOW }}
         isExpanded={false}
         onToggle={onToggle}
         onEdit={onEdit}
