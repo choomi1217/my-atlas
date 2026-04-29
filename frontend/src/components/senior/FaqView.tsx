@@ -75,7 +75,7 @@ export default function FaqView({ onSendToChat, onGoToChat }: FaqViewProps) {
               </button>
             </>
           ) : (
-            <p>KB에 고정된 항목이나 검색 빈도가 높은 항목이 여기에 표시됩니다.</p>
+            <p>KB에 고정된 항목이 여기에 표시됩니다.</p>
           )}
         </div>
       ) : (

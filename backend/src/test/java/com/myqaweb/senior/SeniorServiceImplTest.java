@@ -75,12 +75,11 @@ class SeniorServiceImplTest {
 
     private void setupChatClientMock() {
         setupSettingsMock();
-        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
-        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+        ChatClient.ChatClientPromptRequest clientRequest = mock(ChatClient.ChatClientPromptRequest.class);
+        ChatClient.ChatClientRequest.StreamPromptResponseSpec streamSpec =
+                mock(ChatClient.ChatClientRequest.StreamPromptResponseSpec.class);
 
-        when(chatClient.prompt()).thenReturn(clientRequest);
-        when(clientRequest.system(anyString())).thenReturn(clientRequest);
-        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        when(chatClient.prompt(any(org.springframework.ai.chat.prompt.Prompt.class))).thenReturn(clientRequest);
         when(clientRequest.stream()).thenReturn(streamSpec);
         when(streamSpec.chatResponse()).thenReturn(Flux.just(
                 mockChatResponse("Hello"),
@@ -103,23 +102,32 @@ class SeniorServiceImplTest {
     // --- Helper for capturing system prompt ---
 
     private record ChatClientMocks(
-            ChatClient.ChatClientRequest clientRequest,
-            ArgumentCaptor<String> systemCaptor
-    ) {}
+            ChatClient.ChatClientPromptRequest clientRequest,
+            ArgumentCaptor<org.springframework.ai.chat.prompt.Prompt> promptCaptor
+    ) {
+        /** Extract the SystemMessage text from the captured Prompt. */
+        String getSystemPromptText() {
+            return promptCaptor.getValue().getInstructions().stream()
+                    .filter(m -> m instanceof org.springframework.ai.chat.messages.SystemMessage)
+                    .findFirst()
+                    .map(org.springframework.ai.chat.messages.Message::getContent)
+                    .orElse("");
+        }
+    }
 
     private ChatClientMocks setupChatClientWithCaptor() {
         setupSettingsMock();
-        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
-        ChatClient.ChatClientRequest.StreamResponseSpec streamSpec = mock(ChatClient.ChatClientRequest.StreamResponseSpec.class);
+        ChatClient.ChatClientPromptRequest clientRequest = mock(ChatClient.ChatClientPromptRequest.class);
+        ChatClient.ChatClientRequest.StreamPromptResponseSpec streamSpec =
+                mock(ChatClient.ChatClientRequest.StreamPromptResponseSpec.class);
 
-        when(chatClient.prompt()).thenReturn(clientRequest);
-        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
-        when(clientRequest.system(systemCaptor.capture())).thenReturn(clientRequest);
-        when(clientRequest.user(anyString())).thenReturn(clientRequest);
+        ArgumentCaptor<org.springframework.ai.chat.prompt.Prompt> promptCaptor =
+                ArgumentCaptor.forClass(org.springframework.ai.chat.prompt.Prompt.class);
+        when(chatClient.prompt(promptCaptor.capture())).thenReturn(clientRequest);
         when(clientRequest.stream()).thenReturn(streamSpec);
         when(streamSpec.chatResponse()).thenReturn(Flux.just(mockChatResponse("response")));
 
-        return new ChatClientMocks(clientRequest, systemCaptor);
+        return new ChatClientMocks(clientRequest, promptCaptor);
     }
 
     // --- chat ---
@@ -133,7 +141,7 @@ class SeniorServiceImplTest {
         SseEmitter result = seniorService.chat(request);
 
         assertNotNull(result);
-        verify(chatClient).prompt();
+        verify(chatClient).prompt(any(org.springframework.ai.chat.prompt.Prompt.class));
     }
 
     @Test
@@ -147,7 +155,7 @@ class SeniorServiceImplTest {
         SseEmitter result = seniorService.chat(request);
 
         assertNotNull(result);
-        verify(chatClient).prompt();
+        verify(chatClient).prompt(any(org.springframework.ai.chat.prompt.Prompt.class));
     }
 
     @Test
@@ -160,7 +168,7 @@ class SeniorServiceImplTest {
 
         seniorService.chat(request);
 
-        String systemPrompt = mocks.systemCaptor().getValue();
+        String systemPrompt = mocks.getSystemPromptText();
         assertTrue(systemPrompt.contains("Login FAQ"));
         assertTrue(systemPrompt.contains("Step-by-step login testing"));
     }
@@ -174,7 +182,7 @@ class SeniorServiceImplTest {
 
         seniorService.chat(request);
 
-        String systemPrompt = mocks.systemCaptor().getValue();
+        String systemPrompt = mocks.getSystemPromptText();
         assertFalse(systemPrompt.contains("FAQ 참고 항목"));
     }
 
@@ -200,7 +208,7 @@ class SeniorServiceImplTest {
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null, null);
         seniorService.chat(request);
 
-        String systemPrompt = mocks.systemCaptor().getValue();
+        String systemPrompt = mocks.getSystemPromptText();
         assertTrue(systemPrompt.contains("Regression Best Practices"));
         assertTrue(systemPrompt.contains("Book Chapter 5"));
     }
@@ -214,7 +222,7 @@ class SeniorServiceImplTest {
         SseEmitter result = seniorService.chat(request);
 
         assertNotNull(result);
-        verify(chatClient).prompt();
+        verify(chatClient).prompt(any(org.springframework.ai.chat.prompt.Prompt.class));
     }
 
     // --- 2-Stage RAG: KB Manual vs PDF ---
@@ -242,7 +250,7 @@ class SeniorServiceImplTest {
         verify(knowledgeBaseRepository).findSimilarManual(anyString(), eq(3));
         verify(knowledgeBaseRepository).findSimilarPdf(anyString(), eq(2));
 
-        String systemPrompt = mocks.systemCaptor().getValue();
+        String systemPrompt = mocks.getSystemPromptText();
         assertTrue(systemPrompt.contains("직접 작성, 우선 참고"));
         assertTrue(systemPrompt.contains("도서 참고"));
         assertTrue(systemPrompt.contains("Manual KB"));
@@ -265,7 +273,7 @@ class SeniorServiceImplTest {
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null, null);
         seniorService.chat(request);
 
-        String systemPrompt = mocks.systemCaptor().getValue();
+        String systemPrompt = mocks.getSystemPromptText();
         assertTrue(systemPrompt.contains("직접 작성, 우선 참고"));
         assertFalse(systemPrompt.contains("도서 참고"));
     }
@@ -286,7 +294,7 @@ class SeniorServiceImplTest {
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("test question", null, null);
         seniorService.chat(request);
 
-        String systemPrompt = mocks.systemCaptor().getValue();
+        String systemPrompt = mocks.getSystemPromptText();
         assertFalse(systemPrompt.contains("직접 작성, 우선 참고"));
         assertTrue(systemPrompt.contains("도서 참고"));
     }
@@ -294,7 +302,8 @@ class SeniorServiceImplTest {
     // --- chat: KB hit count tracking ---
 
     @Test
-    void chat_incrementsHitCountsForRetrievedKbEntries() {
+    void chat_doesNotIncrementHitCounts_v7() {
+        // v7: hit_count 큐레이션 제거 — RAG 검색 후에도 incrementHitCount 호출되지 않아야 함
         setupChatClientMock();
         when(embeddingService.embed(anyString(), any())).thenReturn(new float[]{0.1f});
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
@@ -314,18 +323,7 @@ class SeniorServiceImplTest {
         ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null, null);
         seniorService.chat(request);
 
-        verify(knowledgeBaseRepository).incrementHitCount(10L);
-        verify(knowledgeBaseRepository).incrementHitCount(20L);
-    }
-
-    @Test
-    void chat_noKbResults_doesNotIncrementHitCounts() {
-        setupChatClientMock();
-        setupMinimalRagMocks();
-
-        ChatDto.ChatRequest request = new ChatDto.ChatRequest("How to test?", null, null);
-        seniorService.chat(request);
-
+        // v7: 어떤 ID에 대해서도 incrementHitCount 호출 없음
         verify(knowledgeBaseRepository, never()).incrementHitCount(anyLong());
     }
 
@@ -334,9 +332,9 @@ class SeniorServiceImplTest {
     @Test
     void getCuratedFaqs_delegatesToKnowledgeBaseService() {
         List<KnowledgeBaseDto.KbResponse> expectedFaqs = List.of(
-                new KnowledgeBaseDto.KbResponse(1L, "Pinned Entry", "Content", "QA",
+                new KnowledgeBaseDto.KbResponse(1L, "Pinned Entry", "Content", "Content", "QA",
                         null, 0, now, now, now, null),
-                new KnowledgeBaseDto.KbResponse(2L, "Top Hit", "Content", "API",
+                new KnowledgeBaseDto.KbResponse(2L, "Top Hit", "Content", "Content", "API",
                         null, 5, null, now, now, null)
         );
         when(knowledgeBaseService.getCuratedFaqs()).thenReturn(expectedFaqs);

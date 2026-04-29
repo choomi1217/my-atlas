@@ -8,6 +8,7 @@ const mockItem: KbItem = {
   id: 1,
   title: 'Login Testing Guide',
   content: 'Step-by-step guide for login testing.',
+  snippet: 'Step-by-step guide for login testing.',
   category: 'QA',
   source: null,
   hitCount: 5,

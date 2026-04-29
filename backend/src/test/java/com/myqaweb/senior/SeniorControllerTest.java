@@ -46,9 +46,9 @@ class SeniorControllerTest {
     void listFaqs_returnsOkWithCuratedKbList() throws Exception {
         // Arrange
         List<KnowledgeBaseDto.KbResponse> faqs = List.of(
-                new KnowledgeBaseDto.KbResponse(1L, "Pinned KB Entry", "Content 1",
+                new KnowledgeBaseDto.KbResponse(1L, "Pinned KB Entry", "Content 1", "Content 1",
                         "QA", null, 0, now, now, now, null),
-                new KnowledgeBaseDto.KbResponse(2L, "Top Hit Entry", "Content 2",
+                new KnowledgeBaseDto.KbResponse(2L, "Top Hit Entry", "Content 2", "Content 2",
                         "API", null, 10, null, now, now, null)
         );
         when(seniorService.getCuratedFaqs()).thenReturn(faqs);
@@ -88,7 +88,7 @@ class SeniorControllerTest {
     void listFaqs_responseContainsKbResponseFields() throws Exception {
         // Arrange — verify that the response includes KB-specific fields (source, hitCount, pinnedAt)
         List<KnowledgeBaseDto.KbResponse> faqs = List.of(
-                new KnowledgeBaseDto.KbResponse(5L, "KB Entry", "Content", "Category",
+                new KnowledgeBaseDto.KbResponse(5L, "KB Entry", "Content", "Content", "Category",
                         "book-source", 3, now, now, now, null)
         );
         when(seniorService.getCuratedFaqs()).thenReturn(faqs);

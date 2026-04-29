@@ -69,7 +69,7 @@ describe('ChatView', () => {
   });
 
   it('shows FAQ context banner', () => {
-    const faqContext = { id: 1, title: 'Login FAQ', content: 'Content', category: null, source: null, hitCount: 0, pinnedAt: null, createdAt: '2026-03-26', updatedAt: '2026-03-26', deletedAt: null };
+    const faqContext = { id: 1, title: 'Login FAQ', content: 'Content', snippet: 'Content', category: null, source: null, hitCount: 0, pinnedAt: null, createdAt: '2026-03-26', updatedAt: '2026-03-26', deletedAt: null };
 
     render(<ChatView {...defaultProps} faqContext={faqContext} />);
 

@@ -273,14 +273,28 @@ class KnowledgeBaseServiceImplTest {
         entity.setId(1L);
         entity.setPinnedAt(null);
         when(knowledgeBaseRepository.findActiveById(1L)).thenReturn(Optional.of(entity));
-        when(knowledgeBaseRepository.countByPinnedAtIsNotNull()).thenReturn(15L);
+        when(knowledgeBaseRepository.countByPinnedAtIsNotNull()).thenReturn(10L);
 
         IllegalStateException ex = assertThrows(
                 IllegalStateException.class,
                 () -> knowledgeBaseService.pinKbEntry(1L)
         );
         assertTrue(ex.getMessage().contains("Maximum"));
-        assertTrue(ex.getMessage().contains("15"));
+        assertTrue(ex.getMessage().contains("10"));
+    }
+
+    @Test
+    void pinKbEntry_atNinePinned_succeeds() {
+        // 9 currently pinned → 10번째 핀 가능
+        KnowledgeBaseEntity entity = new KnowledgeBaseEntity();
+        entity.setId(1L);
+        entity.setPinnedAt(null);
+        when(knowledgeBaseRepository.findActiveById(1L)).thenReturn(Optional.of(entity));
+        when(knowledgeBaseRepository.countByPinnedAtIsNotNull()).thenReturn(9L);
+
+        knowledgeBaseService.pinKbEntry(1L);
+
+        verify(knowledgeBaseRepository).updatePinnedAt(eq(1L), any(LocalDateTime.class));
     }
 
     @Test
@@ -325,11 +339,11 @@ class KnowledgeBaseServiceImplTest {
         assertThrows(IllegalArgumentException.class, () -> knowledgeBaseService.unpinKbEntry(99L));
     }
 
-    // --- getCuratedFaqs ---
+    // --- getCuratedFaqs (v7: pinned only) ---
 
     @Test
-    void getCuratedFaqs_combinesPinnedAndTopHits() {
-        KnowledgeBaseEntity pinned1 = createKbEntity(1L, "Pinned 1", 3);
+    void getCuratedFaqs_returnsPinnedOnly() {
+        KnowledgeBaseEntity pinned1 = createKbEntity(1L, "Pinned 1", 0);
         pinned1.setPinnedAt(now.minusDays(2));
 
         KnowledgeBaseEntity pinned2 = createKbEntity(2L, "Pinned 2", 0);
@@ -337,67 +351,46 @@ class KnowledgeBaseServiceImplTest {
 
         when(knowledgeBaseRepository.findPinned()).thenReturn(List.of(pinned1, pinned2));
 
-        KnowledgeBaseEntity hit1 = createKbEntity(1L, "Pinned 1", 3); // overlaps
-        KnowledgeBaseEntity hit2 = createKbEntity(3L, "Top Hit", 5);
-
-        when(knowledgeBaseRepository.findTopByHitCount(anyInt())).thenReturn(List.of(hit2, hit1));
-
         List<KnowledgeBaseDto.KbResponse> result = knowledgeBaseService.getCuratedFaqs();
 
-        assertEquals(3, result.size());
+        assertEquals(2, result.size());
         assertEquals("Pinned 1", result.get(0).title());
         assertEquals("Pinned 2", result.get(1).title());
-        assertEquals("Top Hit", result.get(2).title());
     }
 
     @Test
-    void getCuratedFaqs_deduplicatesPinnedFromHits() {
-        KnowledgeBaseEntity pinned1 = createKbEntity(1L, "Pinned", 10);
-        pinned1.setPinnedAt(now);
-
-        when(knowledgeBaseRepository.findPinned()).thenReturn(List.of(pinned1));
-
-        KnowledgeBaseEntity hit1 = createKbEntity(1L, "Pinned", 10);
-        when(knowledgeBaseRepository.findTopByHitCount(anyInt())).thenReturn(List.of(hit1));
-
-        List<KnowledgeBaseDto.KbResponse> result = knowledgeBaseService.getCuratedFaqs();
-
-        assertEquals(1, result.size());
-    }
-
-    @Test
-    void getCuratedFaqs_excludesHitsWithZeroHitCount() {
+    void getCuratedFaqs_emptyWhenNoPinned() {
         when(knowledgeBaseRepository.findPinned()).thenReturn(List.of());
-
-        KnowledgeBaseEntity hitZero = createKbEntity(1L, "Zero Hits", 0);
-        when(knowledgeBaseRepository.findTopByHitCount(anyInt())).thenReturn(List.of(hitZero));
-
-        List<KnowledgeBaseDto.KbResponse> result = knowledgeBaseService.getCuratedFaqs();
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void getCuratedFaqs_emptyWhenNoPinnedAndNoHits() {
-        when(knowledgeBaseRepository.findPinned()).thenReturn(List.of());
-        when(knowledgeBaseRepository.findTopByHitCount(anyInt())).thenReturn(List.of());
 
         assertTrue(knowledgeBaseService.getCuratedFaqs().isEmpty());
     }
 
     @Test
-    void getCuratedFaqs_limitsHitsToTopK5() {
+    void getCuratedFaqs_doesNotCallHitCountQueries() {
+        // v7: hit_count 큐레이션 제거 — findTopByHitCount는 호출되지 않아야 함
         when(knowledgeBaseRepository.findPinned()).thenReturn(List.of());
 
-        List<KnowledgeBaseEntity> hits = new java.util.ArrayList<>();
-        for (int i = 1; i <= 7; i++) {
-            hits.add(createKbEntity((long) i, "Hit " + i, 10 - i));
-        }
-        when(knowledgeBaseRepository.findTopByHitCount(anyInt())).thenReturn(hits);
+        knowledgeBaseService.getCuratedFaqs();
+
+        verify(knowledgeBaseRepository, never()).findTopByHitCount(anyInt());
+    }
+
+    @Test
+    void getCuratedFaqs_responseIncludesSnippet() {
+        KnowledgeBaseEntity pinned = createKbEntity(1L, "Title", 0);
+        pinned.setContent("# Heading\n\nSome **bold** content for snippet generation.");
+        pinned.setPinnedAt(now);
+
+        when(knowledgeBaseRepository.findPinned()).thenReturn(List.of(pinned));
 
         List<KnowledgeBaseDto.KbResponse> result = knowledgeBaseService.getCuratedFaqs();
 
-        assertEquals(5, result.size());
+        assertEquals(1, result.size());
+        String snippet = result.get(0).snippet();
+        assertNotNull(snippet);
+        assertFalse(snippet.contains("**"));
+        assertFalse(snippet.contains("#"));
+        assertTrue(snippet.contains("bold"));
     }
 
     // --- Response mapping ---
@@ -421,11 +414,44 @@ class KnowledgeBaseServiceImplTest {
         assertEquals(5L, result.id());
         assertEquals("Title", result.title());
         assertEquals("Content", result.content());
+        assertEquals("Content", result.snippet());
         assertEquals("Category", result.category());
         assertEquals("book-source", result.source());
         assertEquals(7, result.hitCount());
         assertEquals(now, result.pinnedAt());
         assertNull(result.deletedAt());
+    }
+
+    // --- buildSnippet ---
+
+    @Test
+    void buildSnippet_shortContent_returnsAsIs() {
+        String result = KnowledgeBaseServiceImpl.buildSnippet("Short content");
+        assertEquals("Short content", result);
+    }
+
+    @Test
+    void buildSnippet_longContent_truncatedToHundredCharsWithEllipsis() {
+        String longContent = "a".repeat(150);
+        String result = KnowledgeBaseServiceImpl.buildSnippet(longContent);
+        assertTrue(result.length() <= 103); // 100 + "..."
+        assertTrue(result.endsWith("..."));
+    }
+
+    @Test
+    void buildSnippet_stripsMarkdownFromContent() {
+        String content = "# Heading\n\n**Bold text** and *italic* with `code`.";
+        String result = KnowledgeBaseServiceImpl.buildSnippet(content);
+        assertFalse(result.contains("#"));
+        assertFalse(result.contains("**"));
+        assertFalse(result.contains("`"));
+        assertTrue(result.contains("Heading"));
+        assertTrue(result.contains("Bold text"));
+    }
+
+    @Test
+    void buildSnippet_nullContent_returnsEmptyString() {
+        assertEquals("", KnowledgeBaseServiceImpl.buildSnippet(null));
     }
 
     // --- stripMarkdown ---
