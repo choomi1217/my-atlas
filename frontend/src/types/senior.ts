@@ -42,6 +42,7 @@ export interface KbItem {
   id: number;
   title: string;
   content: string;
+  snippet: string;
   category: string | null;
   source: string | null;
   hitCount: number;

@@ -4,9 +4,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.LinkedList;
+import java.util.stream.Collectors;
 
 /**
  * Service implementation for Segment operations.
@@ -23,6 +27,12 @@ public class SegmentServiceImpl implements SegmentService {
     public List<SegmentDto.SegmentResponse> findByProductId(Long productId) {
         return segmentRepository.findAllByProductId(productId)
                 .stream()
+                .sorted(
+                        Comparator
+                                .comparing((SegmentEntity s) -> s.getParent() == null ? -1L : s.getParent().getId())
+                                .thenComparing(SegmentEntity::getOrderIndex)
+                                .thenComparing(SegmentEntity::getId)
+                )
                 .map(this::toResponse)
                 .toList();
     }
@@ -46,8 +56,42 @@ public class SegmentServiceImpl implements SegmentService {
             entity.setParent(parent);
         }
 
+        // Append to end of sibling group: orderIndex = max(orderIndex) + 1, or 0 if empty
+        Integer maxOrder = segmentRepository.findMaxOrderIndex(request.productId(), request.parentId());
+        entity.setOrderIndex(maxOrder + 1);
+
         SegmentEntity saved = segmentRepository.save(entity);
         return toResponse(saved);
+    }
+
+    @Override
+    public void reorder(SegmentDto.ReorderRequest request) {
+        List<SegmentEntity> segments = segmentRepository.findAllById(request.segmentIds());
+        if (segments.size() != request.segmentIds().size()) {
+            throw new IllegalArgumentException("Some segments not found");
+        }
+
+        // All segments must belong to the same (productId, parentId) group
+        for (SegmentEntity s : segments) {
+            if (!s.getProduct().getId().equals(request.productId())) {
+                throw new IllegalArgumentException(
+                        "Segment " + s.getId() + " is not in product " + request.productId());
+            }
+            Long actualParentId = s.getParent() != null ? s.getParent().getId() : null;
+            if (!Objects.equals(actualParentId, request.parentId())) {
+                throw new IllegalArgumentException(
+                        "Segment " + s.getId() + " is not in the requested parent group");
+            }
+        }
+
+        Map<Long, SegmentEntity> byId = segments.stream()
+                .collect(Collectors.toMap(SegmentEntity::getId, s -> s));
+
+        for (int i = 0; i < request.segmentIds().size(); i++) {
+            SegmentEntity s = byId.get(request.segmentIds().get(i));
+            s.setOrderIndex(i);
+        }
+        segmentRepository.saveAll(segments);
     }
 
     @Override
@@ -62,6 +106,19 @@ public class SegmentServiceImpl implements SegmentService {
 
     @Override
     public void delete(Long id) {
+        SegmentEntity entity = segmentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Segment not found: " + id));
+
+        // Guard: cannot delete the last root segment in a product (would leave product without any path)
+        if (entity.getParent() == null) {
+            long rootCount = segmentRepository.countByProductIdAndParentIsNull(
+                    entity.getProduct().getId());
+            if (rootCount <= 1) {
+                throw new IllegalArgumentException(
+                        "Cannot delete the last root segment in this product");
+            }
+        }
+
         segmentRepository.deleteById(id);
     }
 
@@ -132,7 +189,8 @@ public class SegmentServiceImpl implements SegmentService {
                 entity.getId(),
                 entity.getName(),
                 entity.getProduct().getId(),
-                entity.getParent() != null ? entity.getParent().getId() : null
+                entity.getParent() != null ? entity.getParent().getId() : null,
+                entity.getOrderIndex()
         );
     }
 }

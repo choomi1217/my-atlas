@@ -48,8 +48,9 @@ public class TestCaseEntity {
     @Column(columnDefinition = "JSONB", nullable = false)
     private List<TestStep> steps;
 
-    @Column(columnDefinition = "TEXT")
-    private String expectedResult;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "expected_results", columnDefinition = "JSONB")
+    private List<String> expectedResults;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

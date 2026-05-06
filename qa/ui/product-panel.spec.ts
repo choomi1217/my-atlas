@@ -73,9 +73,10 @@ test.describe('Product List Page', () => {
     await page.getByText('E2E Navigate Product').click();
     await page.waitForLoadState('networkidle');
 
-    // Should be on test case page
-    await expect(page.locator('h1').filter({ hasText: 'E2E Navigate Product' })).toBeVisible();
-    await expect(page.locator('p.text-gray-600').filter({ hasText: 'Test Cases' })).toBeVisible();
+    // PR-A: TestCasePage 헤더 단순화 — Breadcrumb 에서 product 이름 노출, 본문엔 큰 헤더 없음
+    const breadcrumb = page.locator('nav.bg-gray-100');
+    await expect(breadcrumb).toContainText('E2E Navigate Product');
+    await expect(page.locator('[data-testid="tc-page-container"]')).toBeVisible();
   });
 
   test('should show empty state when no products exist', async ({ page }) => {

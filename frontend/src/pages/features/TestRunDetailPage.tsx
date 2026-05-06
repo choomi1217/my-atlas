@@ -88,12 +88,16 @@ function RunTcRow({
               </ol>
             </div>
           )}
-          {tc.expectedResult && (
+          {tc.expectedResults && tc.expectedResults.length > 0 && (
             <div>
               <span className="font-semibold text-gray-700">Expected Result:</span>
-              <p className="mt-0.5 text-gray-600">
-                <ImageRefText text={tc.expectedResult} images={tc.images} />
-              </p>
+              <ol className="mt-0.5 list-decimal pl-5 text-gray-600 space-y-0.5">
+                {tc.expectedResults.map((item, idx) => (
+                  <li key={idx}>
+                    <ImageRefText text={item} images={tc.images} />
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
           {tc.images && tc.images.length > 0 && (

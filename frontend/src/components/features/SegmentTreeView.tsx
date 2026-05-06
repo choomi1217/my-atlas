@@ -101,6 +101,10 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(seg);
     });
+    // Sort siblings by orderIndex (fallback to id for legacy rows with same orderIndex)
+    map.forEach((siblings) => {
+      siblings.sort((a, b) => a.orderIndex - b.orderIndex || a.id - b.id);
+    });
     return map;
   }, [segments]);
 
@@ -212,11 +216,35 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
   }, [contextMenu, onAddTestCase]);
 
   const handleRequestDeletePath = useCallback(() => {
-    if (!contextMenu || contextMenu.isRoot) return;
+    if (!contextMenu) return;
+    if (contextMenu.isRoot) {
+      // Last-root guard: must have at least 2 roots to delete one
+      const rootCount = segments.filter((s) => s.parentId === null).length;
+      if (rootCount <= 1) return;
+    }
     const seg = segments.find((s) => s.id === contextMenu.segmentId);
     setDeleteTarget({ id: contextMenu.segmentId, name: seg?.name || '' });
     setContextMenu(null);
   }, [contextMenu, segments]);
+
+  const handlePromoteToRoot = useCallback(async () => {
+    if (!contextMenu || contextMenu.isRoot) return;
+    const segmentId = contextMenu.segmentId;
+    setContextMenu(null);
+    setIsUpdating(true);
+    try {
+      const updated = await segmentApi.reparent(segmentId, null);
+      const newSegments = segments.map((s) => (s.id === updated.id ? updated : s));
+      onSegmentsUpdated(newSegments);
+      showToast('Root 로 이동했습니다.', 'success');
+    } catch (error) {
+      console.error('Failed to promote to root:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Root 이동 실패';
+      showToast(`Root 이동 실패: ${errorMsg}`, 'error');
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [contextMenu, segments, onSegmentsUpdated, showToast]);
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
@@ -411,6 +439,43 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
     [dragState, segments, onSegmentsUpdated, showToast, onTestCaseDroppedOnSegment, resolveSegmentAncestry]
   );
 
+  const moveWithinSiblings = useCallback(
+    async (segment: Segment, direction: 'up' | 'down') => {
+      const siblings = (childrenMap.get(segment.parentId) || []).slice();
+      const idx = siblings.findIndex((s) => s.id === segment.id);
+      if (idx < 0) return;
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= siblings.length) return;
+
+      const reordered = [...siblings];
+      [reordered[idx], reordered[targetIdx]] = [reordered[targetIdx], reordered[idx]];
+
+      setIsUpdating(true);
+      try {
+        await segmentApi.reorder(
+          productId,
+          segment.parentId,
+          reordered.map((s) => s.id)
+        );
+        // Optimistic update: reassign orderIndex 0..N-1 within this sibling group
+        const orderById = new Map<number, number>();
+        reordered.forEach((s, i) => orderById.set(s.id, i));
+        const newSegments = segments.map((s) =>
+          orderById.has(s.id)
+            ? { ...s, orderIndex: orderById.get(s.id)! }
+            : s
+        );
+        onSegmentsUpdated(newSegments);
+      } catch (error) {
+        console.error('Failed to reorder siblings:', error);
+        showToast('정렬 변경에 실패했습니다.', 'error');
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [childrenMap, segments, productId, onSegmentsUpdated, showToast]
+  );
+
   const handleDragEnd = useCallback(() => {
     setDragState({ draggedSegmentId: null, dragOverSegmentId: null });
   }, []);
@@ -468,6 +533,11 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
     const isDragging = dragState.draggedSegmentId === segment.id;
     const isDropTarget = dragState.dragOverSegmentId === segment.id;
 
+    const siblings = childrenMap.get(segment.parentId) || [];
+    const siblingIdx = siblings.findIndex((s) => s.id === segment.id);
+    const canMoveUp = siblingIdx > 0;
+    const canMoveDown = siblingIdx >= 0 && siblingIdx < siblings.length - 1;
+
     const showAboveInput =
       inlineInput?.mode === 'above' && inlineInput.targetId === segment.id;
     const showBelowInput =
@@ -507,7 +577,7 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
               </span>
             ) : (
               <span className="w-4 text-center text-gray-300 flex-shrink-0">
-                -
+                ▶
               </span>
             )}
             <span
@@ -522,16 +592,44 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
                 {count}
               </span>
             )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAddBelow(segment.id);
-              }}
-              className="ml-auto text-gray-300 hover:text-blue-500 text-xs px-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-              title="하단에 Path 추가"
-            >
-              +
-            </button>
+            <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveWithinSiblings(segment, 'up');
+                }}
+                disabled={!canMoveUp || isUpdating}
+                className="text-gray-300 hover:text-blue-500 disabled:opacity-30 disabled:hover:text-gray-300 text-xs px-1"
+                title="위로"
+                data-testid={`segment-move-up-${segment.id}`}
+                aria-label="Move segment up"
+              >
+                ▲
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveWithinSiblings(segment, 'down');
+                }}
+                disabled={!canMoveDown || isUpdating}
+                className="text-gray-300 hover:text-blue-500 disabled:opacity-30 disabled:hover:text-gray-300 text-xs px-1"
+                title="아래로"
+                data-testid={`segment-move-down-${segment.id}`}
+                aria-label="Move segment down"
+              >
+                ▼
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddBelow(segment.id);
+                }}
+                className="text-gray-300 hover:text-blue-500 text-xs px-1"
+                title="하단에 Path 추가"
+              >
+                +
+              </button>
+            </div>
           </div>
           {isExpanded &&
             children.map((child) => renderNode(child, currentPath))}
@@ -574,6 +672,19 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
           <div className="mb-2">{renderInlineInput()}</div>
         )}
         {rootSegments.map((seg) => renderNode(seg, []))}
+        <div className="mt-1 px-2">
+          <button
+            onClick={() => {
+              setInlineInput({ mode: 'root', targetId: null, parentId: null });
+              setInputValue('');
+            }}
+            disabled={inlineInput?.mode === 'root'}
+            className="text-xs text-gray-500 hover:text-blue-600 disabled:opacity-50"
+            data-testid="segment-add-root"
+          >
+            + Root Path
+          </button>
+        </div>
 
         {/* Context Menu */}
         {contextMenu && (
@@ -594,6 +705,16 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
             >
               하단에 Path 추가
             </button>
+            {!contextMenu.isRoot && (
+              <button
+                onClick={handlePromoteToRoot}
+                disabled={isUpdating}
+                data-testid="segment-promote-to-root"
+                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 disabled:opacity-50"
+              >
+                Root 로 이동
+              </button>
+            )}
             {onAddTestCase && (
               <>
                 <hr className="my-1" />
@@ -606,17 +727,27 @@ export const SegmentTreeView: React.FC<SegmentTreeViewProps> = ({
               </>
             )}
             <hr className="my-1" />
-            <button
-              onClick={handleRequestDeletePath}
-              disabled={contextMenu.isRoot}
-              className={`w-full text-left px-4 py-2 text-sm ${
-                contextMenu.isRoot
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-red-600 hover:bg-red-50'
-              }`}
-            >
-              Path 삭제
-            </button>
+            {(() => {
+              // Root path 는 형제가 2개 이상일 때만 삭제 가능 (마지막 root 보호)
+              const cannotDelete = contextMenu.isRoot && rootSegments.length <= 1;
+              const title = cannotDelete
+                ? '마지막 Root Path 는 삭제할 수 없습니다'
+                : undefined;
+              return (
+                <button
+                  onClick={handleRequestDeletePath}
+                  disabled={cannotDelete}
+                  title={title}
+                  className={`w-full text-left px-4 py-2 text-sm ${
+                    cannotDelete
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : 'text-red-600 hover:bg-red-50'
+                  }`}
+                >
+                  Path 삭제
+                </button>
+              );
+            })()}
           </div>
         )}
       </div>

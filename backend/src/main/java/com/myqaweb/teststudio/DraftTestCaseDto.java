@@ -14,7 +14,7 @@ public record DraftTestCaseDto(
         String title,
         String preconditions,
         List<TestStep> steps,
-        String expectedResult,
+        List<String> expectedResults,
         Priority priority,
         TestType testType,
         List<String> suggestedSegmentPath

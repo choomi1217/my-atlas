@@ -114,8 +114,9 @@
 
 → **dev 는 admin + E2E 테스트용 계정**. prod 는 **실 유저 계정 3명 + admin**.
 
-- [ ] 선택: `dev` / `prod` / `merge(admin만 공통, 실 유저 계정은 prod 유지)` / `drop(e2e 계정만 제거)`
+- [✅] 선택: `prod` 걸로 유지
 - 추천: `merge` (admin 공통, prod 실 유저 3명 유지, dev E2E 계정 제거)
+
 
 ### 3.2 `company` ⚠️ id 충돌
 
@@ -148,11 +149,11 @@
 → **prod only**: `2144 배달의민족`, `2145 prod-smoke-test-ok-to-delete`
 
 결정 필요:
-- [ ] `1440 my-atlas`: dev / prod (is_active 값이 달라서 중요 — prod 가 t)
-- [ ] `1644, 1646, 1647`: 한글(dev) vs 영문(prod) 중 어떤 표기 유지?
-- [ ] `2142`: dev "배달의민족"으로 덮어쓸지, prod "WooWaHan" 유지하고 배민은 prod의 2144로?
-- [ ] `2190 토스증권` (dev only): 살릴지?
-- [ ] `3180 demo-mode-smoke-test`, `2145 prod-smoke-test`: 둘 다 테스트 흔적 — 폐기?
+- [✅] `1440 my-atlas`: prod로 유지
+- [✅] `1644, 1646, 1647`: prod로 유지 (영어 유지)
+- [✅] `2142`: 내가 직접 prod 배달의민족 삭제했어, dev의 2142 == prod 2142야 (영어 유지)
+- [✅] `2190 토스증권` (dev only): dev에 있는 토스증권 데이터를 prod에 넣어줘
+- [✅] `3180 demo-mode-smoke-test`, `2145 prod-smoke-test`: 폐기해줘
 
 ### 3.3 `product`
 
@@ -188,10 +189,10 @@
 → dev only: 토스증권 제품 5개 (1791-1795), 1835 Test, 2416 Cloud, 2435 My Senior
 → prod only: 배민 제품 5개 별도 (1723-1727), 1728 결제 테스트, 1729 중복 Product Test Suite
 
-- [ ] 1715-1719 어떤 회사 제품으로 정리?
-- [ ] 토스증권 제품 5개 (dev only): 살릴지?
-- [ ] Cloud (2416, 프로토파이): 살릴지?
-- [ ] My Senior (2435): 살릴지?
+- [✅] dev의 2142 -> prod의 2142, 2144는 내가 방금 삭제했어
+- [✅] 토스증권 제품 5개 (dev only): dev에 있는 토스증권 데이터를 prod에 넣어줘
+- [✅] Cloud (2416, 프로토파이): dev에 데이터가 있다면 그거를 prod에 넣어줘
+- [✅] My Senior (2435): dev에 데이터가 있다면 그거를 prod에 넣어줘
 
 ### 3.4 `convention`
 
@@ -209,7 +210,7 @@
 
 → dev 는 Test 1개(깨진 이미지), prod 는 실 용어 3개 + 이미지 정상.
 
-- [ ] 선택: `prod` 권장 / 아니면?
+- [✅] 선택: `prod`
 
 ### 3.5 `version` + `version_phase`
 
@@ -233,12 +234,12 @@
 
 → id 347, 369, 370 공통(이름 동일). id 548 이름 다름(Youngmi vs v1.0). id 549 prod only / id 561 dev only.
 
-- [ ] `548` 이름: `Youngmi`(dev) / `v1.0`(prod)
-- [ ] `549 V15`(prod only): 유지?
-- [ ] `561 Test Version 1`(dev only): 유지?
+- [✅] `548` 이름: `v1.0`(prod)
+- [✅] `549 V15`(prod only): prod 유지
+- [✅] `561 Test Version 1`(dev only): 굳이 prod에 넣지 말아줘
 
 **version_phase**: 9 vs 9, 대부분 유사. dev 의 `580 1차 기능 테스트` (version_id=561, dev only version) 1건만 추가.
-- [ ] version 결정에 따라 자동 결정됨
+- [✅] version 결정에 따라 자동 결정됨
 
 ### 3.6 `ticket`
 
@@ -254,57 +255,55 @@ prod only: AT-11, AT-13, AT-14
 
 → Jira 실체와 연동된 데이터. Jira 쪽에 실제 어떤 이슈가 살아있는지에 따라 결정 필요.
 
-- [ ] 선택: `dev` / `prod` / `merge`
+- [✅] 선택: `prod`
 
 ### 3.7 `test_case_image` (이미지 참조)
 
 공통 7건은 dev/prod 동일 UUID. prod only 1건 (id=10, `47fefb1c-...png` — S3 존재).
 
-- [ ] `prod only id=10` 유지? (dev 로 덮어쓰면 사라짐)
-- 추천: `merge` (prod의 id=10 보존)
+- [✅] : `prod` 유지
 
 ### 3.8 `test_result_comment`
 
 **dev 3건** / **prod 5건**. 2건 공통 UUID (레거시 `/api/feature-images/` 경로).
 
-- [ ] prod only 2건: 유지?
-- 추천: `merge` (prod 2건 보존)
+- [✅] prod only 2건: `prod`유지
 
 ### 3.9 `daily_test_snapshot`
 
 dev 9 / prod 50. 프로드가 훨씬 많음 (운영 실제 스냅샷 누적).
 
-- [ ] 선택: `prod` 권장 (운영 히스토리)
+- [✅] 선택: `prod` 유지
 
 ### 3.10 `word_category`
 
 dev 77 / prod 2. 프로드엔 UI, Tech 2개만. dev 에 75개 추가.
 
-- [ ] 선택: `dev` (컨벤션 확장 작업) / `prod` (기존 2개 유지)
+- [✅] 선택: `prod` (기존 2개 유지)
 
 ### 3.11 `kb_category`
 
 dev 38 / prod 20. 둘 다 자동 생성된 카테고리 (KB 업로드 결과). KB 전체가 어차피 wipe 후 재업로드 → **kb_category 도 같이 wipe** 후 재업로드 시 자동 재생성 권장.
 
-- [ ] 선택: `drop` (둘 다 비우고 재업로드 시 자동) / `dev` / `prod`
+- [✅] 선택: `prod`것만 날려줘
 
 ### 3.12 `user_company_access`
 
 dev 0 / prod 10. 프로드에만 존재. v9 이후 권한 모델 시드.
 
-- [ ] 선택: `prod` 권장
+- [✅] 선택: `prod` 
 
 ### 3.13 `chat_session` / `chat_message`
 
 dev 94/20, prod 5/10. 대부분 dev 는 테스트 세션.
 
-- [ ] 선택: `prod` 권장 (실 챗봇 사용 로그 보존)
+- [✅] 선택: `prod`것만 날려줘
 
 ### 3.14 `ai_usage_log` / `api_access_log`
 
 dev 180/24,791 — 대부분 E2E. prod 8/708 — 실사용.
 
-- [ ] 선택: `prod` 강력 추천 (운영 지표)
+- [✅] 선택: `prod` 
 
 ### 3.15 `test_run` / `test_run_test_case` / `test_result` / `test_studio_job` / `segment` / `test_case` / `version_phase_test_case` / `version_phase_test_run`
 
@@ -312,7 +311,7 @@ dev 180/24,791 — 대부분 E2E. prod 8/708 — 실사용.
 
 **dev 가 대폭 많음** — 로컬에서 토스/배민/증권 TC 를 대량으로 쌓음.
 
-- [ ] 선택: `dev` (TC 풀 이관) / `prod` (현 운영 상태 유지) / `merge` (수동, 난이도 높음)
+- [✅] 선택: `dev`
 - 추천: `dev` — 이 작업의 본래 목적
 
 ### 3.16 `knowledge_base` + `pdf_upload_job` + `kb_category`
@@ -326,14 +325,13 @@ v23 플랜 예외 적용: prod 에서 전체 DELETE 후 **prod UI 에서 PDF 재
 원본 PDF 파일 위치 (**유저 확인 필요**):
 - [ ] ISTQB 원본 PDF 경로: ______________
 - [ ] 소프트웨어 테스팅 실무 원본 PDF 경로: ______________
-- [ ] 둘 다 재업로드? 하나만?
+- [✅] 둘 다 내가 직접 재업로드할거야
 
 ### 3.17 `knowledge_base_backup` (dev only)
 
 로컬에만 있는 과거 백업 테이블 (46 rows). 프로드엔 없음.
 
-- [ ] 선택: `drop` (폐기) / `dev` (프로드에도 생성)
-- 추천: `drop`
+- [✅] 선택: `drop`
 
 ---
 
@@ -347,8 +345,8 @@ v23 플랜 예외 적용: prod 에서 전체 DELETE 후 **prod UI 에서 PDF 재
 | prod only test_case_image `47fefb1c-...png` | ✅ S3 있음 | merge 시 보존 |
 | `/api/feature-images/...` 레거시 2건 | ❌ 양쪽 모두 깨짐 | DB 경로 삭제 또는 이미지 재업로드 필요 |
 
-- [ ] 이미지 없는 test_case_image 5건 처리: `유지(깨진 채로)` / `DB row 삭제` / `실제 이미지 업로드 후 유지`
-- [ ] 레거시 `/api/feature-images/` 2건 처리: `DB row 삭제` / `경로 정정 후 이미지 업로드`
+- [✅] 이미지 없는 test_case_image 5건 처리: `DB row 삭제`
+- [✅] 레거시 `/api/feature-images/` 2건 처리: `DB row 삭제`
 
 ---
 

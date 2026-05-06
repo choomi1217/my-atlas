@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Company } from '@/types/features';
 import { companyApi } from '@/api/features';
-import { Breadcrumb } from '@/components/features/Breadcrumb';
 import { useActiveCompany } from '@/context/ActiveCompanyContext';
 import CompanyFormModal from '@/components/features/CompanyFormModal';
 import ConfirmDialog from '@/components/features/ConfirmDialog';
@@ -102,9 +101,7 @@ export default function CompanyListPage() {
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <Breadcrumb />
-
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-6" data-testid="company-list-container">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">

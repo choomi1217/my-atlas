@@ -90,7 +90,7 @@ class TestStudioGeneratorTest {
                 "title": "[Card] NFC 정상 결제",
                 "preconditions": "단말기 정상 연결",
                 "steps": [{"order": 1, "action": "NFC 태그", "expected": "승인"}],
-                "expectedResult": "결제 완료",
+                "expectedResults": ["결제 완료"],
                 "priority": "HIGH",
                 "testType": "FUNCTIONAL",
                 "suggestedSegmentPath": ["결제", "NFC"]
@@ -99,7 +99,7 @@ class TestStudioGeneratorTest {
                 "title": "[Card] NFC 타임아웃",
                 "preconditions": "단말기 정상 연결",
                 "steps": [{"order": 1, "action": "NFC 태그 없이 대기", "expected": "타임아웃"}],
-                "expectedResult": "오류 메시지",
+                "expectedResults": ["오류 메시지"],
                 "priority": "MEDIUM",
                 "testType": "FUNCTIONAL",
                 "suggestedSegmentPath": ["결제", "NFC"]
@@ -182,7 +182,7 @@ class TestStudioGeneratorTest {
         existingTc.setProduct(product);
         existingTc.setTitle("Existing TC");
         existingTc.setSteps(List.of());
-        existingTc.setExpectedResult("ok");
+        existingTc.setExpectedResults(java.util.List.of("ok"));
         existingTc.setPath(new Long[0]);
         existingTc.setPriority(Priority.MEDIUM);
         existingTc.setTestType(TestType.FUNCTIONAL);
@@ -282,7 +282,7 @@ class TestStudioGeneratorTest {
                 [
                   {"title":"[Card] NFC 정상 결제","preconditions":"단말기 정상 연결",\
                    "steps":[{"order":1,"action":"NFC 태그","expected":"승인"}],\
-                   "expectedResult":"결제 완료","priority":"HIGH","testType":"FUNCTIONAL",\
+                   "expectedResults":["결제 완료"],"priority":"HIGH","testType":"FUNCTIONAL",\
                    "suggestedSegmentPath":["결제","NFC"]},
                   {"title":"[Card] NFC 타임아웃 케이스가 여기서 끝나지""";
         stubChatClientContent(truncated);

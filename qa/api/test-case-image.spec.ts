@@ -54,7 +54,7 @@ test.describe('TestCase Image URL contract', () => {
         title: 'E2E TC with image',
         description: 'verify image URL prefix',
         steps: [{ order: 1, action: 'a', expected: 'b' }],
-        expectedResult: 'ok',
+        expectedResults: ['ok'],
         priority: 'MEDIUM',
         testType: 'FUNCTIONAL',
         status: 'ACTIVE',

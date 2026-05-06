@@ -98,7 +98,7 @@ public interface KnowledgeBaseRepository extends JpaRepository<KnowledgeBaseEnti
     // --- 큐레이션 FAQ 관련 쿼리 (exclude soft-deleted) ---
 
     @Query(value = "SELECT * FROM knowledge_base WHERE pinned_at IS NOT NULL AND deleted_at IS NULL "
-            + "ORDER BY pinned_at ASC LIMIT 15",
+            + "ORDER BY pinned_at ASC LIMIT 10",
             nativeQuery = true)
     List<KnowledgeBaseEntity> findPinned();
 

@@ -29,4 +29,7 @@ public class SegmentEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private SegmentEntity parent;
+
+    @Column(name = "order_index", nullable = false)
+    private Integer orderIndex = 0;
 }

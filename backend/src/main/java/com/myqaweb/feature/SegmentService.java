@@ -69,4 +69,14 @@ public interface SegmentService {
      * @throws IllegalArgumentException if reparenting is not allowed
      */
     void validateReparent(Long segmentId, Long newParentId);
+
+    /**
+     * Reorders sibling segments within the same (productId, parentId) group.
+     * The provided segmentIds list defines the new order; orderIndex is reassigned 0..N-1.
+     *
+     * @param request the reorder request
+     * @throws IllegalArgumentException when any segment is missing, belongs to a different product,
+     *                                   or is not in the requested parent group
+     */
+    void reorder(SegmentDto.ReorderRequest request);
 }

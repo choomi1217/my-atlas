@@ -39,6 +39,7 @@ export interface Segment {
   name: string;
   productId: number;
   parentId: number | null;
+  orderIndex: number;
 }
 
 /**
@@ -102,7 +103,7 @@ export interface TestCase {
   promptText?: string;
   preconditions?: string;
   steps: TestStep[];
-  expectedResult?: string;
+  expectedResults?: string[];
   priority: TestCasePriority;
   testType: TestCaseType;
   status: TestCaseStatus;

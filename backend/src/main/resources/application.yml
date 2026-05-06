@@ -10,7 +10,11 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      # Schema 관리는 Flyway가 단독 소유 (db/migration/V*.sql).
+      # Hibernate는 ORM만 담당하고 schema에 간섭하지 않음 — 다중 worktree가
+      # 같은 DB를 공유하는 환경에서 entity drift로 인한 boot 실패를 방지.
+      # entity ↔ DB 정합성은 통합 테스트(Testcontainers) + CI에서 검증.
+      ddl-auto: none
     show-sql: false
     properties:
       hibernate:

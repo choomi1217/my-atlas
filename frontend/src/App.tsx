@@ -3,6 +3,8 @@ import Layout from '@/components/Layout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import LoginPage from '@/pages/LoginPage'
 import SeniorPage from '@/pages/SeniorPage'
+import SeniorChatPage from '@/pages/SeniorChatPage'
+import SeniorFaqAllPage from '@/pages/SeniorFaqAllPage'
 import KnowledgeBasePage from '@/pages/KnowledgeBasePage'
 import KbWritePage from '@/pages/KbWritePage'
 import KbDetailPage from '@/pages/KbDetailPage'
@@ -38,6 +40,8 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<OverviewPage />} />
                 <Route path="/senior" element={<SeniorPage />} />
+                <Route path="/senior/chat" element={<SeniorChatPage />} />
+                <Route path="/senior/faq" element={<SeniorFaqAllPage />} />
                 <Route path="/kb" element={<KnowledgeBasePage />} />
                 <Route path="/kb/write" element={<KbWritePage />} />
                 <Route path="/kb/:id" element={<KbDetailPage />} />

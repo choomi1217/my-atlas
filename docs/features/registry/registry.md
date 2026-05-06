@@ -1,6 +1,6 @@
 # Feature Registry — QA 테스트 관리 플랫폼
 
-> 최종 업데이트: 2026-04-17 | 현재 버전: v17
+> 최종 업데이트: 2026-04-29 | 현재 버전: v18
 
 ---
 
@@ -646,3 +646,5 @@ frontend/src/
 | v15 | 2026-04-15 | 기능 추가 | Jira 티켓 연동 + Version 재설계 + Failed TC 히스토리 | 결함 자동 추적, Regression 구성 |
 | v16 | 2026-04-16 | 기능 개선 | Path 트리 그룹핑 (prefix 압축, vertical guideline) | 대량 TC 가독성 향상 |
 | v17 | 2026-04-17 | 기능 추가 | QA 릴리즈 통계 + Release Readiness + Daily Snapshot | 데이터 기반 릴리즈 Go/No-Go 판단 |
+| v17.1 | 2026-04-22 | 버그 수정 | TestCase 이미지 URL 하드코딩 수정 (`/api/feature-images/` → `/images/feature/`) | S3 전환 후 이미지 엑박 해결 |
+| v18 | 2026-04-29 | 기능 개선 | Test Suite UX 종합 개편 — 헤더 정리 + TC 카드 DL 패턴 + Final Expected 다중 항목 + Segment 다중 Root + 형제 정렬 + Promote to Root + 삼각형 통일 + Last-root 보호 | 정보 위계 강화로 카드 인지 속도↑, Segment 트리 자유도 대폭 확장 |

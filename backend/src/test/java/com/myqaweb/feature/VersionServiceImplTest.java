@@ -133,12 +133,13 @@ class VersionServiceImplTest {
 
     @Test
     void testGetById_ReleaseDateNotPassed() {
-        // Given - release_date = 2026-05-01 (future)
+        // Given - release_date = future (today + 1 year, robust to wall-clock drift)
+        LocalDate futureDate = LocalDate.now().plusYears(1);
         VersionEntity futureVersion = new VersionEntity();
         futureVersion.setId(1L);
         futureVersion.setProduct(product);
         futureVersion.setName("v9");
-        futureVersion.setReleaseDate(LocalDate.of(2026, 5, 1));
+        futureVersion.setReleaseDate(futureDate);
         futureVersion.setCreatedAt(LocalDateTime.now());
         futureVersion.setUpdatedAt(LocalDateTime.now());
 
@@ -154,17 +155,18 @@ class VersionServiceImplTest {
         assertNotNull(result);
         assertFalse(result.isReleaseDatePassed());
         assertNull(result.warningMessage());
-        assertEquals(LocalDate.of(2026, 5, 1), result.releaseDate());
+        assertEquals(futureDate, result.releaseDate());
     }
 
     @Test
     void testGetById_ReleaseDatePassed() {
-        // Given - release_date = past date
+        // Given - release_date = past (today - 1 year, robust to wall-clock drift)
+        LocalDate pastDate = LocalDate.now().minusYears(1);
         VersionEntity pastVersion = new VersionEntity();
         pastVersion.setId(1L);
         pastVersion.setProduct(product);
         pastVersion.setName("v8");
-        pastVersion.setReleaseDate(LocalDate.of(2026, 3, 1));
+        pastVersion.setReleaseDate(pastDate);
         pastVersion.setCreatedAt(LocalDateTime.now());
         pastVersion.setUpdatedAt(LocalDateTime.now());
 
@@ -180,7 +182,7 @@ class VersionServiceImplTest {
         assertNotNull(result);
         assertTrue(result.isReleaseDatePassed());
         assertNotNull(result.warningMessage());
-        assertTrue(result.warningMessage().contains("2026-03-01"));
+        assertTrue(result.warningMessage().contains(pastDate.toString()));
     }
 
     @Test
@@ -405,12 +407,15 @@ class VersionServiceImplTest {
 
     @Test
     void testUpdateVersion_ReleaseDateChangeable() {
-        // Given - version with past release date
+        // Given - version with past release date, updated to future (dynamic to avoid time-bomb)
+        LocalDate pastDate = LocalDate.now().minusMonths(2);
+        LocalDate futureDate = LocalDate.now().plusMonths(2);
+
         VersionEntity pastVersion = new VersionEntity();
         pastVersion.setId(1L);
         pastVersion.setProduct(product);
         pastVersion.setName("v8");
-        pastVersion.setReleaseDate(LocalDate.of(2026, 3, 1));
+        pastVersion.setReleaseDate(pastDate);
         pastVersion.setCreatedAt(LocalDateTime.now());
         pastVersion.setUpdatedAt(LocalDateTime.now());
 
@@ -418,12 +423,12 @@ class VersionServiceImplTest {
         updated.setId(1L);
         updated.setProduct(product);
         updated.setName("v8");
-        updated.setReleaseDate(LocalDate.of(2026, 6, 1)); // Changed to future date
+        updated.setReleaseDate(futureDate); // Changed to future date
         updated.setCreatedAt(LocalDateTime.now());
         updated.setUpdatedAt(LocalDateTime.now());
 
         VersionDto.UpdateVersionRequest request = new VersionDto.UpdateVersionRequest(
-                null, null, LocalDate.of(2026, 6, 1)
+                null, null, futureDate
         );
 
         when(versionRepository.findById(1L)).thenReturn(Optional.of(pastVersion));
@@ -437,7 +442,7 @@ class VersionServiceImplTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(LocalDate.of(2026, 6, 1), result.releaseDate());
+        assertEquals(futureDate, result.releaseDate());
         verify(versionRepository).save(any());
     }
 
