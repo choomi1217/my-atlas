@@ -258,4 +258,70 @@ test.describe('Knowledge Base UI E2E', () => {
     await page.goto('/kb/write');
     await expect(page.locator('input[placeholder*="태그"]')).not.toBeVisible();
   });
+
+  // --- Pin/Unpin UI (v7 — migrated from KbManagementView) ---
+
+  test.describe('KB Pin/Unpin UI (v7)', () => {
+    let pinTestId: number;
+
+    test.beforeAll(async () => {
+      // Create a dedicated test KB via API
+      const resp = await apiRequest.post('/api/kb', {
+        data: {
+          title: 'E2E Pin UI Test KB',
+          content: 'Used for pin/unpin UI test',
+          category: 'Testing',
+        },
+      });
+      const body = await resp.json() as any;
+      pinTestId = body.data.id;
+      // Make sure it's unpinned at start
+      await apiRequest.patch(`/api/kb/${pinTestId}/unpin`).catch(() => {});
+    });
+
+    test.afterAll(async () => {
+      if (pinTestId) {
+        await apiRequest.patch(`/api/kb/${pinTestId}/unpin`).catch(() => {});
+        await apiRequest.delete(`/api/kb/${pinTestId}`).catch(() => {});
+      }
+    });
+
+    test('Pin toggle button is visible on /kb page', async ({ page }) => {
+      await page.goto('/kb');
+      await page.waitForResponse((resp) => resp.url().includes('/api/kb') && resp.request().method() === 'GET');
+      const toggle = page.getByTestId(`kb-pin-toggle-${pinTestId}`);
+      await expect(toggle).toBeVisible();
+    });
+
+    test('clicking Pin toggle pins the entry', async ({ page }) => {
+      await page.goto('/kb');
+      await page.waitForResponse((resp) => resp.url().includes('/api/kb') && resp.request().method() === 'GET');
+
+      const toggle = page.getByTestId(`kb-pin-toggle-${pinTestId}`);
+      await toggle.click();
+
+      // Wait for pin API
+      await page.waitForResponse(
+        (resp) => resp.url().includes(`/api/kb/${pinTestId}/pin`) && resp.request().method() === 'PATCH'
+      );
+
+      // "FAQ 고정됨" indicator should appear
+      await expect(page.getByText('📌 FAQ 고정됨')).toBeVisible({ timeout: 5000 });
+    });
+
+    test('clicking Pin toggle on already-pinned unpins the entry', async ({ page }) => {
+      // Ensure pinned via API
+      await apiRequest.patch(`/api/kb/${pinTestId}/pin`).catch(() => {});
+
+      await page.goto('/kb');
+      await page.waitForResponse((resp) => resp.url().includes('/api/kb') && resp.request().method() === 'GET');
+
+      const toggle = page.getByTestId(`kb-pin-toggle-${pinTestId}`);
+      await toggle.click();
+
+      await page.waitForResponse(
+        (resp) => resp.url().includes(`/api/kb/${pinTestId}/unpin`) && resp.request().method() === 'PATCH'
+      );
+    });
+  });
 });

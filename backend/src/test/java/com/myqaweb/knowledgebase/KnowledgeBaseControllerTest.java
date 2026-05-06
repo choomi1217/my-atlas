@@ -47,9 +47,9 @@ class KnowledgeBaseControllerTest {
     void list_returnsOkWithItems() throws Exception {
         // Arrange
         List<KnowledgeBaseDto.KbResponse> items = List.of(
-                new KnowledgeBaseDto.KbResponse(1L, "Regression Testing", "Best practices",
+                new KnowledgeBaseDto.KbResponse(1L, "Regression Testing", "Best practices", "Best practices",
                         "Testing", null, 0, null, now, now, null),
-                new KnowledgeBaseDto.KbResponse(2L, "API Testing", "How to test REST APIs",
+                new KnowledgeBaseDto.KbResponse(2L, "API Testing", "How to test REST APIs", "How to test REST APIs",
                         "API", null, 3, null, now, now, null)
         );
         when(knowledgeBaseService.findAll(null, null)).thenReturn(items);
@@ -71,7 +71,7 @@ class KnowledgeBaseControllerTest {
     void getById_returnsOk() throws Exception {
         // Arrange
         KnowledgeBaseDto.KbResponse kb = new KnowledgeBaseDto.KbResponse(
-                1L, "Regression Testing", "Best practices", "Testing",
+                1L, "Regression Testing", "Best practices", "Best practices", "Testing",
                 null, 0, null, now, now, null);
         when(knowledgeBaseService.findById(1L)).thenReturn(Optional.of(kb));
 
@@ -103,7 +103,7 @@ class KnowledgeBaseControllerTest {
     void create_returns201() throws Exception {
         // Arrange
         KnowledgeBaseDto.KbResponse created = new KnowledgeBaseDto.KbResponse(
-                1L, "New Article", "Content", "QA", null, 0, null, now, now, null);
+                1L, "New Article", "Content", "Content", "QA", null, 0, null, now, now, null);
         when(knowledgeBaseService.create(any(KnowledgeBaseDto.KbRequest.class))).thenReturn(created);
 
         // Act & Assert
@@ -154,7 +154,7 @@ class KnowledgeBaseControllerTest {
     void update_returnsOk() throws Exception {
         // Arrange
         KnowledgeBaseDto.KbResponse updated = new KnowledgeBaseDto.KbResponse(
-                1L, "Updated", "Updated Content", "QA", null, 0, null, now, now, null);
+                1L, "Updated", "Updated Content", "Updated Content", "QA", null, 0, null, now, now, null);
         when(knowledgeBaseService.update(eq(1L), any(KnowledgeBaseDto.KbRequest.class))).thenReturn(updated);
 
         // Act & Assert

@@ -32,6 +32,8 @@ export default function KnowledgeBasePage() {
     pdfCount,
     fetchKbItems,
     deleteBook,
+    pinKbItem,
+    unpinKbItem,
   } = useKnowledgeBase();
 
   const navigate = useNavigate();
@@ -39,6 +41,7 @@ export default function KnowledgeBasePage() {
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+  const [pinError, setPinError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -74,6 +77,26 @@ export default function KnowledgeBasePage() {
   const handleDeleteBook = async (source: string) => {
     if (!window.confirm(`"${source}"의 전체 청크를 삭제하시겠습니까?`)) return;
     await deleteBook(source);
+  };
+
+  const handleTogglePin = async (id: number, isPinned: boolean) => {
+    setPinError(null);
+    try {
+      if (isPinned) {
+        await unpinKbItem(id);
+      } else {
+        await pinKbItem(id);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Pin operation failed';
+      if (msg.includes('Maximum') || msg.includes('10')) {
+        setPinError('최대 10건까지 고정할 수 있습니다.');
+      } else {
+        setPinError(msg);
+      }
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = setTimeout(() => setPinError(null), 3000);
+    }
   };
 
   const getCount = (key: SourceFilter) => {
@@ -194,11 +217,18 @@ export default function KnowledgeBasePage() {
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              onClick={() => navigate(`/kb/${item.id}`)}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+              data-testid="kb-card"
+              className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
+                item.pinnedAt
+                  ? 'border-amber-300 bg-amber-50/30'
+                  : 'border-gray-200'
+              }`}
             >
               <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2 min-w-0">
+                <div
+                  onClick={() => navigate(`/kb/${item.id}`)}
+                  className="flex items-center gap-2 min-w-0 cursor-pointer flex-1"
+                >
                   {item.source ? (
                     <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full shrink-0">
                       도서
@@ -210,15 +240,39 @@ export default function KnowledgeBasePage() {
                   )}
                   <h3 className="font-semibold text-gray-800 truncate">{item.title}</h3>
                 </div>
-                {item.category && (
-                  <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full ml-2 shrink-0">
-                    {item.category}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 ml-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTogglePin(item.id, !!item.pinnedAt);
+                    }}
+                    title={item.pinnedAt ? 'FAQ에서 고정 해제' : 'FAQ에 고정'}
+                    aria-label={item.pinnedAt ? 'Unpin' : 'Pin'}
+                    data-testid={`kb-pin-toggle-${item.id}`}
+                    className={`p-1 rounded transition-colors ${
+                      item.pinnedAt
+                        ? 'text-amber-500 hover:text-amber-700'
+                        : 'text-gray-300 hover:text-amber-500'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  </button>
+                  {item.category && (
+                    <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
+                      {item.category}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {item.source && (
                 <p className="text-xs text-purple-600 mb-1">source: {item.source}</p>
+              )}
+              {item.pinnedAt && (
+                <p className="text-xs text-amber-600 mb-1">📌 FAQ 고정됨</p>
               )}
             </div>
           ))}
@@ -239,6 +293,17 @@ export default function KnowledgeBasePage() {
           className="fixed bottom-4 right-4 px-4 py-3 rounded shadow-lg text-white text-sm z-50 bg-red-500"
         >
           {toast}
+        </div>
+      )}
+
+      {/* Pin error toast */}
+      {pinError && (
+        <div
+          role="alert"
+          data-testid="kb-pin-error"
+          className="fixed bottom-4 right-4 px-4 py-3 rounded shadow-lg text-white text-sm z-50 bg-red-500"
+        >
+          {pinError}
         </div>
       )}
     </div>

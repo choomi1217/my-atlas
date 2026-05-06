@@ -95,3 +95,67 @@ test.describe('KB Pin/Unpin API E2E', () => {
     expect(body.success).toBe(false);
   });
 });
+
+test.describe('KB Pin Max Limit (v7: 10)', () => {
+  const createdIds: number[] = [];
+
+  test.afterAll(async () => {
+    // Cleanup: unpin + delete all test items created in this describe
+    for (const id of createdIds) {
+      await request.patch(`/api/kb/${id}/unpin`).catch(() => {});
+      await request.delete(`/api/kb/${id}`).catch(() => {});
+    }
+  });
+
+  test('attempting to pin 11th entry rejects with max limit error', async () => {
+    // Get current curated FAQ size — this equals current pinned count under v7
+    const curatedRes = await request.get('/api/senior/faq');
+    const curatedBody = await curatedRes.json() as any;
+    const currentPinned = curatedBody.data.length;
+
+    // Skip if already at/above max — the assertion below would still hold but
+    // we cannot meaningfully fill up if seed data already maxed it
+    if (currentPinned >= 10) {
+      test.info().annotations.push({
+        type: 'note',
+        description: `Skipped fill-up — already ${currentPinned} pinned. Will attempt 11th anyway.`,
+      });
+    }
+
+    // Fill up the gap with E2E test items + pin them
+    const gap = Math.max(0, 10 - currentPinned);
+    for (let i = 0; i < gap; i++) {
+      const createRes = await request.post('/api/kb', {
+        data: {
+          title: `E2E Pin Limit Test ${i}`,
+          content: 'Filler entry for pin limit test',
+          category: 'Testing',
+        },
+      });
+      expect(createRes.status()).toBe(201);
+      const id = (await createRes.json() as any).data.id;
+      createdIds.push(id);
+      const pinRes = await request.patch(`/api/kb/${id}/pin`);
+      expect(pinRes.status()).toBe(200);
+    }
+
+    // Now create the 11th item and try to pin — should fail
+    const overflowRes = await request.post('/api/kb', {
+      data: {
+        title: 'E2E Pin Overflow Test',
+        content: 'This should be rejected on pin attempt',
+        category: 'Testing',
+      },
+    });
+    expect(overflowRes.status()).toBe(201);
+    const overflowId = (await overflowRes.json() as any).data.id;
+    createdIds.push(overflowId);
+
+    const pinResponse = await request.patch(`/api/kb/${overflowId}/pin`);
+    // v7: 11th pin attempt must be rejected (HTTP error). Specific error message
+    // is verified by KnowledgeBaseServiceImplTest unit test (Maximum 10).
+    expect(pinResponse.ok()).toBe(false);
+    const body = await pinResponse.json() as any;
+    expect(body.success).toBe(false);
+  });
+});

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, KbItem, KbRequest, ChatSession } from '@/types/senior';
+import CategoryAutocomplete from '@/components/kb/CategoryAutocomplete';
 
 interface ChatViewProps {
   messages: ChatMessage[];
@@ -154,8 +155,20 @@ export default function ChatView({
             >
               <div className="max-w-[75%] group relative">
                 {msg.role === 'assistant' ? (
-                  <div className="px-4 py-3 rounded-lg bg-gray-100 text-gray-800 text-sm">
-                    <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2 prose-code:text-indigo-600 prose-code:bg-indigo-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+                  <div className="px-4 py-3 rounded-lg bg-gray-100">
+                    <div
+                      data-testid={`chat-message-content-${msg.id}`}
+                      className="prose prose-sm max-w-none
+                                 prose-p:my-1 prose-p:text-gray-800
+                                 prose-headings:my-2 prose-headings:text-gray-900 prose-headings:font-semibold
+                                 prose-strong:text-gray-900 prose-strong:font-bold
+                                 prose-em:text-gray-800
+                                 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
+                                 prose-pre:my-2 prose-pre:bg-gray-900 prose-pre:text-gray-100
+                                 prose-code:text-indigo-600 prose-code:bg-indigo-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none
+                                 prose-a:text-indigo-600 prose-a:underline
+                                 prose-table:my-2 prose-th:bg-gray-50 prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1 prose-td:border prose-th:border"
+                    >
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content || (isStreaming && idx === messages.length - 1 ? '...' : '')}
                       </ReactMarkdown>
@@ -270,7 +283,11 @@ function KbSaveForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-2 p-3 bg-white border border-gray-200 rounded-lg shadow-sm space-y-2">
+    <form
+      onSubmit={handleSubmit}
+      data-testid="kb-save-form"
+      className="mt-2 p-3 bg-white border border-gray-200 rounded-lg shadow-sm space-y-2"
+    >
       <div>
         <input
           type="text"
@@ -278,25 +295,26 @@ function KbSaveForm({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
           required
+          data-testid="kb-save-title"
           className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
-      <div>
-        <input
-          type="text"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder="Category"
-          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
-        />
+      <div data-testid="kb-save-category">
+        <CategoryAutocomplete value={category} onChange={setCategory} />
       </div>
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700">
+        <button
+          type="button"
+          onClick={onCancel}
+          data-testid="kb-save-cancel"
+          className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700"
+        >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isSaving || !title.trim()}
+          data-testid="kb-save-submit"
           className="px-3 py-1 text-xs text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50"
         >
           {isSaving ? 'Saving...' : 'Save to KB'}

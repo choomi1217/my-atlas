@@ -653,7 +653,7 @@ Claude Slack Hook 개선
 
 | 항목 | 설정값 |
 |------|--------|
-| Hibernate ddl-auto | validate (Flyway가 스키마 관리) |
+| Hibernate ddl-auto | **none** — Flyway가 schema 단독 소유, Hibernate는 ORM만 담당 (다중 worktree 공유 DB 환경에서 entity drift로 인한 boot 실패 방지) |
 | Flyway | enabled, classpath:db/migration |
 | AI 모델 | claude-3-5-sonnet-20241022 (Spring AI Anthropic) |
 | 임베딩 모델 | text-embedding-3-small (OpenAI, 1536 dims) |
