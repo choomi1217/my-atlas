@@ -36,68 +36,50 @@ export interface FeatureDetail {
   versions: VersionEntry[]
 }
 
-export interface FuturePlan {
-  name: string
-  description: string
-  difficulty: string
-}
-
-export const futurePlans: FuturePlan[] = [
-  { name: 'Toast 알림 시스템', description: 'alert() 대체, 성공/에러/경고 통합 알림', difficulty: '낮음' },
-  { name: 'Error Boundary', description: 'React Error Boundary + Fallback UI', difficulty: '낮음' },
-  { name: '404 / Error 페이지', description: '라우트 미스매치 처리', difficulty: '낮음' },
-  { name: 'FE 에러 처리 표준화', description: 'Axios 인터셉터 + 공통 에러 hook', difficulty: '중간' },
-  { name: '상태 관리 통합', description: 'Context/Zustand 중복 제거', difficulty: '낮음' },
-  { name: 'API 문서 (Swagger)', description: 'SpringDoc OpenAPI 자동 생성', difficulty: '낮음' },
-  { name: '요청 로깅 미들웨어', description: 'Spring Filter로 요청/응답 로깅', difficulty: '중간' },
-  { name: 'Release Readiness 통계', description: 'Feature Registry — Go/No-Go 릴리즈 판단 대시보드', difficulty: '높음' },
-]
-
 const IMG = '/images/features'
 
 export const featureDetails: Record<string, FeatureDetail> = {
   senior: {
     slug: 'senior',
     name: 'My Senior',
-    tagline: 'RAG 파이프라인 직접 구현 — pgvector + Spring AI + SSE 스트리밍',
+    tagline: 'QA 업무중 고민이 되었던 것을 질문할 수 있는 LLM 채팅 기능입니다.',
     description: [
-      '사용자의 질문을 임베딩하여 FAQ, Knowledge Base, Convention을 벡터 검색하고, 컨텍스트로 주입한 뒤 Claude API로 답변을 생성한다.',
-      'SSE 스트리밍으로 실시간 응답을 제공하며, FAQ 카드뷰에서 자주 묻는 질문을 관리할 수 있다.',
+      'Knowledge Base, Word Convention을 우선 검색하고, 이를 AI의 컨텍스트로 주입합니다.',
+      '위처럼 정확한 문서를 컨텍스트로 주입했기 때문에 AI의 할루시네이션 확률이 감소합니다.',
+      'SSE 스트리밍으로 실시간 응답을 제공합니다.'
     ],
     about: {
       why: [
-        'QA 신입이 반복적으로 같은 질문을 할 때, 시니어가 매번 답변하는 비용을 줄이고 싶었다.',
-        '팀의 QA 지식이 개인의 기억에만 존재하면 퇴사 시 소실된다.',
-        'FAQ, KB, Convention을 하나의 AI 컨텍스트로 통합하면 "우리 팀만의 시니어"를 만들 수 있다.',
+        '받은 피드백을 열심히 메모해도 다시 찾아보기 어려워서 아쉬웠습니다.',
+        '피드백을 메모해도 찾아보기 어려워 다시 질문하는 리소스가 아까웠습니다.',
+        '그래서 계속 질문해도 리소스 낭비가 없으며, 정확한 지식을 전달해주는 시니어를 만들고 싶었습니다.',
       ],
       what: [
-        'RAG(Retrieval-Augmented Generation) 파이프라인으로 팀 지식 기반 AI 챗봇을 구현했다.',
-        '질문을 임베딩하여 pgvector 코사인 유사도로 관련 지식을 검색하고, Claude API로 답변을 생성한다.',
-        'FAQ 카드뷰에서 자주 묻는 질문을 관리하고, 카드 클릭으로 Chat에 컨텍스트를 전달할 수 있다.',
+        '질문을 pgvector 로 DB에 저장합니다.',
+        '채팅시 관련 지식을 Claude에게 컨텍스트로 주입한 후, Claude API로 답변을 생성합니다.'
       ],
       benefit: [
-        '신입 QA의 온보딩 시간을 단축 — 반복 질문을 AI가 즉시 답변한다.',
-        'FAQ → Chat 컨텍스트 전달로 "이 질문에 대해 더 알려줘" 같은 심화 학습이 가능하다.',
-        '팀 지식을 구조화하여 퇴사/이동 시에도 지식이 보존된다.',
+        '자주 묻는 질문에 대한 시니어의 리소스 감소',
+        '주니어는 부담 없이 시니어에게 질문할 수 있게 됨',
+        '팀 지식을 문서화 할 수 있게됨',
       ],
     },
-    techStack: ['Spring AI', 'Claude API', 'pgvector', 'SSE', 'OpenAI Embedding', 'React Hooks'],
+    techStack: ['Spring AI', 'Claude API', 'pgvector', 'SSE'],
     architecture: [
-      '사용자 질문 + 선택된 FAQ 컨텍스트 수신',
-      'OpenAI text-embedding-3-small로 질문 임베딩 생성 (1536 dims)',
-      '컨텍스트 수집 — FAQ context (최우선) → Company Features → KB (cosine top 3) → FAQ (cosine top 3) → Conventions (전체)',
-      'System Prompt 구성 + Claude claude-3-5-sonnet 호출',
-      'SseEmitter로 토큰 단위 스트리밍 응답 전송',
-      'Frontend: fetch + ReadableStream으로 실시간 렌더링',
+      '주니어 혹은 팀원에게 고민이 생김 🤔 → 질문하기 전, 채팅을 통해 검색해보기로 함!',
+      'OpenAI text-embedding-3-small로 질문 임베딩 생성',
+      'FAQ context (최우선) → Company Features → KB (cosine top 3) → FAQ (cosine top 3) → Conventions (전체) 순서로 컨텍스트를 모읍니다. 📜',
+      '위에서 수집한 컨텍스트로 프롬프트를 구성 → Claude 호출!! 🤖',
+      'Claude의 답변을 실시간으로 받습니다! ( Backend: sseEmitter로 토큰 단위 스트리밍 응답 전송, Frontend: fetch + ReadableStream으로 실시간 렌더링 )',
     ],
     screenshots: [
       {
         src: `${IMG}/senior_01_faq_list.png`,
-        caption: '큐레이션 FAQ 카드뷰 — 관리자가 고정한 질문과 조회수 Top 5가 한 화면에 노출된다. 카드를 클릭하면 해당 FAQ가 Chat 컨텍스트로 주입된다.',
+        caption: 'My Senior의 전체 화면',
       },
       {
         src: `${IMG}/senior_02_chat.png`,
-        caption: 'SSE 스트리밍 Chat 페이지 — Claude 응답 토큰이 실시간으로 렌더링되고 Markdown + 코드 블록 포매팅을 지원한다. 채팅 내용은 세션 단위로 저장되어 재진입 시 복원된다.',
+        caption: 'My Senior의 채팅 화면',
       },
     ],
     testing: [
@@ -121,57 +103,53 @@ export const featureDetails: Record<string, FeatureDetail> = {
   kb: {
     slug: 'kb',
     name: 'Knowledge Base',
-    tagline: 'PDF → 청킹 → 임베딩 비동기 파이프라인, Virtual Threads + @Async + Rate Limit 대응',
+    tagline: '도움이 된 피드백과 글을 등록하고 이를 활용하기 위한 기능입니다.',
     description: [
-      'QA 지식을 Markdown WYSIWYG 에디터로 작성하거나, PDF 도서를 업로드하면 자동으로 청킹·임베딩하여 벡터 DB에 저장한다.',
-      '수동 작성 문서와 PDF 청크를 분리하여 RAG 검색 시 수동 문서(top 3)를 우선하고, PDF(top 2)를 보조로 사용한다.',
+      'QA 지식을 Markdown 에디터로 작성하거나, PDF를 업로드하면 자동으로 청킹·임베딩하여 벡터 DB에 저장합니다.',
+      '이렇게 저장된 기능은 My Senior에서 채팅시 1순위로 검색되어 AI Context로 주입됩니다.',
+      '정확한 Testing 지식을 이용해 AI가 TC를 만들게 됩니다.',
+      '이를 통해 AI의 할루시네이션 현상이 줄어들고, 질문한 유저는 정확한 답변을 받아볼 수 있습니다.'
     ],
     about: {
       why: [
-        'QA 도서(ISTQB, 테스트 설계 등)의 내용을 팀 내에서 빠르게 검색하고 참조하고 싶었다.',
-        'PDF 도서를 통째로 읽는 것보다, 관련 챕터만 AI가 찾아주면 업무 효율이 올라간다.',
-        '수동 작성 지식과 PDF 도서를 하나의 벡터 DB에서 통합 검색할 수 있어야 했다.',
+        'AI의 할루시네이션 현상을 줄이고 정확한 정보만을 받아보고 싶었습니다.'
       ],
       what: [
-        'Markdown WYSIWYG 에디터로 QA 지식을 작성하고, 이미지를 첨부할 수 있다.',
-        'PDF 도서를 업로드하면 자동으로 챕터 파싱 → 토큰 기반 청킹 → 임베딩 파이프라인이 실행된다.',
-        'My Senior 챗봇의 RAG 소스로 활용되어, 질문 시 관련 지식이 컨텍스트로 주입된다.',
+        'Markdown 형식으로 글을 저장 or PDF 도서 업로드 시 자동으로 챕터 파싱 → 청킹 → 임베딩으로 글을 저장합니다.',
+        'My Senior에 질문 시 관련 지식이 컨텍스트로 주입됩니다.',
+        'Test Studio에서 TC 생성 시 관련 지식이 컨텍스트로 주입됩니다.'
       ],
       benefit: [
-        'PDF 도서의 특정 내용을 AI가 즉시 찾아주어 학습 시간을 절약한다.',
-        '팀원이 직접 작성한 QA 지식을 우선 검색(top 3)하여 팀 맞춤형 답변을 제공한다.',
-        '비동기 파이프라인으로 대용량 PDF도 백그라운드 처리 — 업무 중단 없이 지식 축적 가능하다.',
+        'AI 할루시네이션이 줄어듭니다.'
       ],
     },
-    techStack: ['PDFBox', 'pgvector', 'OpenAI Embedding', '@uiw/react-md-editor', 'Spring @Async', 'Virtual Threads'],
+    techStack: ['pgvector', 'OpenAI Embedding', 'Spring AI', '@uiw/react-md-editor', 'PDFBox'],
     architecture: [
-      'PDF 업로드 → PENDING Job 생성, jobId 즉시 반환',
-      '@Async Worker: PDFBox 텍스트 추출 → 정규식 챕터 파싱',
-      '토큰 기반 청킹 (500-800 tokens, 50 overlap)',
-      '청크별 OpenAI 임베딩 생성 (Rate Limit: 200ms sleep, 429 시 5s retry × 3)',
-      'knowledge_base 테이블에 source=도서명으로 저장',
-      'Frontend: 3초 간격 polling으로 Job 상태 추적',
+      '팀원이 도움 되었던 피드백이나 QA 지식을 KB에 작성합니다. ✍️ (Markdown 또는 PDF 도서 업로드 → 챕터 파싱 + 청킹)',
+      '저장된 글 본문을 OpenAI embedding small로 벡터화 → pgvector 컬럼에 저장됩니다.',
+      'My Senior 질문 / Test Studio TC 생성 시 → 질문 임베딩 → cosine 유사도 Top N의 KB를 컨텍스트로 추출합니다.',
+      '추출된 컨텍스트가 AI의 프롬프트에 주입됩니다.',
     ],
     screenshots: [
       {
         src: `${IMG}/kb_01_list.png`,
-        caption: 'KB 전체 목록 — 수동 작성 문서와 PDF 청크를 통합 검색한다. Pin 고정, 카테고리 자동완성, 소프트 삭제(deleted_at) 지원.',
+        caption: 'KB 전체 목록',
       },
       {
         src: `${IMG}/kb_02_pdf_upload.png`,
-        caption: 'PDF 업로드 모달 — bookTitle + 파일을 선택해 업로드하면 jobId를 즉시 반환하고 비동기 Worker가 파싱·청킹·임베딩을 이어받는다. multipart 500MB까지 허용.',
+        caption: 'PDF 업로드 모달',
       },
       {
         src: `${IMG}/kb_03_pdf_loading.png`,
-        caption: 'PDF 처리 Job 카드 — PENDING → PROCESSING → DONE / FAILED 상태를 3초 polling으로 UI에 반영한다. 실패 시 error 메시지와 재시도 안내가 노출되고, 성공분은 이미 임베딩된 채로 보존된다.',
+        caption: 'PDF 처리 Job 카드',
       },
       {
         src: `${IMG}/kb_04_detail.png`,
-        caption: 'KB 상세 페이지 — 조회수 카운트(hit_count)로 자동으로 FAQ Top 5에 반영된다. Pin/Unpin, 카테고리, 수동 작성 / PDF 챕터 구분 표시.',
+        caption: 'KB 상세 페이지',
       },
       {
         src: `${IMG}/kb_06_write.png`,
-        caption: 'Markdown WYSIWYG 에디터 — @uiw/react-md-editor로 실시간 프리뷰. 이미지 드래그 앤 드롭 업로드, 코드 블록 하이라이팅, stripMarkdown 임베딩 전처리.',
+        caption: 'Markdown 에디터',
       },
     ],
     testing: [
@@ -197,32 +175,28 @@ export const featureDetails: Record<string, FeatureDetail> = {
     name: 'Word Conventions',
     tagline: '팀 용어 표준화 사전',
     description: [
-      '디자이너가 "LNB"라 하고 개발자가 "사이드바"라 하는 용어 불일치를 해결하기 위한 팀 공식 용어 사전이다.',
-      'My Senior 챗봇의 RAG 컨텍스트에 전체 용어가 주입된다.',
+      '디자이너가 "LNB"라 하고 개발자가 "사이드바"라고 하는 팀간의 용어 불일치를 해결하기 위한 백과사전입니다!!',
+      'Test Studio에서 TC 생성 시, 등록된 모든 용어가 컨텍스트로 함께 주입됩니다!',
     ],
     about: {
       why: [
-        '디자이너가 "LNB"라 하고 개발자가 "사이드바"라 하면, 테스트 케이스에 어떤 용어를 써야 할까?',
-        '용어가 통일되지 않으면 버그 리포트의 재현 단계가 모호해지고 커뮤니케이션 비용이 증가한다.',
-        '팀 공식 용어 사전이 있으면 QA 문서의 일관성이 보장된다.',
+        '팀에서 원활한 의사소통을 위해서 용어 컨벤션은 중요하다고 생각했습니다.',
+        '용어 백과사전이 있으면 의사소통이 편해질 거라고 생각했습니다.',
       ],
       what: [
-        '용어(term)와 정의(definition)를 등록하고, 이미지를 첨부하여 시각적 참고자료를 제공한다.',
-        'Drag & Drop 이미지 업로드, 알파벳/가나다 순 정렬, 키워드 검색을 지원한다.',
-        'My Senior 챗봇의 RAG에 전체 용어가 주입되어, AI 답변에서도 팀 용어가 사용된다.',
+        '이름, 설명, 이미지를 등록합니다.',
+        '등록된 용어는 My Senior / TestStudio의 AI의 Context로 주입됩니다!',
       ],
       benefit: [
-        '테스트 케이스, 버그 리포트, 릴리즈 노트에서 동일한 용어를 사용할 수 있다.',
-        '신입 QA가 팀 용어를 빠르게 학습할 수 있다.',
-        'AI 챗봇이 팀 용어를 인식하여 더 정확한 답변을 생성한다.',
+        '팀 내에서 동일한 용어를 사용할 수 있게 됩니다.',
+        '신입 온보딩시 팀 용어를 빠르게 학습할 수 있습니다.',
+        'AI가 팀 용어를 인식하여 더 정확한 답변을 생성할 수 있습니다.',
       ],
     },
     techStack: ['Spring Boot CRUD', 'Image Upload', 'Drag & Drop', 'Tailwind Grid'],
     architecture: [
-      '용어(term) + 정의(definition) + 카테고리 + 이미지 URL 구조',
       '이미지 Drag & Drop 업로드 → 로컬 파일시스템 저장 (UUID 파일명)',
-      '알파벳/가나다 순 정렬, 키워드 검색 지원',
-      'RAG에서 Convention 전체를 System Prompt에 주입 (임베딩 없이 전체 조회)',
+      'Convention 전체를 Prompt에 주입 (임베딩 없이 전체 조회)',
     ],
     screenshots: [
       {

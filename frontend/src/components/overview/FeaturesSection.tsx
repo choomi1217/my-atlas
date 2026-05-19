@@ -3,39 +3,53 @@ import { Link } from 'react-router-dom'
 const features = [
   {
     name: 'My Senior',
-    lines: ['AI 시니어 QA 챗봇.', 'RAG 기반 답변과 SSE 스트리밍, FAQ 카드뷰를 제공한다.'],
+    lines: ['QA 업무중 고민이 되었던 것을 질문할 수 있는 LLM 채팅 기능입니다.', 
+      'Knowledge Base에 등록한 문서를 기반으로 대답해줍니다.', 
+      '기존 AI들이 부정확한 지식을 알려주는 것이 싫어 개발하게 되었습니다!!'],
     slug: 'senior',
-    tags: ['RAG', 'SSE', 'Spring AI', 'Claude'],
+    tags: ['Claude', 'Spring AI', 'RAG', 'SSE'],
   },
   {
     name: 'Knowledge Base',
-    lines: ['QA 지식 CRUD와 PDF 업로드 파이프라인.', '청킹, 임베딩, 벡터 검색을 지원한다.'],
+    lines: [
+      'QA에 대한 정보를 등록합니다.',
+      '기존 AI의 할루시네이션을 걸러내기 위해 개발하게 되었습니다!!',
+      '등록한 정보는 AI 채팅시 컨텍스트로 주입되어 답변받게 됩니다.',
+      '등록한 정보는 AI가 TC 자동 생성시 컨텍스트로 주입되어 보다 정확한 TC를 만들게 됩니다.'
+    ],
     slug: 'kb',
-    tags: ['PDF', 'pgvector', 'OpenAI Embedding'],
+    tags: ['OpenAI Embedding'],
   },
   {
     name: 'Word Conventions',
-    lines: ['팀 용어 표준화 사전.', '이미지 첨부와 검색을 지원한다.'],
+    lines: ['서로간의 용어 불일치를 방지하고 싶어서 개발하게 되었습니다!!',
+      '용어를 등록할 수 있는 백과사전입니다.'
+    ],
     slug: 'conventions',
-    tags: ['CRUD', 'Image Upload'],
+    tags: [''],
   },
   {
     name: 'Product Test Suite',
-    lines: ['Company > Product > TestCase 3단계 드릴다운.', 'Segment 트리, Version/Phase, Jira 자동 연동.'],
+    lines: ['테스트를 편하고 쉽게 하고 싶어서 개발하게 되었습니다!!', 
+      'TC 등록, Version 계획, Phase 계획, 테스트 수행, 버그 티켓 발행, Version 통계를 한번에 관리 할 수 있는 만능 툴을 만들고 싶었습니다.'],
     slug: 'test-suite',
-    tags: ['DnD', 'Adjacency List', 'JSONB', 'Jira API'],
+    tags: [''],
   },
   {
     name: 'Test Studio',
-    lines: ['문서 → Claude RAG → DRAFT TestCase 자동 생성.', 'Segment Path 추천 + 1클릭 적용 UX.'],
+    lines: [
+      'AI로 개발 속도가 가속화된 요즘, QA의 TC 설계에서 병목이 생긴다고 느껴 개발하게 되었습니다!!',
+      'PRD/Figma 문서 등록 → Claude AI가 Knowledge Base + Company Domain을 이용해 DRAFT TC를 생성합니다.'],
     slug: 'test-studio',
     tags: ['Claude API', 'RAG', '@Async Worker'],
   },
   {
-    name: 'QA Strategy',
-    lines: ['4계층 테스트 피라미드 구축.', 'Unit, Integration, E2E, CI/CD 자동화 파이프라인.'],
+    name: 'Playwright E2E & Git Action Ci/Cd PipeLine',
+    lines: ['Unit, Integration, E2E, CI/CD 자동화 파이프라인을 구축했습니다!!',
+      '매번 테스트를 통해 모든 버그를 막는것은 어려우니, CI/CD에 최소한의 Smoke Test를 Code로 넣어 파이프라인을 구축했습니다.'
+    ],
     slug: 'qa',
-    tags: ['JUnit 5', 'Playwright', 'Testcontainers', 'JaCoCo'],
+    tags: ['Playwright', 'Testcontainers', 'JUnit 5', 'JaCoCo'],
   },
 ]
 
