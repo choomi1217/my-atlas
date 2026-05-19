@@ -32,42 +32,42 @@ export default function WorkExpTab() {
               </div>
             </div>
 
-            {/* User Testing — 모바일 / 웹 환경 소켓 테스트 */}
+            {/* User Testing — 다양한 기기 소켓 테스트 */}
             <div className="bg-violet-50/50 border border-violet-200 rounded-xl px-5 py-5 mb-3">
-              <div className="text-xl font-bold mb-4 tracking-tight">User Testing - 모바일 / 웹 환경 소켓 테스트</div>
+              <div className="text-xl font-bold mb-4 tracking-tight">User Testing - 다양한 기기 소켓 테스트</div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  Chrome DevTools Throttling을 통해 느린 네트워크 환경 테스트
+                  네트워크 불안정 테스트
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  모바일 앱 백그라운드 전환으로 네트워크 불안정 환경 테스트
+                  모바일 백그라운드 복구 테스트
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  백그라운드 전환 후 재접속 시 세션 복구 테스트
+                  소켓 세션 복구 테스트
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  여러명이 소켓 통신 참가시 안정성 테스트
+                  멀티 유저 소켓 안정성 테스트
                 </span>
               </div>
               <div className="mt-3">
                 <span className="inline-block text-sm font-bold text-violet-800 bg-violet-100 px-4 py-1.5 rounded-lg">
-                  네트워크 불안정·다중 환경에서 세션 복구 검증
+                  다양한 환경, 엣지케이스에서 소켓 세션 복구 검증
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-violet-200">
-                <span className="font-mono text-xs text-violet-500 bg-violet-50 px-3 py-1 rounded">iOS, Android Application Test</span>
+                <span className="font-mono text-xs text-violet-500 bg-violet-50 px-3 py-1 rounded">iOS, Android, Mac OS, Windows, Galaxy Watch Test</span>
                 <span className="font-mono text-xs text-gray-600 bg-violet-50/80 px-3 py-1 rounded">소켓 테스트</span>
-                <span className="font-mono text-xs text-gray-600 bg-violet-50/80 px-3 py-1 rounded">소켓 개발 경험을 바탕으로 network 디버깅 가능</span>
+                <span className="font-mono text-xs text-gray-600 bg-violet-50/80 px-3 py-1 rounded">socket network debugging</span>
               </div>
             </div>
 
@@ -81,7 +81,7 @@ export default function WorkExpTab() {
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  Studio AI 채팅 출시 전 600개 이상 질의의 응답 품질 검증 요구 — 수동 진행 시 일주일 이상 소요
+                  AI 기능 테스으로 600개 이상의 QnA 품질 검증 테스트
                 </span>
               </div>
 
@@ -91,25 +91,31 @@ export default function WorkExpTab() {
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  데이터 표준화 (Excel → CSV → Map 가공)
+                  질문을 Map 형태로 가공 후, API 요청 후 datastream Response 수집 [3시간 소요]
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  대량 데이터 처리 자동화 (API 요청, datastream 응답 수집)
+                  수집된 Response를 Javascript를 이용해 CSV로 저장 후, Claude Prompt 엔지니어링을 통해 자동 채점
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  자동 채점 기준 정의 및 평가 (Claude Prompt 엔지니어링)
+                  자동 채점 결과가 만족스럽지 않은 경우, 수동으로 검증 함으로써 품질 개선 [3시간 소요]
                 </span>
               </div>
 
               <div className="mt-3">
                 <span className="inline-block text-sm font-bold text-violet-800 bg-violet-100 px-4 py-1.5 rounded-lg">
-                  예상 일주일 → 하루로 단축
+                  테스트 예상 일정 일주일에서 이틀로 단축
+                </span>
+              </div>
+              <div className="flex gap-2.5 items-start mt-3">
+                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
+                <span className="text-base text-gray-600 leading-relaxed">
+                  이후, 3시간씩 걸리던 API 요청 &amp; 응답 수집 작업을 병렬 처리로 1시간 내로 단축 개선
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-violet-200">
@@ -130,7 +136,7 @@ export default function WorkExpTab() {
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  팀 내 반복 작업, UI/API 미제공으로 수동 처리 불가한 운영 요청 누적
+                  반복적으로 버튼을 눌러야 하는 작업들에 대해 스크립트로 자동화
                 </span>
               </div>
 
@@ -140,27 +146,10 @@ export default function WorkExpTab() {
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  네트워크 요청·JSON 응답 구조 분석으로 API 파이프라인 확보
-                </span>
-              </div>
-              <div className="flex gap-2.5 items-start mb-2">
-                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
-                <span className="text-base text-gray-600 leading-relaxed">
-                  대량 테스트 데이터가 필요한 경우 API 반복 호출로 자동 생성
-                </span>
-              </div>
-              <div className="flex gap-2.5 items-start mb-2">
-                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
-                <span className="text-base text-gray-600 leading-relaxed">
-                  UI/API 미지원 작업(예: 다수 유저 팀 이동)을 스크립트로 대체 처리
+                  대량 테스트 데이터가 필요한 경우 반복적인 API 호출로 자동화
                 </span>
               </div>
 
-              <div className="mt-3">
-                <span className="inline-block text-sm font-bold text-violet-800 bg-violet-100 px-4 py-1.5 rounded-lg">
-                  수동 처리 불가 업무를 스크립트로 자동화
-                </span>
-              </div>
               <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-violet-200">
                 <span className="font-mono text-xs text-violet-500 bg-violet-50 px-3 py-1 rounded">JavaScript</span>
                 <span className="font-mono text-xs text-violet-500 bg-violet-50 px-3 py-1 rounded">API 자동화</span>
@@ -168,9 +157,9 @@ export default function WorkExpTab() {
               </div>
             </div>
 
-            {/* reCaptcha v2 봇 차단 성공률 테스트 */}
+            {/* reCaptcha v2 테스트 */}
             <div className="bg-violet-50/50 border border-violet-200 rounded-xl px-5 py-5 mb-3">
-              <div className="text-xl font-bold mb-4 tracking-tight">reCaptcha v2 봇 차단 성공률 테스트</div>
+              <div className="text-xl font-bold mb-4 tracking-tight">reCaptcha v2 테스트</div>
 
               <div className="font-mono text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-2.5">
                 Problem
@@ -178,24 +167,12 @@ export default function WorkExpTab() {
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  Email Abusing 발생 → 봇 차단 필요
+                  Email Abusing → reCaptcha v2 테스트 필요
                 </span>
               </div>
 
               <div className="font-mono text-[10px] font-medium text-gray-400 uppercase tracking-wider mt-4 mb-2.5">
                 Solution
-              </div>
-              <div className="flex gap-2.5 items-start mb-2">
-                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
-                <span className="text-base text-gray-600 leading-relaxed">
-                  reCaptcha v2 도입
-                </span>
-              </div>
-              <div className="flex gap-2.5 items-start mb-2">
-                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
-                <span className="text-base text-gray-600 leading-relaxed">
-                  reCaptcha v2 검증 로직 통합 테스트
-                </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
@@ -216,9 +193,9 @@ export default function WorkExpTab() {
               </div>
             </div>
 
-            {/* QA Sprint 병렬 처리 체계 설계 및 운영 */}
+            {/* Shift-Left QA를 위한 개발-QA Sprint 병렬 운영 체계 */}
             <div className="bg-violet-50/50 border border-violet-200 rounded-xl px-5 py-5 mb-3">
-              <div className="text-xl font-bold mb-4 tracking-tight">QA Sprint 병렬 처리 체계 설계 및 운영</div>
+              <div className="text-xl font-bold mb-4 tracking-tight">Shift-Left QA를 위한 개발-QA Sprint 병렬 운영 체계 설계 및 도입</div>
 
               <div className="font-mono text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-2.5">
                 Problem
@@ -226,7 +203,7 @@ export default function WorkExpTab() {
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  개발 완료 후 일괄 테스트 → 통합 단계 대량 버그 발견, 수정·재테스트·배포 지연 악순환
+                  개발 완료 후 QA가 통합 테스트 → 대량 버그 발견 (설계버그 &amp; 개발버그) → 다시 재개발 및 재설계 → 팀 피로도 증가
                 </span>
               </div>
 
@@ -236,32 +213,41 @@ export default function WorkExpTab() {
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  개발팀 현재 Sprint ↔ QA팀 전 Sprint 병렬 처리
+                  개발-QA Sprint를 설계하고 6개월간 운영을 주도하여, Shift-Left Testing 실천
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  개발 Spec 1 종료 시점에 QA Spec 1 테스트 시작 (개발은 Spec 2 진행)
+                  개발 Sprint 계획 단계에서 공유된 ticket을 기반으로 QA Sprint 계획을 병렬 수립
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  QA가 다음 Spec을 미리 설계 → 테스트 케이스 준비 → 개발 완료 즉시 실행
+                  개발 Done 처리된 ticket 단위로 순차 테스트를 진행하여, 개발팀의 다음 Sprint 진행과 QA 테스트를 병렬 수행
+                </span>
+              </div>
+              <div className="flex gap-2.5 items-start mb-2">
+                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
+                <span className="text-base text-gray-600 leading-relaxed">
+                  큰 프로젝트일 경우 여러번 Sprint를 거쳐 자잘하게 테스트 통과 이로 인해 통합 테스트 부담이 분산됨
                 </span>
               </div>
 
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <span className="inline-block text-sm font-bold text-violet-800 bg-violet-100 px-4 py-1.5 rounded-lg">
-                  배포 일주일 전 주요 버그 Zero → 사내 Open Beta 진입
+                  통합 테스트 단계에서 발견되는 결함 수가 유의미하게 감소
+                </span>
+                <span className="inline-block text-sm font-bold text-violet-800 bg-violet-100 px-4 py-1.5 rounded-lg">
+                  UserTesting 프로젝트가 일찍 끝나 사내 Open Beta Test를 진행할 수 있었습니다.
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-violet-200">
                 <span className="font-mono text-xs text-violet-500 bg-violet-50 px-3 py-1 rounded">Jira</span>
-                <span className="font-mono text-xs text-gray-600 bg-violet-50/80 px-3 py-1 rounded">Sprint Board</span>
+                <span className="font-mono text-xs text-gray-600 bg-violet-50/80 px-3 py-1 rounded">Sprint</span>
                 <span className="font-mono text-xs text-gray-600 bg-violet-50/80 px-3 py-1 rounded">Jira Automation</span>
-                <span className="font-mono text-xs text-gray-600 bg-violet-50/80 px-3 py-1 rounded">TestRail</span>
+                <span className="font-mono text-xs text-gray-600 bg-violet-50/80 px-3 py-1 rounded">Agile</span>
               </div>
             </div>
 
@@ -342,7 +328,7 @@ export default function WorkExpTab() {
           <div>
             <div className="bg-violet-50/50 border border-violet-200 border-t-[3px] border-t-violet-500 rounded-b-xl px-6 py-5">
               <div className="text-xl font-bold mb-1 tracking-tight">
-                QA 지식 관리 &amp; AI 테스트 자동화 웹 애플리케이션
+                QA를 위한 통합 서비스
               </div>
               <div className="font-mono text-xs text-gray-400 mb-4">
                 <a href="https://youngmi.works" target="_blank" rel="noopener noreferrer" className="text-violet-500 hover:underline">youngmi.works</a>
@@ -353,59 +339,65 @@ export default function WorkExpTab() {
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  QA 업무 효율화를 위해 직접 설계·개발 중인 풀스택 웹 서비스.
-                  Spring Boot + React + PostgreSQL(pgvector) 기반
+                  QA 업무 효율화를 위해 직접 설계 및 개발 중인 서비스
                 </span>
               </div>
 
               <div className="font-mono text-[10px] font-medium text-gray-400 uppercase tracking-wider mt-4 mb-2.5">
-                구현 완료 기능
+                제공되는 기능
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  <strong>My Senior (AI QA 챗봇)</strong> — 사용자 질문을 임베딩하여 pgvector 코사인 유사도 검색으로 관련 QA 지식을 컨텍스트로 주입, Claude API로 SSE 스트리밍 답변 생성. 채팅 세션 저장·Chat→KB 전환 구현
+                  <strong>My Senior</strong> — 사용자가 직접 AI가 참고할 QA 지식을 컨텍스트로 주입, Claude API 답변 생성함으로써 AI의 할루시네이션을 줄인 QA Chat 개발
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  <strong>Knowledge Base</strong> — PDF 도서 업로드 시 자동 청킹·임베딩 파이프라인, Pin/Unpin(최대 15건), 카테고리 자동완성, 소프트 삭제, 검색/정렬
+                  <strong>Knowledge Base</strong> — PDF 업로드 및 사용자가 직접 AI가 참고할 QA 문서를 작성할 수 있는 게시판 개발
+                </span>
+              </div>
+              <div className="flex gap-2.5 items-start mb-2">
+                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
+                <div className="text-base text-gray-600 leading-relaxed">
+                  <strong>Product Test Suites</strong> — TestCase부터 결과 통계까지 이어지는 QA 통합 사이클
+                  <ol className="list-none mt-2.5 space-y-1.5">
+                    {[
+                      'TestCase 작성',
+                      '이번 배포 Version 작성',
+                      'Test Phase 설정 (1차 통합테스트, 2차 통합테스트, Regression Test 등)',
+                      '테스트 수행',
+                      '테스트 결과 Jira 연동 (FAIL 시 자동 티켓 생성)',
+                      '테스트 결과 통계',
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-sm">
+                        <span className="font-mono text-[11px] font-medium text-violet-500 bg-violet-50 px-2 py-0.5 rounded shrink-0 min-w-[24px] text-center mt-0.5">
+                          {i + 1}
+                        </span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+              <div className="flex gap-2.5 items-start mb-2">
+                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
+                <span className="text-base text-gray-600 leading-relaxed">
+                  <strong>Test Studio</strong> — Figma, PRD, Notion 문서 제공 → Knowledge Base, Word Convention, Product Test Suites를 참고해 AI가 TestCase 자동 생성
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  <strong>Feature Registry</strong> — Company → Product → TestCase 3단계 드릴다운, Segment DnD 계층 관리, Version/Phase/TestResult, Jira 연동(FAIL 시 자동 티켓 생성)
+                  <strong>Word Conventions</strong> — 팀 용어 표준화를 위한 용어 백과사전
                 </span>
               </div>
               <div className="flex gap-2.5 items-start mb-2">
                 <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
                 <span className="text-base text-gray-600 leading-relaxed">
-                  <strong>Test Studio</strong> — 문서 기반 Claude API로 DRAFT TestCase 자동 생성
+                  <strong>기타</strong> — 프로젝트 모니터링, PlayWright E2E 테스트
                 </span>
-              </div>
-              <div className="flex gap-2.5 items-start mb-2">
-                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
-                <span className="text-base text-gray-600 leading-relaxed">
-                  <strong>Word Conventions</strong> — 팀 용어 표준화 CRUD + 이미지 첨부
-                </span>
-              </div>
-              <div className="flex gap-2.5 items-start mb-2">
-                <div className="w-1 h-1 rounded-full bg-violet-500 mt-2.5 shrink-0" />
-                <span className="text-base text-gray-600 leading-relaxed">
-                  <strong>Platform</strong> — JWT 인증 + Spring Security, AWS ALB + HTTPS 배포, GitHub Actions CI/CD (JaCoCo 70%)
-                </span>
-              </div>
-
-              <div className="font-mono text-[10px] font-medium text-gray-400 uppercase tracking-wider mt-4 mb-2.5">
-                테스트 커버리지
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <span className="font-mono text-xs font-medium text-violet-800 bg-violet-100 px-2.5 py-1 rounded">Backend Unit 529개 통과</span>
-                <span className="font-mono text-xs font-medium text-violet-800 bg-violet-100 px-2.5 py-1 rounded">Frontend Unit 54개 통과</span>
-                <span className="font-mono text-xs font-medium text-violet-800 bg-violet-100 px-2.5 py-1 rounded">E2E Playwright 289개 통과</span>
-                <span className="font-mono text-xs font-medium text-violet-800 bg-violet-100 px-2.5 py-1 rounded">Testcontainers pgvector Integration Test</span>
               </div>
 
               <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-violet-200">
@@ -549,6 +541,7 @@ export default function WorkExpTab() {
             <div className="text-sm font-bold text-violet-500 min-w-[160px] shrink-0 pt-0.5">Test Automation</div>
             <div className="flex flex-wrap gap-2">
               <span className="text-sm text-gray-600 bg-white border border-violet-200 px-4 py-1.5 rounded-full">Playwright</span>
+              <span className="text-sm text-gray-600 bg-white border border-violet-200 px-4 py-1.5 rounded-full">Postman</span>
               <span className="text-sm text-gray-600 bg-white border border-violet-200 px-4 py-1.5 rounded-full">Testcontainers</span>
               <span className="text-sm text-gray-600 bg-white border border-violet-200 px-4 py-1.5 rounded-full">JUnit</span>
               <span className="text-sm text-gray-600 bg-white border border-violet-200 px-4 py-1.5 rounded-full">Mockito</span>
@@ -602,7 +595,7 @@ export default function WorkExpTab() {
         >
           ⬇ PDF 다운로드
         </a>
-        <span className="font-mono text-sm text-gray-400">choomi1217@gmail.com</span>
+        <span className="font-mono text-sm text-gray-400">whdudal1217@naver.com</span>
       </div>
     </div>
   )

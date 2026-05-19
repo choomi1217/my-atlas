@@ -7,11 +7,11 @@ const infra = [
 ]
 
 const workflows = [
-  { name: 'backend-ci', trigger: 'Push/PR → main, develop' },
-  { name: 'frontend-ci', trigger: 'Push/PR → main, develop' },
-  { name: 'e2e', trigger: 'Push/PR + manual' },
-  { name: 'deploy-backend', trigger: 'Push → main (backend/**)' },
-  { name: 'deploy-frontend', trigger: 'Push → main (frontend/**)' },
+  { name: 'backend-ci', trigger: 'PR → main, develop' },
+  { name: 'frontend-ci', trigger: 'PR → main, develop' },
+  { name: 'e2e', trigger: 'PR → main, develop & manually' },
+  { name: 'deploy-backend', trigger: 'PR merged → main (backend/**)' },
+  { name: 'deploy-frontend', trigger: 'PR merged → main (frontend/**)' },
 ]
 
 export default function OpsSection() {
