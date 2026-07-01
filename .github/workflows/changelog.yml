@@ -1,0 +1,90 @@
+name: Changelog & Release
+
+# develop → main 머지(= release) 시 마지막 태그 이후의 [type] 커밋을 모아
+# GitHub Release를 발행하고, CHANGELOG.md 갱신 PR을 develop에 올린다.
+# main에 직접 커밋하지 않는다(브랜치 보호 준수): 파일은 PR로만 반영.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Generate changelog & GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 전체 히스토리 + 태그 필요
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Compute version
+        id: ver
+        run: |
+          BASE="v$(date +%Y.%m.%d)"
+          VERSION="$BASE"
+          # 같은 날 재릴리스 시 태그 충돌 회피
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            VERSION="${BASE}.$(date +%H%M)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        env:
+          NEW_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          node scripts/notion/generate-changelog.mjs > RELEASE_NOTES.md
+          echo "----- RELEASE NOTES -----"
+          cat RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.ver.outputs.version }}" \
+            --title "${{ steps.ver.outputs.version }}" \
+            --notes-file RELEASE_NOTES.md \
+            --target "${{ github.sha }}"
+
+      - name: Open CHANGELOG.md PR to develop
+        uses: peter-evans/create-pull-request@v6
+        with:
+          base: develop
+          branch: chore/changelog-${{ steps.ver.outputs.version }}
+          commit-message: "[docs] changelog ${{ steps.ver.outputs.version }}"
+          title: "[docs] changelog ${{ steps.ver.outputs.version }}"
+          body: "자동 생성된 CHANGELOG.md 갱신 (release ${{ steps.ver.outputs.version }}). 검토 후 머지하세요."
+          add-paths: CHANGELOG.md
+          delete-branch: true
+
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "📦 Release ${{ steps.ver.outputs.version }} on ${{ github.ref_name }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "📦 Release ${{ steps.ver.outputs.version }}" }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Branch:*\n${{ github.ref_name }}" },
+                    { "type": "mrkdwn", "text": "*Release:*\n<${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.ver.outputs.version }}|${{ steps.ver.outputs.version }}>" }
+                  ]
+                }
+              ]
+            }
