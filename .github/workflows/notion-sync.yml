@@ -1,0 +1,30 @@
+name: Notion Sync (PR → Done)
+
+# feature/* → develop PR이 머지되면, PR 본문의 "Notion: <url>"에 해당하는
+# Notion 항목을 Status=Done, 완료일=머지일로 자동 갱신한다.
+# PR 본문에 Notion 링크가 없으면 아무것도 하지 않는다(안전한 no-op).
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+jobs:
+  notion-done:
+    name: Mark Notion item Done
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Update Notion status
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          MERGED_AT: ${{ github.event.pull_request.merged_at }}
+        run: node scripts/notion/update-notion-status.mjs
