@@ -16,7 +16,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void noResourceFoundReturns404NotInternalServerError() {
         NoResourceFoundException ex = new NoResourceFoundException(
-                org.springframework.http.HttpMethod.GET, "actuator/env");
+                org.springframework.http.HttpMethod.GET, "actuator/env", "No static resource actuator/env.");
 
         ResponseEntity<ApiResponse<Void>> response = handler.handleNoResourceFound(ex);
 

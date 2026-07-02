@@ -75,9 +75,9 @@ class SeniorServiceImplTest {
 
     private void setupChatClientMock() {
         setupSettingsMock();
-        ChatClient.ChatClientPromptRequest clientRequest = mock(ChatClient.ChatClientPromptRequest.class);
-        ChatClient.ChatClientRequest.StreamPromptResponseSpec streamSpec =
-                mock(ChatClient.ChatClientRequest.StreamPromptResponseSpec.class);
+        ChatClient.ChatClientRequestSpec clientRequest = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.StreamResponseSpec streamSpec =
+                mock(ChatClient.StreamResponseSpec.class);
 
         when(chatClient.prompt(any(org.springframework.ai.chat.prompt.Prompt.class))).thenReturn(clientRequest);
         when(clientRequest.stream()).thenReturn(streamSpec);
@@ -88,7 +88,7 @@ class SeniorServiceImplTest {
     }
 
     private ChatResponse mockChatResponse(String content) {
-        Generation generation = new Generation(content);
+        Generation generation = new Generation(new AssistantMessage(content));
         return new ChatResponse(List.of(generation));
     }
 
@@ -102,7 +102,7 @@ class SeniorServiceImplTest {
     // --- Helper for capturing system prompt ---
 
     private record ChatClientMocks(
-            ChatClient.ChatClientPromptRequest clientRequest,
+            ChatClient.ChatClientRequestSpec clientRequest,
             ArgumentCaptor<org.springframework.ai.chat.prompt.Prompt> promptCaptor
     ) {
         /** Extract the SystemMessage text from the captured Prompt. */
@@ -110,16 +110,16 @@ class SeniorServiceImplTest {
             return promptCaptor.getValue().getInstructions().stream()
                     .filter(m -> m instanceof org.springframework.ai.chat.messages.SystemMessage)
                     .findFirst()
-                    .map(org.springframework.ai.chat.messages.Message::getContent)
+                    .map(org.springframework.ai.chat.messages.Message::getText)
                     .orElse("");
         }
     }
 
     private ChatClientMocks setupChatClientWithCaptor() {
         setupSettingsMock();
-        ChatClient.ChatClientPromptRequest clientRequest = mock(ChatClient.ChatClientPromptRequest.class);
-        ChatClient.ChatClientRequest.StreamPromptResponseSpec streamSpec =
-                mock(ChatClient.ChatClientRequest.StreamPromptResponseSpec.class);
+        ChatClient.ChatClientRequestSpec clientRequest = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.StreamResponseSpec streamSpec =
+                mock(ChatClient.StreamResponseSpec.class);
 
         ArgumentCaptor<org.springframework.ai.chat.prompt.Prompt> promptCaptor =
                 ArgumentCaptor.forClass(org.springframework.ai.chat.prompt.Prompt.class);

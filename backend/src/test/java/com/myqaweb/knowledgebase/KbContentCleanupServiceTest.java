@@ -12,6 +12,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.ChatOptions;
 
@@ -266,21 +267,21 @@ class KbContentCleanupServiceTest {
     // --- Helpers ---
 
     private void mockChatClientResponse(String responseText, int inputTokens, int outputTokens) {
-        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
-        ChatClient.ChatClientRequest.CallResponseSpec callSpec =
-                mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
+        ChatClient.ChatClientRequestSpec clientRequest = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.CallResponseSpec callSpec =
+                mock(ChatClient.CallResponseSpec.class);
 
-        Generation generation = new Generation(responseText);
+        Generation generation = new Generation(new AssistantMessage(responseText));
         Usage usage = mock(Usage.class);
-        lenient().when(usage.getPromptTokens()).thenReturn((long) inputTokens);
-        lenient().when(usage.getGenerationTokens()).thenReturn((long) outputTokens);
+        lenient().when(usage.getPromptTokens()).thenReturn(inputTokens);
+        lenient().when(usage.getCompletionTokens()).thenReturn(outputTokens);
         ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
         lenient().when(metadata.getUsage()).thenReturn(usage);
         ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);
 
         when(chatClient.prompt()).thenReturn(clientRequest);
         when(clientRequest.user(anyString())).thenReturn(clientRequest);
-        when(clientRequest.options(any(ChatOptions.class))).thenReturn(clientRequest);
+        when(clientRequest.options(any(ChatOptions.Builder.class))).thenReturn(clientRequest);
         when(clientRequest.call()).thenReturn(callSpec);
         when(callSpec.chatResponse()).thenReturn(chatResponse);
     }

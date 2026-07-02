@@ -84,11 +84,7 @@ public class EmbeddingService {
             EmbeddingResponse response = embeddingModel.get().embedForResponse(List.of(text));
             long durationMs = System.currentTimeMillis() - startMs;
 
-            List<Double> output = response.getResult().getOutput();
-            float[] result = new float[output.size()];
-            for (int i = 0; i < output.size(); i++) {
-                result[i] = output.get(i).floatValue();
-            }
+            float[] result = response.getResult().getOutput();
 
             // Slack notification
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();

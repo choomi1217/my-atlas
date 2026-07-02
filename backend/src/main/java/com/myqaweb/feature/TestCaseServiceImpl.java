@@ -253,14 +253,14 @@ public class TestCaseServiceImpl implements TestCaseService {
         try {
             ChatResponse chatResponse = chatClient.prompt().user(prompt).call().chatResponse();
             long durationMs = System.currentTimeMillis() - startMs;
-            String response = chatResponse.getResult().getOutput().getContent();
+            String response = chatResponse.getResult().getOutput().getText();
             log.info("AI Draft response received for product: {}, path: {}", request.productId(), pathNames);
 
             // Log AI usage
             Usage usage = chatResponse.getMetadata() != null ? chatResponse.getMetadata().getUsage() : null;
             if (usage != null) {
                 aiUsageLogService.logUsage(AiFeature.TC_DRAFT, PROVIDER, MODEL,
-                        usage.getPromptTokens().intValue(), usage.getGenerationTokens().intValue(),
+                        usage.getPromptTokens().intValue(), usage.getCompletionTokens().intValue(),
                         durationMs, true, null);
             }
 

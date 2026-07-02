@@ -5,105 +5,22 @@
 **my-atlas**는 Spring Boot + React 기반 QA 지식 관리 애플리케이션이다.
 Claude AI와 OpenAI 임베딩을 활용하여 QA 전문가의 테스트 컨벤션, 기능 문서, 지식 베이스를 관리한다.
 
-### 핵심 기능 (구현 완료)
-
-| 기능 | 라우트 | 설명 | 상태 |
-|------|--------|------|------|
-| My Senior | `/senior` | AI 시니어 QA 챗봇 (RAG + SSE 스트리밍), FAQ 카드뷰, FAQ→Chat 컨텍스트 전달 | 구현 완료 |
-| Knowledge Base | `/kb` | QA 지식 CRUD + PDF 업로드 파이프라인 (청킹, 임베딩), 소스 필터 탭 | 구현 완료 |
-| Word Conventions | `/conventions` | 팀 용어 표준화 CRUD | 구현 완료 |
-| Feature Registry | `/features` | Company → Product → TestCase 3단계 드릴다운, Segment 트리, DnD | 구현 완료 |
-
----
-
-## Monorepo Structure
-
-```
-my-atlas/
-├── backend/                  # Spring Boot REST API (Java 21, Gradle)
-│   ├── src/main/java/com/myqaweb/
-│   │   ├── MyQaWebApplication.java
-│   │   ├── senior/           # AI Chat (SSE) + FAQ CRUD + RAG pipeline
-│   │   ├── knowledgebase/    # KB CRUD + PDF upload pipeline
-│   │   ├── convention/       # Convention CRUD
-│   │   ├── feature/          # Company, Product, Segment, TestCase
-│   │   └── common/           # EmbeddingService, GlobalExceptionHandler, ApiResponse
-│   ├── src/test/java/        # 179 tests (Unit + Integration via Testcontainers)
-│   ├── src/main/resources/
-│   │   ├── application.yml   # Spring config (Flyway, Spring AI, pgvector)
-│   │   ├── logback-spring.xml
-│   │   └── db/migration/     # Flyway V1~V7
-│   ├── build.gradle
-│   └── CLAUDE.md             # Backend 전용 가이드
-├── frontend/                 # React SPA (TypeScript, Vite, Tailwind)
-│   ├── src/
-│   │   ├── pages/            # SeniorPage, KnowledgeBasePage, ConventionsPage, features/*
-│   │   ├── components/       # senior/ (ChatView, FaqView, FaqCard, FaqFormModal)
-│   │   │                     # kb/ (PdfUploadModal, PdfJobStatusCard)
-│   │   │                     # features/ (TestCaseFormModal, SegmentTreeView, ConfirmDialog, etc.)
-│   │   ├── hooks/            # useSeniorChat, useFaq, useKnowledgeBase, usePdfUpload
-│   │   ├── api/              # senior.ts (chatApi, faqApi, kbApi), features.ts
-│   │   ├── types/            # senior.ts, features.ts
-│   │   ├── context/          # ActiveCompanyContext.tsx
-│   │   └── stores/           # featureStore.ts (Zustand)
-│   ├── package.json
-│   ├── vitest.config.ts      # Frontend unit test config
-│   └── CLAUDE.md             # Frontend 전용 가이드
-├── qa/                       # Playwright E2E Tests (98 tests: API 65 + UI 33)
-│   ├── api/                  # company, product, segment, feature, kb, convention, senior-faq
-│   ├── ui/                   # company-panel, product-panel, feature-panel, kb, senior, segment-dnd
-│   ├── helpers/api-helpers.ts
-│   ├── pages/features-page.ts
-│   ├── playwright.config.ts
-│   └── CLAUDE.md             # E2E 테스트 가이드
-├── docs/                     # Doc-Driven Development 문서
-│   ├── features/
-│   │   ├── feature-registry/ # feature-registry.md + v1~v8, v10, backlog
-│   │   ├── knowledge-base/   # knowledge-base.md + v0, v0.1
-│   │   └── senior/           # my-senior.md + v0~v2
-│   ├── ops/                  # ops.md + v1~v6
-│   ├── qa/                   # qa_v1~v8, testcase_v1
-│   └── ui/                   # ui_v1
-├── .github/workflows/        # CI/CD (5 workflows)
-├── .claude/agents/           # Sub-agent definitions (4 agents)
-├── docker-compose.db.yml     # DB 전용 (항상 실행)
-├── docker-compose.yml        # Backend + Frontend (App 전용)
-├── .env                      # 환경 변수 (gitignored)
-└── CLAUDE.md                 # 이 파일
-```
+> 기능 개요·기술 스택·아키텍처는 [README.md](./README.md)가 소유. 파일 구조는 레포 트리를, 스키마·API는 각 기능 명세서(`docs/features/**`)와 코드를 참조한다. **CLAUDE.md에는 사실(구조·스키마·API·인프라 현황)을 중복 기재하지 않는다 — 규칙·워크플로만 둔다.**
 
 ---
 
 ## Database Schema
 
-### PostgreSQL 15 + pgvector
+### 보호 대상 (CRITICAL — 아래 [Critical Rules]와 연동)
 
-| 테이블 | 용도 | 벡터 컬럼 | 보호 |
-|--------|------|-----------|------|
-| `knowledge_base` | QA 지식 (수동 작성 + PDF 청킹) | embedding (1536 dims) | **삭제 절대 금지** |
-| `pdf_upload_job` | PDF 업로드 이력/상태 | 없음 | **삭제 절대 금지** |
-| `faq` | 시니어 QA FAQ | embedding (1536 dims) | - |
-| `convention` | 용어 컨벤션 | 없음 | - |
-| `company` | 회사 (partial unique: is_active=true 1개) | 없음 | - |
-| `product` | 제품 (company_id FK) | 없음 | - |
-| `segment` | 세그먼트 계층 (self-ref parent_id, Adjacency List) | 없음 | - |
-| `test_case` | 테스트 케이스 (path: bigint[], steps: jsonb) | 없음 | - |
+| 테이블 | 용도 | 보호 |
+|--------|------|------|
+| `knowledge_base` | QA 지식 (수동 작성 + PDF 청킹, embedding 1536 dims) | **삭제 절대 금지** |
+| `pdf_upload_job` | PDF 업로드 이력/상태 | **삭제 절대 금지** |
 
-### Flyway Migrations
+> 전체 테이블·컬럼 스키마는 Flyway 마이그레이션(`backend/src/main/resources/db/migration/`)과 각 기능 명세서가 소유한다.
 
-#### 레거시 (V1~V13): 순차 번호
-| 버전 | 설명 |
-|------|------|
-| V1 | Company, Product 생성 |
-| V2 | TestCase 생성 |
-| V3 | Feature 제거, Segment 추가, TestCase에 product_id/path 이전 |
-| V4 | Senior 테이블 (faq, knowledge_base, convention) |
-| V5 | knowledge_base에 source 컬럼 추가 |
-| V6 | pdf_upload_job 테이블 생성 |
-| V7 | 초기 데이터 시드 (my-atlas company, Product Test Suite, 22 TestCases) |
-| V8~V13 | test_run, kb 개선, convention 확장, test_case 이미지 등 |
-
-#### 신규 마이그레이션: 타임스탬프 버전 (CRITICAL)
+### 신규 마이그레이션: 타임스탬프 버전 (CRITICAL)
 
 V14부터는 **타임스탬프 기반 버전**을 사용한다. 여러 Worktree/Agent가 동시에 마이그레이션을 생성해도 충돌하지 않는다.
 
@@ -126,159 +43,21 @@ V202604140900__add_chat_session.sql
 - ✅ `out-of-order: true` 설정 완료 — 순서 무관하게 적용됨
 - ✅ 마이그레이션 생성 전 기존 파일과 중복되지 않는지 확인
 
-### Enum Values
-
-- **Platform**: WEB, DESKTOP, MOBILE, ETC
-- **Priority**: HIGH, MEDIUM, LOW
-- **TestType**: SMOKE, FUNCTIONAL, REGRESSION, E2E
-- **TestStatus**: DRAFT, ACTIVE, DEPRECATED
-- **PdfJobStatus**: PENDING, PROCESSING, DONE, FAILED
-
----
-
-## Backend API Endpoints
-
-모든 엔드포인트는 `ApiResponse<T>` (success, message, data) 형식으로 응답한다.
-
-### Senior (채팅 + FAQ)
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/api/senior/chat` | SSE 스트리밍 AI 채팅 (body: `{ message, faqContext? }`) |
-| GET | `/api/senior/faq` | FAQ 전체 조회 |
-| GET | `/api/senior/faq/{id}` | FAQ 단건 조회 |
-| POST | `/api/senior/faq` | FAQ 생성 (+ 비동기 임베딩) |
-| PUT | `/api/senior/faq/{id}` | FAQ 수정 (+ 비동기 임베딩) |
-| DELETE | `/api/senior/faq/{id}` | FAQ 삭제 |
-
-### Knowledge Base
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/api/kb` | KB 전체 조회 |
-| GET | `/api/kb/{id}` | KB 단건 조회 |
-| POST | `/api/kb` | KB 생성 (+ 비동기 임베딩) |
-| PUT | `/api/kb/{id}` | KB 수정 |
-| DELETE | `/api/kb/{id}` | KB 삭제 |
-| POST | `/api/kb/upload-pdf` | PDF 업로드 (multipart: file, bookTitle) → jobId |
-| GET | `/api/kb/jobs/{jobId}` | Job 상태 조회 |
-| GET | `/api/kb/jobs` | 전체 Job 목록 |
-| DELETE | `/api/kb/books/{source}` | 책 단위 전체 청크 + Job 삭제 |
-
-### Convention
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/api/conventions` | Convention 전체 조회 |
-| GET | `/api/conventions/{id}` | 단건 조회 |
-| POST | `/api/conventions` | Convention 생성 |
-| PUT | `/api/conventions/{id}` | 수정 |
-| DELETE | `/api/conventions/{id}` | 삭제 |
-
-### Feature Registry
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/api/companies` | 회사 목록 |
-| POST | `/api/companies` | 회사 생성 |
-| PATCH | `/api/companies/{id}/activate` | 회사 활성화 (1개만) |
-| DELETE | `/api/companies/{id}` | 회사 삭제 (CASCADE) |
-| GET | `/api/products?companyId={id}` | 제품 목록 |
-| POST | `/api/products` | 제품 생성 |
-| PUT | `/api/products/{id}` | 제품 수정 |
-| DELETE | `/api/products/{id}` | 제품 삭제 (CASCADE) |
-| GET | `/api/segments?productId={id}` | 세그먼트 조회 |
-| POST | `/api/segments` | 세그먼트 생성 |
-| PUT | `/api/segments/{id}` | 이름 수정 |
-| PATCH | `/api/segments/{id}/parent` | 부모 변경 (DnD, 순환 참조 검증) |
-| DELETE | `/api/segments/{id}` | 삭제 (CASCADE) |
-| GET | `/api/test-cases?productId={id}` | 테스트 케이스 목록 |
-| POST | `/api/test-cases` | 테스트 케이스 생성 |
-| PUT | `/api/test-cases/{id}` | 수정 |
-| DELETE | `/api/test-cases/{id}` | 삭제 |
-| POST | `/api/test-cases/generate-draft` | AI 드래프트 생성 |
-
----
-
-## AWS Infrastructure (Production)
-
-```
-[사용자]
-   ├─ Frontend ──→ CloudFront (EVMWQ4ZH85AXV) ──→ S3 (my-atlas-frontend)
-   │                d1tr7ozyf0jrsl.cloudfront.net
-   └─ API 요청 ──→ EC2 (3.34.154.147:8080)
-                    t3.small / Amazon Linux
-                    ├── Backend Container (Spring Boot, port 8080)
-                    └── PostgreSQL Container (pgvector:pg15, port 5432)
-                        └── pgdata volume
-```
-
-### AWS Resources
-
-| Resource | Type | ID |
-|----------|------|----|
-| VPC | Network | vpc-0dd2d80dcf32b9926 |
-| Public Subnet | Network | subnet-0a65868480a1cd1f0 (ap-northeast-2a) |
-| Internet Gateway | Network | igw-07bc7f096f422f570 |
-| Security Group | Network | sg-0c9c6e4934a014ce7 |
-| EC2 | Compute | i-0242a794b86668829 (t3.small) |
-| Elastic IP | Network | 3.34.154.147 |
-| S3 | Storage | my-atlas-frontend |
-| CloudFront | CDN | EVMWQ4ZH85AXV |
-| Key Pair | Auth | my-atlas-key (~/.ssh/my-atlas-key.pem) |
-
-### 미구성 항목
-- ALB/NLB (로드밸런서 없음), 백엔드 HTTPS 미적용 (HTTP 8080 직접 노출)
-- Auto Scaling, 커스텀 도메인, Staging 환경 없음
-
----
-
-## CI/CD Pipelines
-
-| Workflow | Trigger | Status |
-|----------|---------|--------|
-| `backend-ci.yml` | Push/PR (main, develop) | 정상 (JaCoCo 비활성) |
-| `frontend-ci.yml` | Push/PR (main, develop) | 부분 동작 (continue-on-error) |
-| `e2e.yml` | Push/PR + manual | 정상 (98개 전부 통과) |
-| `deploy-backend.yml` | Push to main (backend/**) | SSH → git pull → docker compose rebuild |
-| `deploy-frontend.yml` | Push to main (frontend/**) | npm build → S3 sync → CloudFront invalidation |
-
-### 배포 흐름
-
-```
-feature/* → develop (PR) → main (PR)
-                                │
-                    ┌───────────┼───────────┐
-                    ▼                       ▼
-            deploy-backend          deploy-frontend
-            (SSH → EC2)             (S3 + CloudFront)
-```
-
-모든 워크플로우에 Slack 알림 연동 완료 (Block Kit 포맷, 성공/실패 모두 `always()` 조건).
-
-### GitHub Secrets (필요)
-
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `EC2_HOST`, `EC2_SSH_KEY`, `EC2_USER`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `SLACK_WEBHOOK_URL`
-
 ---
 
 ## Test Infrastructure
 
-### Backend (179 tests)
-- **Unit Tests**: JUnit 5 + Mockito (Service + Controller 전 도메인)
-- **Integration Tests**: Testcontainers (pgvector:pg15) — KB vector search, FAQ vector search, PDF pipeline, Company activation mutex
-- **Test DB**: H2 인메모리 (unit), pgvector Docker (integration)
-- **실행**: `cd backend && ./gradlew test`
+> 테스트 수·도메인별 내역은 시간에 따라 변하므로 여기 하드코딩하지 않는다. 최신 수치는 각 CI(JaCoCo 리포트, Playwright 결과)와 `docs/ops/ops.md`가 소유한다.
 
-### Frontend (33 tests)
-- **Unit Tests**: Vitest + React Testing Library
-- **대상**: useSeniorChat hook, FaqCard, ChatView, SeniorPage
-- **실행**: `cd frontend && npm test`
+### Backend
+- **Unit**: JUnit 5 + Mockito (Service + Controller 전 도메인) — `cd backend && ./gradlew test`
+- **Integration**: Testcontainers (pgvector) — KB/FAQ vector search, PDF pipeline, Company activation mutex
 
-### E2E (98 tests)
-- **API Tests** (65): company(6), product(10), segment(11), feature(19), kb(7), convention(6), senior-faq(6)
-- **UI Tests** (33): company-panel(7), product-panel(4), feature-panel(5), kb(5), senior(12)
-- **실행**: `cd qa && npx playwright test`
+### Frontend
+- **Unit**: Vitest + React Testing Library — `cd frontend && npm test`
+
+### E2E
+- **Playwright** (API + UI, Chromium) — `cd qa && npx playwright test`
 
 ---
 
@@ -475,10 +254,6 @@ cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 ---
 ```
 
-### 버전 번호
-- 기능 추가 / 기능 개선 → 메이저 증가 (v0 → v1)
-- 버그 수정 / 환경 개선 → 패치 증가 (v0 → v0.1)
-
 ### 변경 유형 태그
 
 | 태그 | 설명 |
@@ -490,10 +265,11 @@ cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
 | 테스트 보강 | 테스트 커버리지 확대 |
 
 ### 워크플로우
-1. Plan 수립
-2. 코드 개발
-3. 버전 md 작성 (Header 포함)
-4. 메인 명세서 버전 히스토리 업데이트
+1. Plan 수립 (버전 md 파일을 통해 유저의 컨펌)
+2. 코드 개발 (유저 컨펌 후, 코드 개발 시작)
+3. 버전 md 재작성 (Header 포함)
+  - 버전 히스토리 업데이트
+  - 테스트 결과 작성
 
 ### Worktree 환경에서의 파일 작성 규칙
 
@@ -655,37 +431,16 @@ Claude Slack Hook 개선
 |------|--------|
 | Hibernate ddl-auto | **none** — Flyway가 schema 단독 소유, Hibernate는 ORM만 담당 (다중 worktree 공유 DB 환경에서 entity drift로 인한 boot 실패 방지) |
 | Flyway | enabled, classpath:db/migration |
-| AI 모델 | claude-3-5-sonnet-20241022 (Spring AI Anthropic) |
+| AI 모델 | Spring AI (Anthropic) — 모델명은 application.yml 참조 |
 | 임베딩 모델 | text-embedding-3-small (OpenAI, 1536 dims) |
 | pgvector | COSINE_DISTANCE |
 | Multipart | max 500MB (PDF 업로드 대응) |
 | Actuator | health, info 노출 |
 | 로깅 | Console + File (./logs/backend_{session}.log) |
 
-### Test 환경 (`test/resources/application.yml`)
-- H2 인메모리 DB, Flyway 비활성, 더미 API 키
-
----
-
-## Environment Configuration
-
-### Local Development (`.env`)
-```bash
-POSTGRES_DB=myqaweb
-POSTGRES_USER=myqaweb
-POSTGRES_PASSWORD=<password>
-
-SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/myqaweb
-SPRING_DATASOURCE_USERNAME=myqaweb
-SPRING_DATASOURCE_PASSWORD=<password>
-
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
-VITE_API_BASE_URL=http://localhost:8080
-```
-
-### Feature Toggle
-- `FEATURE_EMBEDDING_ENABLED=false` (application.yml, default: false) — 임베딩 기능 토글
+- `FEATURE_EMBEDDING_ENABLED` (application.yml, default: false) — 임베딩 기능 토글
+- Test 환경(`test/resources/application.yml`): H2 인메모리 DB, Flyway 비활성, 더미 API 키
+- 로컬 `.env`(gitignored) 예시는 [README.md](./README.md) Quick Start 참조.
 
 ---
 
@@ -730,14 +485,19 @@ cd frontend && npm install && npm run dev
 
 ## Further Reading
 
+- **프로젝트 개요·기술 스택·아키텍처** → [README.md](./README.md)
 - **Backend details** → `backend/CLAUDE.md`
 - **Frontend details** → `frontend/CLAUDE.md`
 - **E2E test details** → `qa/CLAUDE.md`
-- **Ops 현황 종합** → `docs/ops/ops.md`
+- **Ops 현황 종합 (인프라·AWS·CI/CD)** → `docs/ops/ops.md`
 - **Feature Registry 명세** → `docs/features/feature-registry/feature-registry.md`
 - **Knowledge Base 명세** → `docs/features/knowledge-base/knowledge-base.md`
 - **My Senior 명세** → `docs/features/senior/my-senior.md`
 - **테스트 전략** → `docs/qa/qa_v1.md` (종합 플랜)
-- **Docker DB setup** → `docker-compose.db.yml`
-- **Docker App setup** → `docker-compose.yml`
 - **Spring AI config** → `backend/src/main/resources/application.yml`
+
+### PR ↔ Notion 연동 규칙
+- 모든 PR 생성 시 본문에 `Notion: <이 작업의 Notion 항목 URL>`을 반드시 포함한다.
+- 이 링크가 있어야 머지 시 해당 항목이 자동 Done + 완료일 처리된다 (notion-sync.yml).
+- 사용자가 URL을 안 주면, PR 만들기 전에 "이 작업의 Notion 항목 URL을 알려달라"고 먼저 물어본다.
+- notion.so / app.notion.com 형식 모두 허용.

@@ -35,7 +35,7 @@ public class KbContentCleanupService {
     private static final String PROVIDER = "ANTHROPIC";
     private static final String MODEL = "claude-haiku-4-5-20251001";
     private static final int MAX_TOKENS = 8192;
-    private static final Float TEMPERATURE = 0.0f;
+    private static final Double TEMPERATURE = 0.0;
 
     private static final int MAX_CHUNK_CHARS = 3000;
     private static final int MIN_CHUNK_CHARS = 100;
@@ -104,15 +104,13 @@ public class KbContentCleanupService {
             boolean success = false;
             String errorMessage = null;
             try {
-                AnthropicChatOptions options = AnthropicChatOptions.builder()
-                        .withMaxTokens(MAX_TOKENS)
-                        .withTemperature(TEMPERATURE)
-                        .build();
                 String prompt = PROMPT_TEMPLATE.formatted(
                         safe(bookTitle), safe(sectionName), content);
                 ChatResponse chatResponse = chatClient.prompt()
                         .user(prompt)
-                        .options(options)
+                        .options(AnthropicChatOptions.builder()
+                                .maxTokens(MAX_TOKENS)
+                                .temperature(TEMPERATURE))
                         .call()
                         .chatResponse();
 
@@ -120,10 +118,10 @@ public class KbContentCleanupService {
                         ? chatResponse.getMetadata().getUsage() : null;
                 if (usage != null) {
                     inputTokens = usage.getPromptTokens() != null ? usage.getPromptTokens().intValue() : null;
-                    outputTokens = usage.getGenerationTokens() != null ? usage.getGenerationTokens().intValue() : null;
+                    outputTokens = usage.getCompletionTokens() != null ? usage.getCompletionTokens().intValue() : null;
                 }
 
-                String raw = chatResponse.getResult().getOutput().getContent();
+                String raw = chatResponse.getResult().getOutput().getText();
                 List<RefinedChunk> parsed = parseJson(raw);
                 if (parsed.isEmpty()) {
                     errorMessage = "JSON parse failed or empty array";
