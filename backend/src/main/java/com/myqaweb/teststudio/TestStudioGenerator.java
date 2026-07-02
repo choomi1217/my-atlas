@@ -121,13 +121,12 @@ public class TestStudioGenerator {
             // 4. Call Claude — override max-tokens for this call only.
             // Default (application.yml) is 2048 which truncates multi-TC JSON mid-string.
             // Claude 3.5 Sonnet supports up to 8192 output tokens.
-            AnthropicChatOptions options = AnthropicChatOptions.builder()
-                    .withMaxTokens(8192)
-                    .build();
             long chatStartMs = System.currentTimeMillis();
-            ChatResponse chatResponse = chatClient.prompt().user(prompt).options(options).call().chatResponse();
+            ChatResponse chatResponse = chatClient.prompt().user(prompt)
+                    .options(AnthropicChatOptions.builder().maxTokens(8192))
+                    .call().chatResponse();
             long chatDurationMs = System.currentTimeMillis() - chatStartMs;
-            String response = chatResponse.getResult().getOutput().getContent();
+            String response = chatResponse.getResult().getOutput().getText();
             log.info("Test Studio Claude response received: jobId={}, responseLen={} chars",
                     jobId, response == null ? 0 : response.length());
 
@@ -135,7 +134,7 @@ public class TestStudioGenerator {
             Usage usage = chatResponse.getMetadata() != null ? chatResponse.getMetadata().getUsage() : null;
             if (usage != null) {
                 aiUsageLogService.logUsage(AiFeature.TEST_STUDIO, PROVIDER, MODEL,
-                        usage.getPromptTokens().intValue(), usage.getGenerationTokens().intValue(),
+                        usage.getPromptTokens().intValue(), usage.getCompletionTokens().intValue(),
                         chatDurationMs, true, null);
             }
 

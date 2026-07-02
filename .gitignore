@@ -61,3 +61,7 @@ scripts/prompts/
 
 # Portfolio (personal study notes)
 docs/qa/portfolio/
+
+# Claude
+.claude/settings.local.json
+.claude/worktrees/

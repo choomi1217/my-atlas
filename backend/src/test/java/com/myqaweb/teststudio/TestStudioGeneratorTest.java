@@ -141,21 +141,21 @@ class TestStudioGeneratorTest {
     // --- Helpers to wire the fluent ChatClient mock ---
 
     private void stubChatClientContent(String content) {
-        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
-        ChatClient.ChatClientRequest.CallResponseSpec callSpec =
-                mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
+        ChatClient.ChatClientRequestSpec clientRequest = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.CallResponseSpec callSpec =
+                mock(ChatClient.CallResponseSpec.class);
 
-        Generation generation = new Generation(content);
+        Generation generation = new Generation(new AssistantMessage(content));
         Usage usage = mock(Usage.class);
-        lenient().when(usage.getPromptTokens()).thenReturn(100L);
-        lenient().when(usage.getGenerationTokens()).thenReturn(50L);
+        lenient().when(usage.getPromptTokens()).thenReturn(100);
+        lenient().when(usage.getCompletionTokens()).thenReturn(50);
         ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
         lenient().when(metadata.getUsage()).thenReturn(usage);
         ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);
 
         when(chatClient.prompt()).thenReturn(clientRequest);
         when(clientRequest.user(anyString())).thenReturn(clientRequest);
-        when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.class)))
+        when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.Builder.class)))
                 .thenReturn(clientRequest);
         when(clientRequest.call()).thenReturn(callSpec);
         when(callSpec.chatResponse()).thenReturn(chatResponse);

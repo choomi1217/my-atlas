@@ -16,9 +16,10 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Duration;
 import java.util.List;
@@ -59,7 +60,7 @@ class TestStudioIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private CompanyRepository companyRepository;
 
-    @MockBean
+    @MockitoBean
     private ChatClient chatClient;
 
     private Long productId;
@@ -114,21 +115,21 @@ class TestStudioIntegrationTest extends BaseIntegrationTest {
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[" + "0," .repeat(1535) + "0]");
 
         // Mock chatClient fluent chain → chatResponse()
-        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
-        ChatClient.ChatClientRequest.CallResponseSpec callSpec =
-                mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
+        ChatClient.ChatClientRequestSpec clientRequest = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.CallResponseSpec callSpec =
+                mock(ChatClient.CallResponseSpec.class);
 
-        Generation generation = new Generation(VALID_RESPONSE);
+        Generation generation = new Generation(new AssistantMessage(VALID_RESPONSE));
         Usage usage = mock(Usage.class);
-        lenient().when(usage.getPromptTokens()).thenReturn(200L);
-        lenient().when(usage.getGenerationTokens()).thenReturn(100L);
+        lenient().when(usage.getPromptTokens()).thenReturn(200);
+        lenient().when(usage.getCompletionTokens()).thenReturn(100);
         ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
         lenient().when(metadata.getUsage()).thenReturn(usage);
         ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);
 
         when(chatClient.prompt()).thenReturn(clientRequest);
         when(clientRequest.user(anyString())).thenReturn(clientRequest);
-        when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.class)))
+        when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.Builder.class)))
                 .thenReturn(clientRequest);
         when(clientRequest.call()).thenReturn(callSpec);
         when(callSpec.chatResponse()).thenReturn(chatResponse);
