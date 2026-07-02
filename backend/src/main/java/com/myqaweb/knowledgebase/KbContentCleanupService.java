@@ -104,13 +104,14 @@ public class KbContentCleanupService {
             boolean success = false;
             String errorMessage = null;
             try {
+                AnthropicChatOptions.Builder options = AnthropicChatOptions.builder()
+                        .maxTokens(MAX_TOKENS)
+                        .temperature(TEMPERATURE);
                 String prompt = PROMPT_TEMPLATE.formatted(
                         safe(bookTitle), safe(sectionName), content);
                 ChatResponse chatResponse = chatClient.prompt()
                         .user(prompt)
-                        .options(AnthropicChatOptions.builder()
-                                .maxTokens(MAX_TOKENS)
-                                .temperature(TEMPERATURE))
+                        .options(options)
                         .call()
                         .chatResponse();
 
