@@ -4,9 +4,9 @@ import com.myqaweb.common.GlobalExceptionHandler;
 import com.myqaweb.knowledgebase.KnowledgeBaseDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -32,10 +32,10 @@ class SeniorControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private SeniorService seniorService;
 
-    @MockBean
+    @MockitoBean
     private ChatSessionService chatSessionService;
 
     private final LocalDateTime now = LocalDateTime.of(2026, 3, 23, 10, 0, 0);

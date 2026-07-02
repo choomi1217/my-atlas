@@ -10,9 +10,10 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
@@ -45,7 +46,7 @@ class PdfPipelineIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private AiUsageLogRepository aiUsageLogRepository;
 
-    @MockBean
+    @MockitoBean
     private ChatClient chatClient;
 
     // Cleanup JSON response: 2 chunks, one meaningful, one not-meaningful (filtered out).
@@ -79,21 +80,21 @@ class PdfPipelineIntegrationTest extends BaseIntegrationTest {
                 .thenReturn("[" + "0,".repeat(1535) + "0]");
 
         // Mock Haiku — returns refined JSON for every section
-        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
-        ChatClient.ChatClientRequest.CallResponseSpec callSpec =
-                mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
+        ChatClient.ChatClientRequestSpec clientRequest = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.CallResponseSpec callSpec =
+                mock(ChatClient.CallResponseSpec.class);
 
-        Generation generation = new Generation(REFINED_CHUNKS_JSON);
+        Generation generation = new Generation(new AssistantMessage(REFINED_CHUNKS_JSON));
         Usage usage = mock(Usage.class);
-        lenient().when(usage.getPromptTokens()).thenReturn(500L);
-        lenient().when(usage.getGenerationTokens()).thenReturn(300L);
+        lenient().when(usage.getPromptTokens()).thenReturn(500);
+        lenient().when(usage.getCompletionTokens()).thenReturn(300);
         ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
         lenient().when(metadata.getUsage()).thenReturn(usage);
         ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);
 
         lenient().when(chatClient.prompt()).thenReturn(clientRequest);
         lenient().when(clientRequest.user(anyString())).thenReturn(clientRequest);
-        lenient().when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.class)))
+        lenient().when(clientRequest.options(any(org.springframework.ai.chat.prompt.ChatOptions.Builder.class)))
                 .thenReturn(clientRequest);
         lenient().when(clientRequest.call()).thenReturn(callSpec);
         lenient().when(callSpec.chatResponse()).thenReturn(chatResponse);

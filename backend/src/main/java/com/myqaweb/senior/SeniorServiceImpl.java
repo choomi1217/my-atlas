@@ -97,7 +97,7 @@ public class SeniorServiceImpl implements SeniorService {
                 chatResponse -> {
                     try {
                         String text = chatResponse.getResult() != null
-                                ? chatResponse.getResult().getOutput().getContent()
+                                ? chatResponse.getResult().getOutput().getText()
                                 : null;
                         if (text != null) {
                             fullResponse.append(text);
@@ -127,7 +127,7 @@ public class SeniorServiceImpl implements SeniorService {
                     Usage usage = usageRef.get();
                     if (usage != null) {
                         aiUsageLogService.logUsage(AiFeature.SENIOR_CHAT, PROVIDER, MODEL,
-                                usage.getPromptTokens().intValue(), usage.getGenerationTokens().intValue(),
+                                usage.getPromptTokens().intValue(), usage.getCompletionTokens().intValue(),
                                 durationMs, true, null, clientIp);
                     } else {
                         // Fallback: estimate tokens from character count

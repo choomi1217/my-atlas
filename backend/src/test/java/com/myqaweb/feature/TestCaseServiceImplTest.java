@@ -193,16 +193,16 @@ class TestCaseServiceImplTest {
         when(segmentRepository.findById(1L)).thenReturn(Optional.of(segment));
 
         // Mock ChatClient for synchronous call → chatResponse()
-        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
-        ChatClient.ChatClientRequest.CallResponseSpec callSpec = mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
+        ChatClient.ChatClientRequestSpec clientRequest = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.CallResponseSpec callSpec = mock(ChatClient.CallResponseSpec.class);
 
         String aiResponse = """
                 [{"order": 1, "action": "Enter valid credentials", "expected": "Login succeeds"}]
                 """;
-        Generation generation = new Generation(aiResponse);
+        Generation generation = new Generation(new AssistantMessage(aiResponse));
         Usage usage = mock(Usage.class);
-        when(usage.getPromptTokens()).thenReturn(100L);
-        when(usage.getGenerationTokens()).thenReturn(50L);
+        when(usage.getPromptTokens()).thenReturn(100);
+        when(usage.getCompletionTokens()).thenReturn(50);
         ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
         when(metadata.getUsage()).thenReturn(usage);
         ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);
@@ -238,13 +238,13 @@ class TestCaseServiceImplTest {
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
-        ChatClient.ChatClientRequest clientRequest = mock(ChatClient.ChatClientRequest.class);
-        ChatClient.ChatClientRequest.CallResponseSpec callSpec = mock(ChatClient.ChatClientRequest.CallResponseSpec.class);
+        ChatClient.ChatClientRequestSpec clientRequest = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.CallResponseSpec callSpec = mock(ChatClient.CallResponseSpec.class);
 
-        Generation generation = new Generation("This is not valid JSON at all");
+        Generation generation = new Generation(new AssistantMessage("This is not valid JSON at all"));
         Usage usage = mock(Usage.class);
-        when(usage.getPromptTokens()).thenReturn(50L);
-        when(usage.getGenerationTokens()).thenReturn(20L);
+        when(usage.getPromptTokens()).thenReturn(50);
+        when(usage.getCompletionTokens()).thenReturn(20);
         ChatResponseMetadata metadata = mock(ChatResponseMetadata.class);
         when(metadata.getUsage()).thenReturn(usage);
         ChatResponse chatResponse = new ChatResponse(List.of(generation), metadata);

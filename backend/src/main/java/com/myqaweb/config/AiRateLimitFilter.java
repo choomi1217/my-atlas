@@ -18,7 +18,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -38,7 +39,7 @@ public class AiRateLimitFilter extends OncePerRequestFilter {
 
     private final SettingsService settingsService;
     private final ObjectMapper objectMapper;
-    private final List<AntPathRequestMatcher> targets;
+    private final List<RequestMatcher> targets;
 
     private volatile int cachedWindowSeconds = -1;
     private volatile Cache<String, AtomicInteger> ipCounter;
@@ -47,8 +48,8 @@ public class AiRateLimitFilter extends OncePerRequestFilter {
         this.settingsService = settingsService;
         this.objectMapper = objectMapper;
         this.targets = List.of(
-                new AntPathRequestMatcher("/api/senior/chat", HttpMethod.POST.name()),
-                new AntPathRequestMatcher("/api/senior/sessions", HttpMethod.POST.name())
+                PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/senior/chat"),
+                PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/senior/sessions")
         );
     }
 
@@ -78,7 +79,7 @@ public class AiRateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean isTarget(HttpServletRequest request) {
-        for (AntPathRequestMatcher matcher : targets) {
+        for (RequestMatcher matcher : targets) {
             if (matcher.matches(request)) {
                 return true;
             }

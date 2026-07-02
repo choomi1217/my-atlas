@@ -1,8 +1,8 @@
 plugins {
     id 'java'
     id 'jacoco'
-    id 'org.springframework.boot' version '3.3.1'
-    id 'io.spring.dependency-management' version '1.1.5'
+    id 'org.springframework.boot' version '4.0.0'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.myqaweb'
@@ -21,7 +21,9 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom "org.springframework.ai:spring-ai-bom:1.0.0-M1"
+        mavenBom "org.springframework.ai:spring-ai-bom:2.0.0"
+        // Spring Boot 4 no longer manages Testcontainers versions in its core BOM
+        mavenBom "org.testcontainers:testcontainers-bom:1.20.6"
     }
 }
 
@@ -33,8 +35,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     // Spring AI — Anthropic (Claude) + OpenAI (Embeddings)
-    implementation 'org.springframework.ai:spring-ai-anthropic-spring-boot-starter'
-    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-starter-model-anthropic'
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
 
     // PostgreSQL driver
     runtimeOnly 'org.postgresql:postgresql'
@@ -58,8 +60,9 @@ dependencies {
     // PDF parsing
     implementation 'org.apache.pdfbox:pdfbox:3.0.1'
 
-    // Flyway for database migrations
-    implementation 'org.flywaydb:flyway-core'
+    // Flyway for database migrations — Spring Boot 4 moved Flyway auto-configuration
+    // out of the core autoconfigure jar into a dedicated module/starter
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
     runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 
     // JSON logging
@@ -74,6 +77,8 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Spring Boot 4 modularized the @WebMvcTest slice into its own test module
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testRuntimeOnly 'com.h2database:h2'  // In-memory database for unit tests
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.testcontainers:junit-jupiter'

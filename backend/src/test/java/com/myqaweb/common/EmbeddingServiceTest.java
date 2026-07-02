@@ -49,10 +49,9 @@ class EmbeddingServiceTest {
     @Test
     void embed_callsModelAndReturnsOutput() {
         // Arrange
-        List<Double> outputDoubles = List.of(0.1, 0.2, 0.3);
         float[] expectedEmbedding = {0.1f, 0.2f, 0.3f};
         Embedding mockEmbedding = mock(Embedding.class);
-        doReturn(outputDoubles).when(mockEmbedding).getOutput();
+        doReturn(expectedEmbedding).when(mockEmbedding).getOutput();
 
         EmbeddingResponse mockResponse = mock(EmbeddingResponse.class);
         doReturn(mockEmbedding).when(mockResponse).getResult();
