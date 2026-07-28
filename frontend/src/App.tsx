@@ -16,6 +16,7 @@ import ProductListPage from '@/pages/features/ProductListPage'
 import TestCasePage from '@/pages/features/TestCasePage'
 import TestStudioHomePage from '@/pages/TestStudioHomePage'
 import TestStudioJobCreatePage from '@/pages/TestStudioJobCreatePage'
+import TestStudioStylePage from '@/pages/TestStudioStylePage'
 import TestRunListPage from '@/pages/features/TestRunListPage'
 import TestRunDetailPage from '@/pages/features/TestRunDetailPage'
 import VersionListPage from '@/pages/features/VersionListPage'
@@ -54,6 +55,7 @@ export default function App() {
                 <Route path="/features/companies/:companyId/products/:productId" element={<TestCasePage />} />
                 <Route path="/test-studio" element={<TestStudioHomePage />} />
                 <Route path="/test-studio/new" element={<TestStudioJobCreatePage />} />
+                <Route path="/test-studio/style" element={<TestStudioStylePage />} />
                 <Route path="/features/companies/:companyId/products/:productId/test-runs" element={<TestRunListPage />} />
                 <Route path="/features/companies/:companyId/products/:productId/test-runs/:testRunId" element={<TestRunDetailPage />} />
                 <Route path="/features/companies/:companyId/products/:productId/versions" element={<VersionListPage />} />
