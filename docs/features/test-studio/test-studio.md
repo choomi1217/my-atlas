@@ -1,6 +1,6 @@
 # Test Studio — 문서 기반 AI 테스트 케이스 자동 생성
 
-> 최종 업데이트: 2026-04-20 | 현재 버전: v1.1 (구현 완료)
+> 최종 업데이트: 2026-07-28 | 현재 버전: v2.5 (구현 완료 — Style-by-Example) | 다음: v3 (계획 — 대화형 분석·확정 루프)
 
 ---
 
@@ -335,6 +335,21 @@ frontend/src/
 
 ## 구현 현황
 
+**v2.5: 구현 완료 (2026-07-28, Style-by-Example)** — [test-studio_v2.5.md](./test-studio_v2.5.md)
+
+- ✅ 신규 3테이블 — `test_studio_style_profile`(스타일 세트) / `test_studio_style_example`(예시 TC, JSONB) / `test_studio_config`(보조 설정 + 활성 세트 선택)
+- ✅ 스타일 세트/예시 CRUD API 10개 + 기본 견본 `DefaultStyleSamples`(로그인 정상2+실패1) fallback
+- ✅ `TestStudioGenerator` 전환 — 활성 예시 verbatim few-shot 주입 + "내용 무시" 지시, **기존 운영 TC 자동 주입 제거**
+- ✅ Frontend `/test-studio/style` 화면 (셀렉트 박스 + 세트 CRUD + 예시 폼 재사용 + 보조 enum)
+- ✅ 테스트 — 단위(Service 25 / Controller 16 / Generator 12) + 통합 4 + E2E 21. Agent-D 전체 Playwright 363 passed
+
+**v2: 구현 완료 (2026-04-21, PR #96)** — [test-studio_v2.md](./test-studio_v2.md)
+
+- ✅ Header 최상위 `/test-studio` 승격 (Product 드릴다운 라우트 제거) + Company→Product 선택 UI
+- ✅ `test_case.suggested_segment_path TEXT[]` 컬럼 보관 (강제 주입 금지, 기본 NULL)
+- ✅ 추천 1클릭/일괄 적용 API (`SegmentPathResolver` 최장 접두사 매칭) + TC Card DnD·모달 Segment Picker 수동 편집
+- ✅ Company 레벨 DRAFT 대시보드 (🤖 미배정 / ✅ 배정완료 2섹션)
+
 **v1.1: 구현 완료 (2026-04-20)**
 
 - ✅ v1 기능 설계 및 구현 — [test-studio_v1.md](./test-studio_v1.md)
@@ -345,6 +360,8 @@ frontend/src/
   - 트랜잭션 가시성 이슈 (`@Transactional` 제거)
   - Claude 응답 truncation (max_tokens 8192 per-call + 부분 복구 파서)
   - DRAFT TC rendering (TestCasePage 📦 Segment 미지정 섹션)
+
+**다음: v3 (진행 중 — 계획)** — [test-studio_v3.md](./test-studio_v3.md) · 대화형 사전분석·확정 루프. 선결 인프라 ops_v32(Boot 4 + Spring AI 2.0) 완료. Phase 0 Step 1(`product.description` 주입) 완료, Step 2(기존 TC retrieval)는 v2.5로 이관됨.
 
 **참고 문서**
 - 상세 구현 계획: [test-studio_v1.md](./test-studio_v1.md)
@@ -362,3 +379,6 @@ frontend/src/
 |------|------|------|------|------|
 | v1 | 2026-04-17 | 기능 추가 | Test Studio 초기 구현: MD/PDF 입력 기반 DRAFT TC 자동 생성 파이프라인 (RAG + Claude). 비동기 Job, Convention/KB/기존 TC RAG 주입, DRAFT 상태 저장 → TestCasePage 검토 플로우 | 완료 |
 | v1.1 | 2026-04-20 | 버그 수정 | 초기 검증 3건: ① `@Transactional` 제거로 async 가시성 복구 ② Anthropic max_tokens=8192 per-call + 잘린 JSON 부분 복구 ③ TestCasePage 에 "Segment 미지정" 섹션 추가 (DRAFT TC 가시화) | 완료 |
+| v2 | 2026-04-21 | 기능 개선 | Header 최상위 `/test-studio` 승격 + Company→Product 선택. `suggested_segment_path` 컬럼 보관(강제 주입 금지) + 추천 1클릭/일괄 적용(`SegmentPathResolver` 최장 접두사 매칭). TC Card DnD·모달 Segment Picker로 Path 수동 편집. Company 레벨 DRAFT 대시보드(미배정/배정완료 2섹션). PR #96 | 완료 |
+| v2.5 | 2026-07-28 | 기능 추가 | **Style-by-Example** — 사용자가 팀 방식대로 쓴 예시 TC 세트를 verbatim으로 few-shot 주입(형식·문체만 모방, 내용 무시). 신규 3테이블(`test_studio_style_profile`/`_example`/`test_studio_config`), 셀렉트 박스로 활성 세트 선택, 기본 견본 Sample(로그인) fallback, 보조 enum(문체/포맷/상세). **기존 운영 TC 자동 주입 제거**(v3 Phase 0 §F 이관). `/test-studio/style` 화면 | 완료 |
+| v3 | (계획) | 기능 추가 | 대화형 사전분석·확정 루프 + 출처 태깅(coverage). 선결 ops_v32(Boot 4 + Spring AI 2.0) 완료. Phase 0 Step 1(`product.description` 주입) 완료, Step 2(기존 TC retrieval)는 **v2.5로 이관** | 진행 중 |

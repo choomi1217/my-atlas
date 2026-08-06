@@ -68,20 +68,35 @@ export default function TestStudioHomePage() {
             디자인 문서 삽입 → TestCase 자동완성 → 원하는 Product, Path에 TestCase를 지정하세요.
           </p>
         </div>
-        <button
-          onClick={() =>
-            navigate(
-              companyId
-                ? `/test-studio/new?companyId=${companyId}`
-                : '/test-studio/new'
-            )
-          }
-          disabled={!companyId}
-          className="px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-          data-testid="test-studio-new-job-button"
-        >
-          + TestCase 생성 요청
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={() =>
+              navigate(
+                companyId
+                  ? `/test-studio/style?companyId=${companyId}`
+                  : '/test-studio/style'
+              )
+            }
+            className="px-4 py-2 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+            data-testid="test-studio-style-button"
+          >
+            스타일 설정
+          </button>
+          <button
+            onClick={() =>
+              navigate(
+                companyId
+                  ? `/test-studio/new?companyId=${companyId}`
+                  : '/test-studio/new'
+              )
+            }
+            disabled={!companyId}
+            className="px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="test-studio-new-job-button"
+          >
+            + TestCase 생성 요청
+          </button>
+        </div>
       </div>
 
       {/* Company selector */}
