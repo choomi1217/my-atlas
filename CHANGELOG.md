@@ -3,17 +3,18 @@
 ## v2026.08.06 — 2026-08-06
 
 ### ✨ Features
-- Test Studio v2.5 frontend — 스타일 설정 화면
-- Test Studio v2.5 backend — Style-by-Example 도메인 + generator 전환
+- Test Studio v2.5 frontend — Style-by-Example 개발
+- Test Studio v2.5 backend — Style-by-Example 개발
 
 ### 🐛 Fixes
-- worktree 심링크로 덮어써진 CLAUDE.md 3개 복원
+- worktree 심링크로 덮어 씌워진 CLAUDE.md 3개 복원
 
 ### ♻️ Refactor
 - AnthropicChatOptions 빌더를 지역 변수로 추출 (가독성/일관성)
 
 ### ✅ Tests
 - Test Studio v2.5 E2E — 스타일 API/UI 스펙
+- 수동 테스트
 
 ### 📝 Docs
 - Test Studio v2.5 상태 갱신 — 진행 중 → 완료
