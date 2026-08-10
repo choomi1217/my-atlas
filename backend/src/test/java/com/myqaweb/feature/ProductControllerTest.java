@@ -41,8 +41,8 @@ class ProductControllerTest {
     void listByCompany_returnsOk() throws Exception {
         // Arrange
         List<ProductDto.ProductResponse> products = List.of(
-                new ProductDto.ProductResponse(1L, 10L, "Web App", Platform.WEB, "Main app", now),
-                new ProductDto.ProductResponse(2L, 10L, "Mobile App", Platform.MOBILE, null, now)
+                new ProductDto.ProductResponse(1L, 10L, "Web App", Platform.WEB, "Main app", null, null, now),
+                new ProductDto.ProductResponse(2L, 10L, "Mobile App", Platform.MOBILE, null, null, null, now)
         );
         when(productService.findByCompanyId(10L)).thenReturn(products);
 
@@ -64,7 +64,7 @@ class ProductControllerTest {
     void create_returns201() throws Exception {
         // Arrange
         ProductDto.ProductResponse created = new ProductDto.ProductResponse(
-                1L, 10L, "New Product", Platform.WEB, "A web product", now);
+                1L, 10L, "New Product", Platform.WEB, "A web product", null, null, now);
         when(productService.save(any(ProductDto.ProductRequest.class))).thenReturn(created);
 
         // Act & Assert
@@ -101,7 +101,7 @@ class ProductControllerTest {
     void update_returnsOk() throws Exception {
         // Arrange
         ProductDto.ProductResponse updated = new ProductDto.ProductResponse(
-                1L, 10L, "Updated Product", Platform.DESKTOP, "Updated desc", now);
+                1L, 10L, "Updated Product", Platform.DESKTOP, "Updated desc", null, null, now);
         when(productService.update(eq(1L), any(ProductDto.ProductRequest.class))).thenReturn(updated);
 
         // Act & Assert
