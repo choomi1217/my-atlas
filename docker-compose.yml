@@ -46,3 +46,25 @@ services:
       - ./frontend/public:/app/public
     depends_on:
       - backend
+
+  # registry_v20 에이전트 실행 워커 (opt-in: docker compose --profile worker up)
+  agent-worker:
+    build:
+      context: ./agent-worker
+      dockerfile: Dockerfile
+    container_name: ${COMPOSE_CONTAINER_PREFIX:-myqaweb}-agent-worker
+    restart: unless-stopped
+    profiles: ["worker"]
+    environment:
+      BACKEND_URL: http://${COMPOSE_CONTAINER_PREFIX:-myqaweb}-backend:8080
+      AGENT_WORKER_USERNAME: ${AGENT_WORKER_USERNAME:-admin}
+      AGENT_WORKER_PASSWORD: ${AGENT_WORKER_PASSWORD:-admin}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-haiku-4-5-20251001}
+      HEADLESS: "true"
+      POLL_PRODUCT_ID: ${POLL_PRODUCT_ID}
+      MAX_STEP_ACTIONS: ${MAX_STEP_ACTIONS:-4}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - backend
