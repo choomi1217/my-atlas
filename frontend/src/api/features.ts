@@ -24,6 +24,8 @@ import {
   TrendData,
   ReleaseReadiness,
   Dashboard,
+  AgentExecutionJob,
+  AgentExecutionResult,
 } from '@/types/features';
 // ProgressStats is used indirectly via Version/VersionPhase types
 
@@ -125,6 +127,18 @@ export const productApi = {
 
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/products/${id}`);
+  },
+
+  setExecProfile: async (
+    id: number,
+    execBaseUrl: string,
+    execSeedNote: string
+  ): Promise<Product> => {
+    const response = await apiClient.patch<ApiResponse<Product>>(
+      `/api/products/${id}/exec-profile`,
+      { execBaseUrl, execSeedNote }
+    );
+    return response.data.data;
   },
 };
 
@@ -756,5 +770,64 @@ export const statisticsApi = {
 
   runSnapshot: async (date: string): Promise<void> => {
     await apiClient.post('/api/admin/snapshots/run', null, { params: { date } });
+  },
+};
+
+/**
+ * Agentic Test Execution API (registry_v20).
+ */
+export const agentExecutionApi = {
+  createSingle: async (
+    productId: number,
+    targetTestCaseId: number
+  ): Promise<number> => {
+    const response = await apiClient.post<ApiResponse<{ jobId: number }>>(
+      '/api/agent-executions',
+      { scope: 'SINGLE', productId, targetTestCaseId }
+    );
+    return response.data.data.jobId;
+  },
+
+  createBatch: async (
+    productId: number,
+    phaseId: number,
+    scope: 'PHASE_ALL' | 'PHASE_UNTESTED' | 'PHASE_PREV_FAIL'
+  ): Promise<number> => {
+    const response = await apiClient.post<ApiResponse<{ jobId: number }>>(
+      '/api/agent-executions',
+      { scope, productId, phaseId }
+    );
+    return response.data.data.jobId;
+  },
+
+  listResults: async (jobId: number): Promise<AgentExecutionResult[]> => {
+    const response = await apiClient.get<ApiResponse<AgentExecutionResult[]>>(
+      `/api/agent-executions/${jobId}/results`
+    );
+    return response.data.data;
+  },
+
+  getJob: async (jobId: number): Promise<AgentExecutionJob> => {
+    const response = await apiClient.get<ApiResponse<AgentExecutionJob>>(
+      `/api/agent-executions/${jobId}`
+    );
+    return response.data.data;
+  },
+
+  getResult: async (
+    jobId: number,
+    testCaseId: number
+  ): Promise<AgentExecutionResult> => {
+    const response = await apiClient.get<ApiResponse<AgentExecutionResult>>(
+      `/api/agent-executions/${jobId}/results/${testCaseId}`
+    );
+    return response.data.data;
+  },
+
+  cancel: async (jobId: number): Promise<AgentExecutionJob> => {
+    const response = await apiClient.post<ApiResponse<AgentExecutionJob>>(
+      `/api/agent-executions/${jobId}/cancel`
+    );
+    return response.data.data;
   },
 };
