@@ -147,6 +147,21 @@ jobs:
           API_URL: http://localhost:8080
           CI: true
 
+      # registry_v20 Phase 3 Step 7 — CI 결과를 TestResult에 기록 (opt-in).
+      # 리포 변수 AGENT_IMPORT_PHASE_ID(대상 versionPhaseId)가 설정된 경우에만 실행. 실패해도 CI를 막지 않음.
+      - name: Import E2E results to TestResult (opt-in)
+        if: ${{ always() && vars.AGENT_IMPORT_PHASE_ID != '' }}
+        continue-on-error: true
+        run: |
+          TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"admin"}' \
+            | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['token'])")
+          curl -s -X POST "http://localhost:8080/api/admin/test-results/import?versionPhaseId=${{ vars.AGENT_IMPORT_PHASE_ID }}" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/xml' \
+            --data-binary @qa/playwright-results.xml
+
       - name: Upload UI E2E test report
         if: always()
         uses: actions/upload-artifact@v4

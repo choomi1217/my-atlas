@@ -124,7 +124,7 @@ class TestStudioGeneratorTest {
         CompanyEntity company = new CompanyEntity(1L, "Acme", true, LocalDateTime.now());
         product = new ProductEntity(
                 10L, company, "Payment App", Platform.MOBILE,
-                "Payment product", null, LocalDateTime.now()
+                "Payment product", null, null, null, LocalDateTime.now()
         );
 
         job = new TestStudioJobEntity();
