@@ -3,7 +3,7 @@
 > 변경 유형: 기능 개선
 > 작성일: 2026-04-20
 > 버전: v2
-> 상태: 진행 중
+> 상태: 완료 (2026-04-21 릴리스 — PR #96)
 
 ---
 # 요구사항
@@ -254,23 +254,23 @@ COMMENT ON COLUMN test_case.suggested_segment_path IS
 각 Step은 User 지시 없이 다음으로 넘어가지 않는다. 완료 시 체크박스를 `[x]`로 갱신.
 
 ### Phase A — Backend 추천 보관 + 적용 API
-- [ ] **Step 1** — Flyway 마이그레이션 (`test_case.suggested_segment_path TEXT[]`). `TestCaseEntity`/`TestCaseDto`에 필드 추가 + `toResponse` 매핑. `TestStudioGenerator.toTestCaseEntity`에서 추천 저장.
-- [ ] **Step 2** — `SegmentPathResolver` + 단위 테스트 9건. 최장 접두사 매칭 로직, 동명 중복 처리, 배치 로드.
-- [ ] **Step 3** — `TestCasePathController` + `TestCaseServiceImpl` 보강 (3 엔드포인트). `TestCasePathControllerTest` + Service 단위 테스트. `GET /api/test-cases?companyId=X` 지원 (`TestCaseRepository.findAllByCompanyIdAndStatus`).
+- [x] **Step 1** — Flyway 마이그레이션 (`test_case.suggested_segment_path TEXT[]`). `TestCaseEntity`/`TestCaseDto`에 필드 추가 + `toResponse` 매핑. `TestStudioGenerator.toTestCaseEntity`에서 추천 저장.
+- [x] **Step 2** — `SegmentPathResolver` + 단위 테스트 9건. 최장 접두사 매칭 로직, 동명 중복 처리, 배치 로드.
+- [x] **Step 3** — `TestCasePathController` + `TestCaseServiceImpl` 보강 (3 엔드포인트). `TestCasePathControllerTest` + Service 단위 테스트. `GET /api/test-cases?companyId=X` 지원 (`TestCaseRepository.findAllByCompanyIdAndStatus`).
 
 ### Phase B — Frontend Header 승격 + Home
-- [ ] **Step 4** — `Layout.tsx`에 Test Studio nav 추가. `App.tsx`에 `/test-studio` 라우트 신설, 기존 `/features/.../test-studio` 라우트 제거. `TestStudioHomePage` 골격 + `CompanyProductSelector`. Job 생성 탭은 기존 `TestStudioJobForm`/`TestStudioJobList` 재사용.
-- [ ] **Step 5** — `CompanyDraftDashboard` 탭 + `DraftTcCard` + `BulkApplyBar`. 단건 "추천 적용" + 체크박스 다중선택 + 일괄 적용 완주.
-- [ ] **Step 6** — TestCasePage 상단 Test Studio 링크 제거, 📦 섹션 유지, 필터 배너 유지.
+- [x] **Step 4** — `Layout.tsx`에 Test Studio nav 추가. `App.tsx`에 `/test-studio` 라우트 신설, 기존 `/features/.../test-studio` 라우트 제거. `TestStudioHomePage` 골격 + `CompanyProductSelector`. Job 생성 탭은 기존 `TestStudioJobForm`/`TestStudioJobList` 재사용.
+- [x] **Step 5** — `CompanyDraftDashboard` 탭 + `DraftTcCard` + `BulkApplyBar`. 단건 "추천 적용" + 체크박스 다중선택 + 일괄 적용 완주.
+- [x] **Step 6** — TestCasePage 상단 Test Studio 링크 제거, 📦 섹션 유지, 필터 배너 유지.
 
 ### Phase C — Path 수동 편집 UX
-- [ ] **Step 7** — `SegmentTreePicker` 컴포넌트 + `TestCaseFormModal` 통합 (path 편집).
-- [ ] **Step 8** — TestCasePage TC Card DnD (Segment 노드 drop) + `SegmentTreeView`에 TC drop 수용.
+- [x] **Step 7** — `SegmentTreePicker` 컴포넌트 + `TestCaseFormModal` 통합 (path 편집).
+- [x] **Step 8** — TestCasePage TC Card DnD (Segment 노드 drop) + `SegmentTreeView`에 TC drop 수용.
 
 ### Phase D — 테스트 + 검증
-- [ ] **Step 9** — E2E: `qa/api/*` 4건 + `qa/ui/test-studio.spec.ts` 개정 + `qa/ui/test-case-dnd.spec.ts` 신규 + `qa/ui/test-case-modal-path.spec.ts` 신규.
-- [ ] **Step 10** — 문서: `test-studio.md` 버전 히스토리 갱신 + `registry.md`에 Path 편집 섹션 추가 (양쪽 경로).
-- [ ] **Step 11** — 4-Agent Pipeline Agent-D 검증: `./gradlew clean build` → `docker compose up -d --build && sleep 10` → `npx playwright test` → `docker compose down`.
+- [x] **Step 9** — E2E: `qa/api/*` 4건 + `qa/ui/test-studio.spec.ts` 개정 + `qa/ui/test-case-dnd.spec.ts` 신규 + `qa/ui/test-case-modal-path.spec.ts` 신규.
+- [x] **Step 10** — 문서: `test-studio.md` 버전 히스토리 갱신 + `registry.md`에 Path 편집 섹션 추가 (양쪽 경로).
+- [x] **Step 11** — 4-Agent Pipeline Agent-D 검증: `./gradlew clean build` → `docker compose up -d --build && sleep 10` → `npx playwright test` → `docker compose down`.
 
 ---
 
@@ -347,3 +347,17 @@ COMMENT ON COLUMN test_case.suggested_segment_path IS
 
 **DB**
 - `backend/src/main/resources/db/migration/V{ts}__add_test_case_suggested_segment_path.sql` — 신규
+
+---
+
+## [최종 요약]
+
+> 상태: **완료** — 2026-04-21 릴리스 (PR #96 `[release] Test Studio v2 + Words Convention v3`)
+
+Phase A~D(Step 1~11) 전부 완료. v2로 출시된 산출물:
+
+- **Backend** — `test_case.suggested_segment_path TEXT[]` 컬럼 추가(강제 주입 금지 원칙 유지, 기본 NULL). `SegmentPathResolver`(최장 접두사 매칭) + `TestCasePathController`(추천 적용 / 일괄 적용 / 수동 path PATCH). `GET /api/test-cases?companyId=` Company 레벨 필터. `TestStudioGenerator.toTestCaseEntity`에서 추천 경로 보관.
+- **Frontend** — Header 최상위 `/test-studio` 탭 승격(기존 Product 드릴다운 라우트 제거). `TestStudioHomePage` + `CompanyProductSelector` + `CompanyDraftDashboard`(🤖 미배정 / ✅ 배정완료 2섹션) + `DraftTcCard` + `BulkApplyBar`. TC Card DnD → Path 수정, `TestCaseFormModal` Segment Picker.
+- **테스트** — Backend 단위/통합 + E2E(API/UI) 통과, Agent-D 검증 완료 후 릴리스.
+
+**다음 버전**: [test-studio_v3.md](./test-studio_v3.md) — 대화형 사전분석·확정 루프 (Phase 0부터 착수).

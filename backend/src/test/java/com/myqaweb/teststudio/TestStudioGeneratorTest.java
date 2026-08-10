@@ -12,6 +12,7 @@ import com.myqaweb.feature.ProductRepository;
 import com.myqaweb.feature.TestCaseEntity;
 import com.myqaweb.feature.TestCaseRepository;
 import com.myqaweb.feature.TestStatus;
+import com.myqaweb.feature.TestStep;
 import com.myqaweb.feature.TestType;
 import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
@@ -79,6 +80,9 @@ class TestStudioGeneratorTest {
     @Mock
     private AiUsageLogService aiUsageLogService;
 
+    @Mock
+    private TestStudioStyleService styleService;
+
     private TestStudioGenerator generator;
 
     private TestStudioJobEntity job;
@@ -118,7 +122,8 @@ class TestStudioGeneratorTest {
                 productRepository,
                 embeddingService,
                 chatClient,
-                new ObjectMapper()
+                new ObjectMapper(),
+                styleService
         );
 
         CompanyEntity company = new CompanyEntity(1L, "Acme", true, LocalDateTime.now());
@@ -140,7 +145,13 @@ class TestStudioGeneratorTest {
 
     // --- Helpers to wire the fluent ChatClient mock ---
 
-    private void stubChatClientContent(String content) {
+    /**
+     * Wires the fluent ChatClient mock to return {@code content}.
+     *
+     * @return the request-spec mock, so callers can capture the user prompt via
+     *         {@code verify(spec).user(captor.capture())}.
+     */
+    private ChatClient.ChatClientRequestSpec stubChatClientContent(String content) {
         ChatClient.ChatClientRequestSpec clientRequest = mock(ChatClient.ChatClientRequestSpec.class);
         ChatClient.CallResponseSpec callSpec =
                 mock(ChatClient.CallResponseSpec.class);
@@ -159,6 +170,7 @@ class TestStudioGeneratorTest {
                 .thenReturn(clientRequest);
         when(clientRequest.call()).thenReturn(callSpec);
         when(callSpec.chatResponse()).thenReturn(chatResponse);
+        return clientRequest;
     }
 
     private void stubBaseRag() {
@@ -177,17 +189,10 @@ class TestStudioGeneratorTest {
         conv.setDefinition("Test Case");
         when(conventionRepository.findAll()).thenReturn(List.of(conv));
 
-        TestCaseEntity existingTc = new TestCaseEntity();
-        existingTc.setId(1L);
-        existingTc.setProduct(product);
-        existingTc.setTitle("Existing TC");
-        existingTc.setSteps(List.of());
-        existingTc.setExpectedResults(java.util.List.of("ok"));
-        existingTc.setPath(new Long[0]);
-        existingTc.setPriority(Priority.MEDIUM);
-        existingTc.setTestType(TestType.FUNCTIONAL);
-        existingTc.setStatus(TestStatus.ACTIVE);
-        when(testCaseRepository.findAllByProductId(10L)).thenReturn(List.of(existingTc));
+        // v2.5: team style comes from the style service (Company-scoped). companyId = product.company = 1L.
+        when(styleService.resolveActiveExamples(1L)).thenReturn(DefaultStyleSamples.samples());
+        when(styleService.getConfig(1L)).thenReturn(new TestStudioConfigDto.ConfigResponse(
+                1L, null, StepFormat.ACTION_EXPECTED, DetailLevel.STANDARD, Tone.PLAIN));
     }
 
     // --- Happy path ---
@@ -358,7 +363,9 @@ class TestStudioGeneratorTest {
         when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
         when(kbRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
         when(conventionRepository.findAll()).thenReturn(List.of());
-        when(testCaseRepository.findAllByProductId(10L)).thenReturn(List.of());
+        when(styleService.resolveActiveExamples(1L)).thenReturn(DefaultStyleSamples.samples());
+        when(styleService.getConfig(1L)).thenReturn(new TestStudioConfigDto.ConfigResponse(
+                1L, null, StepFormat.ACTION_EXPECTED, DetailLevel.STANDARD, Tone.PLAIN));
 
         // Force an exception at the Claude call
         when(chatClient.prompt()).thenThrow(new RuntimeException("LLM unavailable"));
@@ -385,10 +392,10 @@ class TestStudioGeneratorTest {
         verifyNoInteractions(testCaseRepository, embeddingService);
     }
 
-    // --- RAG context construction ---
+    // --- Context construction (KB + Convention + team style) ---
 
     @Test
-    void generate_buildsRagContext_fromKbConventionTcRepositories() {
+    void generate_buildsContext_fromKbConventionAndStyleService() {
         when(jobRepository.findById(100L)).thenReturn(Optional.of(job));
         when(productRepository.findById(10L)).thenReturn(Optional.of(product));
         stubBaseRag();
@@ -396,12 +403,116 @@ class TestStudioGeneratorTest {
 
         generator.generate(100L, 10L, SourceType.MARKDOWN, "# Spec", null);
 
-        // Verify RAG reads
+        // Verify context reads
         ArgumentCaptor<Integer> topKCaptor = ArgumentCaptor.forClass(Integer.class);
         verify(kbRepository).findSimilar(anyString(), topKCaptor.capture());
         assertEquals(5, topKCaptor.getValue(), "KB topK should be 5");
         verify(conventionRepository).findAll();
-        verify(testCaseRepository).findAllByProductId(eq(10L));
+        // v2.5: team style comes from the style service (Company-scoped), NOT from existing TCs.
+        verify(styleService).resolveActiveExamples(1L);
+        verify(styleService).getConfig(1L);
+        verify(testCaseRepository, never()).findAllByProductIdAndStatus(any(), any());
+        verify(testCaseRepository, never()).findAllByProductId(any());
         verify(embeddingService).embed(anyString(), any());
+    }
+
+    // --- v3 Phase 0: product.description injected into prompt ---
+
+    @Test
+    void generate_promptIncludesProductNameAndDescription() {
+        when(jobRepository.findById(100L)).thenReturn(Optional.of(job));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        stubBaseRag();
+        ChatClient.ChatClientRequestSpec req = stubChatClientContent(VALID_JSON);
+
+        generator.generate(100L, 10L, SourceType.MARKDOWN, "# Spec", null);
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(req).user(promptCaptor.capture());
+        String prompt = promptCaptor.getValue();
+
+        assertTrue(prompt.contains("Payment App"), "prompt should contain product name");
+        assertTrue(prompt.contains("설명: Payment product"),
+                "prompt should contain product.description under the [Product] block");
+    }
+
+    @Test
+    void generate_whenProductDescriptionBlank_promptOmitsDescriptionLine() {
+        CompanyEntity company = new CompanyEntity(1L, "Acme", true, LocalDateTime.now());
+        ProductEntity noDescProduct = new ProductEntity(
+                10L, company, "Payment App", Platform.MOBILE,
+                null, null, LocalDateTime.now()
+        );
+        when(jobRepository.findById(100L)).thenReturn(Optional.of(job));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(noDescProduct));
+        stubBaseRag();
+        ChatClient.ChatClientRequestSpec req = stubChatClientContent(VALID_JSON);
+
+        generator.generate(100L, 10L, SourceType.MARKDOWN, "# Spec", null);
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(req).user(promptCaptor.capture());
+        String prompt = promptCaptor.getValue();
+
+        assertTrue(prompt.contains("Payment App"), "prompt should still contain product name");
+        assertFalse(prompt.contains("설명:"),
+                "prompt should omit the 설명: line when description is null/blank");
+    }
+
+    // --- v2.5: style examples injected verbatim + content-ignore instruction + aux guide ---
+
+    @Test
+    void generate_promptIncludesStyleExamplesVerbatim_andContentIgnoreInstruction() {
+        when(jobRepository.findById(100L)).thenReturn(Optional.of(job));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(embeddingService.embed(anyString(), any())).thenReturn(new float[]{0.1f});
+        when(embeddingService.toVectorString(any(float[].class))).thenReturn("[0.1]");
+        when(kbRepository.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(conventionRepository.findAll()).thenReturn(List.of());
+
+        // A user-authored style example set (verbatim) — must appear as-is in the prompt.
+        TestStudioStyleExampleDto.ExampleResponse example = new TestStudioStyleExampleDto.ExampleResponse(
+                1L, 7L, "[결제] IC카드 승인 실패 처리", "단말기 연결됨",
+                List.of(new TestStep(1, "만료 카드를 삽입한다", "거절 메시지가 표시된다")),
+                List.of("승인이 거절된다"), Priority.HIGH, TestType.FUNCTIONAL, 0, null, null);
+        when(styleService.resolveActiveExamples(1L)).thenReturn(List.of(example));
+        when(styleService.getConfig(1L)).thenReturn(new TestStudioConfigDto.ConfigResponse(
+                1L, 7L, StepFormat.GIVEN_WHEN_THEN, DetailLevel.DETAILED, Tone.FORMAL));
+
+        ChatClient.ChatClientRequestSpec req = stubChatClientContent(VALID_JSON);
+        generator.generate(100L, 10L, SourceType.MARKDOWN, "결제 스펙 문서", null);
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(req).user(promptCaptor.capture());
+        String prompt = promptCaptor.getValue();
+
+        // Style example rendered verbatim (title + step text).
+        assertTrue(prompt.contains("[결제] IC카드 승인 실패 처리"),
+                "style example title should be rendered verbatim");
+        assertTrue(prompt.contains("만료 카드를 삽입한다 → 거절 메시지가 표시된다"),
+                "style example step should be rendered verbatim");
+        // Content-ignore instruction present.
+        assertTrue(prompt.contains("예시의 내용(로그인 등)은 무시"),
+                "prompt must instruct the model to ignore example content and follow only its form");
+        // Aux guide reflects config enums.
+        assertTrue(prompt.contains("Given / When / Then 구조로"), "step-format hint should reflect config");
+        assertTrue(prompt.contains("격식체(합니다)"), "tone hint should reflect config");
+    }
+
+    @Test
+    void generate_whenNoStyleSet_fallsBackToLoginSampleInPrompt() {
+        when(jobRepository.findById(100L)).thenReturn(Optional.of(job));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        stubBaseRag(); // resolveActiveExamples(1L) → DefaultStyleSamples (login Sample)
+        ChatClient.ChatClientRequestSpec req = stubChatClientContent(VALID_JSON);
+
+        generator.generate(100L, 10L, SourceType.MARKDOWN, "# Spec", null);
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(req).user(promptCaptor.capture());
+        String prompt = promptCaptor.getValue();
+
+        assertTrue(prompt.contains("[로그인]"),
+                "with no selected set, the built-in login Sample should appear as the style example");
     }
 }

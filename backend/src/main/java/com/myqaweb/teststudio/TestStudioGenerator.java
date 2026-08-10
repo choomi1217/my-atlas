@@ -16,6 +16,8 @@ import com.myqaweb.knowledgebase.KnowledgeBaseEntity;
 import com.myqaweb.knowledgebase.KnowledgeBaseRepository;
 import com.myqaweb.monitoring.AiFeature;
 import com.myqaweb.monitoring.AiUsageLogService;
+import com.myqaweb.teststudio.TestStudioConfigDto.ConfigResponse;
+import com.myqaweb.teststudio.TestStudioStyleExampleDto.ExampleResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -44,7 +46,8 @@ import java.util.stream.Collectors;
  * <p>Pipeline:
  * <ol>
  *     <li>Extract source text (MD passthrough or PDFBox).</li>
- *     <li>Build RAG context: KB top-5 (vector) + Convention full list + TC top-5.</li>
+ *     <li>Build RAG context: KB top-5 (vector) + Convention full list + team style examples
+ *         (verbatim few-shot; v2.5 — user-authored per Company, or the built-in login Sample).</li>
  *     <li>Render prompt and call Claude via {@link ChatClient}.</li>
  *     <li>Parse JSON array response to {@link DraftTestCaseDto} list.</li>
  *     <li>Persist each draft as {@link TestCaseEntity} with status=DRAFT.</li>
@@ -59,7 +62,6 @@ public class TestStudioGenerator {
 
     private static final int RAG_QUERY_CHAR_LIMIT = 2000;
     private static final int KB_TOP_K = 5;
-    private static final int TC_TOP_K = 5;
     private static final String PROVIDER = "ANTHROPIC";
     private static final String MODEL = "claude-haiku-4-5-20251001";
 
@@ -72,6 +74,7 @@ public class TestStudioGenerator {
     private final EmbeddingService embeddingService;
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private final TestStudioStyleService styleService;
 
     /**
      * Async entry point — runs the entire generation pipeline.
@@ -107,14 +110,17 @@ public class TestStudioGenerator {
             ProductEntity product = productRepository.findById(productId)
                     .orElseThrow(() -> new IllegalStateException("Product not found: " + productId));
 
-            // 2. Build RAG context
+            Long companyId = product.getCompany().getId();
+
+            // 2. Build RAG context + team style (v2.5 Style-by-Example)
             String kbContext = buildKbContext(sourceText);
             String conventionContext = buildConventionContext();
-            String tcContext = buildExistingTcContext(productId);
+            List<ExampleResponse> styleExamples = styleService.resolveActiveExamples(companyId);
+            ConfigResponse styleConfig = styleService.getConfig(companyId);
 
             // 3. Build prompt
-            String prompt = buildPrompt(product.getName(), sourceText, kbContext,
-                    conventionContext, tcContext);
+            String prompt = buildPrompt(product.getName(), product.getDescription(), sourceText,
+                    kbContext, conventionContext, styleExamples, styleConfig);
 
             log.info("Test Studio calling Claude: jobId={}, sourceLen={} chars", jobId, sourceText.length());
 
@@ -217,45 +223,109 @@ public class TestStudioGenerator {
         }
     }
 
-    private String buildExistingTcContext(Long productId) {
-        try {
-            List<TestCaseEntity> tcs = testCaseRepository.findAllByProductId(productId);
-            if (tcs.isEmpty()) {
-                return "(기존 TC 없음)";
-            }
-            return tcs.stream()
-                    .limit(TC_TOP_K)
-                    .map(tc -> {
-                        String stepsSummary = tc.getSteps() == null || tc.getSteps().isEmpty()
-                                ? ""
-                                : tc.getSteps().stream()
-                                        .limit(2)
-                                        .map(s -> s.action() + " → " + s.expected())
-                                        .collect(Collectors.joining("; "));
-                        String expectedSummary = tc.getExpectedResults() == null || tc.getExpectedResults().isEmpty()
-                                ? ""
-                                : String.join(" / ", tc.getExpectedResults());
-                        return "- " + safe(tc.getTitle())
-                                + (stepsSummary.isEmpty() ? "" : " | Steps: " + truncate(stepsSummary, 200))
-                                + (expectedSummary.isEmpty()
-                                        ? ""
-                                        : " | Expected: " + truncate(expectedSummary, 200));
-                    })
-                    .collect(Collectors.joining("\n"));
-        } catch (Exception e) {
-            log.warn("Existing TC context build failed: {}", e.getMessage());
-            return "(기존 TC 조회 실패)";
+    // --- Team style (v2.5 Style-by-Example) ---
+
+    /**
+     * Render the active style example TCs verbatim as a few-shot block — the primary style source.
+     *
+     * <p>Examples come from {@link TestStudioStyleService#resolveActiveExamples(Long)}: the Company's
+     * selected style set, or the built-in login Sample when none is selected/empty. They teach
+     * <b>form, not content</b> — the prompt instructs the model to ignore their subject matter.
+     */
+    private String renderStyleExamples(List<ExampleResponse> examples) {
+        if (examples == null || examples.isEmpty()) {
+            return "(스타일 예시 없음)";
         }
+        StringBuilder sb = new StringBuilder();
+        int idx = 1;
+        for (ExampleResponse ex : examples) {
+            if (idx > 1) {
+                sb.append("\n");
+            }
+            sb.append("예시 ").append(idx++).append("\n");
+            sb.append("제목: ").append(safe(ex.title())).append("\n");
+            if (ex.preconditions() != null && !ex.preconditions().isBlank()) {
+                sb.append("사전조건: ").append(ex.preconditions()).append("\n");
+            }
+            if (ex.steps() != null && !ex.steps().isEmpty()) {
+                sb.append("Step:\n");
+                for (TestStep s : ex.steps()) {
+                    sb.append("  ").append(s.order()).append(". ")
+                            .append(safe(s.action())).append(" → ").append(safe(s.expected())).append("\n");
+                }
+            }
+            if (ex.expectedResults() != null && !ex.expectedResults().isEmpty()) {
+                sb.append("기대결과:\n");
+                for (String r : ex.expectedResults()) {
+                    sb.append("  - ").append(safe(r)).append("\n");
+                }
+            }
+            if (ex.priority() != null || ex.testType() != null) {
+                sb.append("(우선순위: ").append(ex.priority() != null ? ex.priority() : "-")
+                        .append(" / 유형: ").append(ex.testType() != null ? ex.testType() : "-").append(")\n");
+            }
+        }
+        return sb.toString().stripTrailing();
+    }
+
+    /**
+     * Render the auxiliary style guide (enum hints). These are weak nudges — when they disagree with
+     * the style examples, the examples win.
+     */
+    private String renderStyleGuide(ConfigResponse config) {
+        StepFormat stepFormat = config != null && config.stepFormat() != null
+                ? config.stepFormat() : StepFormat.ACTION_EXPECTED;
+        DetailLevel detailLevel = config != null && config.detailLevel() != null
+                ? config.detailLevel() : DetailLevel.STANDARD;
+        Tone tone = config != null && config.tone() != null ? config.tone() : Tone.PLAIN;
+        return "- Step 포맷: " + describe(stepFormat) + "\n"
+                + "- 상세 수준: " + describe(detailLevel) + "\n"
+                + "- 문체/어조: " + describe(tone) + "\n"
+                + "- 언어: 한국어로 작성하되 기술 용어는 위 Word Convention을 따른다";
+    }
+
+    private String describe(StepFormat f) {
+        return switch (f) {
+            case ACTION_EXPECTED -> "각 Step을 'action → expected' 형식으로";
+            case GIVEN_WHEN_THEN -> "Given / When / Then 구조로";
+            case NARRATIVE -> "서술형 시나리오로";
+        };
+    }
+
+    private String describe(DetailLevel d) {
+        return switch (d) {
+            case CONCISE -> "핵심 Step만 간결하게";
+            case STANDARD -> "표준 상세 수준으로";
+            case DETAILED -> "세부 조건·엣지 케이스까지 촘촘하게";
+        };
+    }
+
+    private String describe(Tone t) {
+        return switch (t) {
+            case BULLET -> "개조식(-함/-음)";
+            case FORMAL -> "격식체(합니다)";
+            case PLAIN -> "평서체(한다)";
+        };
     }
 
     // --- Prompt builder ---
 
-    private String buildPrompt(String productName, String sourceText,
-                               String kbContext, String conventionContext, String tcContext) {
+    private String buildPrompt(String productName, String productDescription, String sourceText,
+                               String kbContext, String conventionContext,
+                               List<ExampleResponse> styleExamples, ConfigResponse styleConfig) {
+        // v3 Phase 0: inject product.description (previously only product.name was used) so the
+        // model has the product's domain context, not just its name. Falls back to name-only when
+        // the description is null/blank.
+        String productBlock = (productDescription == null || productDescription.isBlank())
+                ? productName
+                : productName + "\n설명: " + productDescription;
+        String styleExampleBlock = renderStyleExamples(styleExamples);
+        String styleGuideBlock = renderStyleGuide(styleConfig);
         return """
                 [System]
                 당신은 시니어 QA이다. 주어진 문서를 바탕으로 테스트 케이스를 JSON 배열로 생성한다.
-                팀의 용어 컨벤션과 기존 TC 패턴(제목 prefix, Steps 구조 등)을 반드시 반영하라.
+                아래 [팀 스타일 예시 TC]의 형식과 문체(제목 규칙, Step 구조, 어투)를 그대로 따르되,
+                예시의 내용(로그인 등)은 무시하고 [Input Document] 기준으로 TC를 새로 생성하라.
                 예외/실패 케이스(네트워크 오류, 입력값 검증 실패, 타임아웃 등)도 최소 1건 이상 포함하라.
 
                 [Product]
@@ -267,7 +337,10 @@ public class TestStudioGenerator {
                 [Context: Word Convention]
                 %s
 
-                [Context: Existing TC Patterns — up to %d TCs]
+                [팀 스타일 예시 TC — 형식·문체 참고용. 내용은 무시하고 아래 문서 기준으로 생성하라]
+                %s
+
+                [작성 지침 — 보조]
                 %s
 
                 [Input Document]
@@ -286,7 +359,8 @@ public class TestStudioGenerator {
                     "suggestedSegmentPath": [ string, ... ]
                   }
                 ]
-                """.formatted(productName, KB_TOP_K, kbContext, conventionContext, TC_TOP_K, tcContext, sourceText);
+                """.formatted(productBlock, KB_TOP_K, kbContext, conventionContext,
+                        styleExampleBlock, styleGuideBlock, sourceText);
     }
 
     // --- Response parsing ---
