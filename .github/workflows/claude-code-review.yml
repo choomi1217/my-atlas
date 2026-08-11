@@ -1,0 +1,45 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    # synchronize 제외 — push 때마다 PR 전체를 재리뷰하면 구독 사용량이 과다 소모된다.
+    # PR 갱신본 리뷰가 필요하면 코멘트로 "@claude 리뷰해줘" (claude.yml)를 사용한다.
+    types: [opened, ready_for_review, reopened]
+
+# 연속 이벤트 시 진행 중이던 리뷰를 취소하고 마지막 것만 완주시킨다.
+concurrency:
+  group: claude-review-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    # feature/* PR만 리뷰한다.
+    # → changelog 봇 PR(chore/changelog-*), forward-merge PR(chore/*), 릴리스 PR(develop→main) 자동 제외
+    if: >
+      startsWith(github.head_ref, 'feature/') &&
+      github.event.pull_request.draft == false
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+
