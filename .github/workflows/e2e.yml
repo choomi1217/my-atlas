@@ -152,10 +152,13 @@ jobs:
       - name: Import E2E results to TestResult (opt-in)
         if: ${{ always() && vars.AGENT_IMPORT_PHASE_ID != '' }}
         continue-on-error: true
+        env:
+          CI_ADMIN_USER: ${{ secrets.CI_ADMIN_USERNAME }}
+          CI_ADMIN_PASS: ${{ secrets.CI_ADMIN_PASSWORD }}
         run: |
           TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
             -H 'Content-Type: application/json' \
-            -d '{"username":"admin","password":"admin"}' \
+            -d "{\"username\":\"$CI_ADMIN_USER\",\"password\":\"$CI_ADMIN_PASS\"}" \
             | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['token'])")
           curl -s -X POST "http://localhost:8080/api/admin/test-results/import?versionPhaseId=${{ vars.AGENT_IMPORT_PHASE_ID }}" \
             -H "Authorization: Bearer $TOKEN" \
