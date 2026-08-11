@@ -65,6 +65,15 @@ public class ProductServiceImpl implements ProductService {
         productRepository.deleteById(id);
     }
 
+    @Override
+    public ProductDto.ProductResponse setExecProfile(Long id, ProductDto.ExecProfileRequest request) {
+        ProductEntity entity = productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
+        entity.setExecBaseUrl(request.execBaseUrl());
+        entity.setExecSeedNote(request.execSeedNote());
+        return toResponse(productRepository.save(entity));
+    }
+
     private ProductDto.ProductResponse toResponse(ProductEntity entity) {
         return new ProductDto.ProductResponse(
                 entity.getId(),
@@ -72,6 +81,8 @@ public class ProductServiceImpl implements ProductService {
                 entity.getName(),
                 entity.getPlatform(),
                 entity.getDescription(),
+                entity.getExecBaseUrl(),
+                entity.getExecSeedNote(),
                 entity.getCreatedAt()
         );
     }

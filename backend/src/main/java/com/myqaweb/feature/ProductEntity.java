@@ -38,6 +38,14 @@ public class ProductEntity {
     @Column(name = "jira_project_key", length = 20)
     private String jiraProjectKey;
 
+    /** 에이전트 실행 프로파일: 대상 baseUrl (registry_v20) */
+    @Column(name = "exec_base_url", length = 500)
+    private String execBaseUrl;
+
+    /** 에이전트 실행 프로파일: 로그인/seed 절차 서술 (비밀값 저장 금지) */
+    @Column(name = "exec_seed_note", columnDefinition = "TEXT")
+    private String execSeedNote;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

@@ -51,6 +51,17 @@ public class ProductController {
     }
 
     /**
+     * PATCH /api/products/{id}/exec-profile - 에이전트 실행 프로파일 설정 (baseUrl, seedNote).
+     */
+    @PatchMapping("/{id}/exec-profile")
+    public ResponseEntity<ApiResponse<ProductDto.ProductResponse>> setExecProfile(
+            @PathVariable Long id,
+            @RequestBody ProductDto.ExecProfileRequest request) {
+        ProductDto.ProductResponse product = productService.setExecProfile(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Execution profile updated", product));
+    }
+
+    /**
      * DELETE /api/products/{id} - Delete a product.
      */
     @DeleteMapping("/{id}")

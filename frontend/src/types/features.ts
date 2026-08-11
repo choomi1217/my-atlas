@@ -28,6 +28,62 @@ export interface Product {
   name: string;
   platform: Platform;
   description?: string;
+  execBaseUrl?: string | null;
+  execSeedNote?: string | null;
+  createdAt: string;
+}
+
+/**
+ * Agentic Test Execution (registry_v20).
+ */
+export type AgentExecutionScope =
+  | 'SINGLE'
+  | 'PHASE_ALL'
+  | 'PHASE_UNTESTED'
+  | 'PHASE_PREV_FAIL';
+export type AgentExecutionStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'DONE'
+  | 'FAILED'
+  | 'CANCELLED';
+export type AgentVerdict = 'PASS' | 'FAIL' | 'INCONCLUSIVE';
+
+export interface AgentStepLog {
+  order: number;
+  actionTaken: string;
+  observed: string;
+  judgment: string;
+  screenshotKey?: string | null;
+}
+
+export interface AgentExecutionJob {
+  id: number;
+  productId: number;
+  phaseId?: number | null;
+  targetTestCaseId?: number | null;
+  scope: AgentExecutionScope;
+  status: AgentExecutionStatus;
+  requestedBy?: string | null;
+  totalCount: number;
+  doneCount: number;
+  passCount: number;
+  failCount: number;
+  inconclusiveCount: number;
+  errorMessage?: string | null;
+  createdAt: string;
+  completedAt?: string | null;
+}
+
+export interface AgentExecutionResult {
+  id: number;
+  jobId: number;
+  testCaseId: number;
+  verdict: AgentVerdict;
+  stepLogs?: AgentStepLog[] | null;
+  aiFailureAnalysis?: string | null;
+  durationMs?: number | null;
+  tokenCost?: number | null;
   createdAt: string;
 }
 
@@ -148,9 +204,14 @@ export interface TestResult {
   status: RunResultStatus;
   comment: string | null;
   executedAt: string | null;
+  executedBy?: ExecutedBy;
+  agentExecutionResultId?: number | null;
   createdAt: string;
   updatedAt: string;
 }
+
+/** TestResult 실행 주체 (registry_v20). */
+export type ExecutedBy = 'HUMAN' | 'AGENT' | 'CI';
 
 /**
  * Test run result status enum.

@@ -9,6 +9,7 @@ interface TestCaseCardProps {
   onToggle: () => void;
   onEdit: (tc: TestCase) => void;
   onDelete: (info: { id: number; title: string }) => void;
+  onRunAgent: (tc: TestCase) => void;
 }
 
 const priorityBorderClass = (priority: TestCase['priority']): string => {
@@ -29,6 +30,7 @@ export default function TestCaseCard({
   onToggle,
   onEdit,
   onDelete,
+  onRunAgent,
 }: TestCaseCardProps) {
   const handleDragStart = (e: React.DragEvent<HTMLElement>) => {
     e.dataTransfer.setData(TC_DND_MIME, String(testCase.id));
@@ -67,6 +69,16 @@ export default function TestCaseCard({
           </div>
           <div className="flex flex-col items-end gap-2 flex-shrink-0">
             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRunAgent(testCase);
+                }}
+                className="px-3 py-1 text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded"
+                title="AI 에이전트가 이 TC를 브라우저에서 시험 실행합니다 (dry run)"
+              >
+                AI 시험 실행
+              </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();

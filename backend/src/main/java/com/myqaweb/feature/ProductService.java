@@ -46,4 +46,13 @@ public interface ProductService {
      * @param id the product ID
      */
     void delete(Long id);
+
+    /**
+     * 에이전트 실행 프로파일(baseUrl, seedNote) 설정.
+     *
+     * @param id      the product ID
+     * @param request 실행 프로파일 요청
+     * @return the updated product
+     */
+    ProductDto.ProductResponse setExecProfile(Long id, ProductDto.ExecProfileRequest request);
 }

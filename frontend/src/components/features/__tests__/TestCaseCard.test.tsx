@@ -33,11 +33,13 @@ describe('TestCaseCard', () => {
   let onToggle: Mock;
   let onEdit: Mock;
   let onDelete: Mock;
+  let onRunAgent: Mock;
 
   beforeEach(() => {
     onToggle = vi.fn();
     onEdit = vi.fn();
     onDelete = vi.fn();
+    onRunAgent = vi.fn();
   });
 
   const renderCard = (overrides: Partial<TestCase> = {}, isExpanded = false) =>
@@ -48,6 +50,7 @@ describe('TestCaseCard', () => {
         onToggle={onToggle}
         onEdit={onEdit}
         onDelete={onDelete}
+        onRunAgent={onRunAgent}
       />,
     );
 
@@ -143,6 +146,7 @@ describe('TestCaseCard', () => {
         onToggle={onToggle}
         onEdit={onEdit}
         onDelete={onDelete}
+        onRunAgent={onRunAgent}
       />,
     );
     expect(screen.getByTestId('tc-card').className).toContain('border-l-yellow-400');
@@ -154,6 +158,7 @@ describe('TestCaseCard', () => {
         onToggle={onToggle}
         onEdit={onEdit}
         onDelete={onDelete}
+        onRunAgent={onRunAgent}
       />,
     );
     expect(screen.getByTestId('tc-card').className).toContain('border-l-gray-300');
