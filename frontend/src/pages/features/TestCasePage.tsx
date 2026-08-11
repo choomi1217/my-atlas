@@ -20,6 +20,8 @@ import { SegmentTreeView } from '@/components/features/SegmentTreeView';
 import TestCaseFormModal from '@/components/features/TestCaseFormModal';
 import ConfirmDialog from '@/components/features/ConfirmDialog';
 import TestCaseCard from '@/components/features/TestCaseCard';
+import AgentRunModal from '@/components/features/AgentRunModal';
+import ExecProfileModal from '@/components/features/ExecProfileModal';
 import { TC_DND_MIME } from '@/utils/tcDnd';
 
 interface PathTreeNode {
@@ -42,6 +44,7 @@ function PathTreeGroup({
   setSelectedPath,
   handleOpenEditModal,
   setDeleteTarget,
+  onRunAgent,
 }: {
   node: PathTreeNode;
   depth: number;
@@ -50,6 +53,7 @@ function PathTreeGroup({
   setSelectedPath: (path: number[]) => void;
   handleOpenEditModal: (tc: TestCase) => void;
   setDeleteTarget: (t: { id: number; title: string } | null) => void;
+  onRunAgent: (tc: TestCase) => void;
 }) {
   const displayName = node.segmentNames.join(' > ');
   const tcCount = countTreeTcs(node);
@@ -97,6 +101,7 @@ function PathTreeGroup({
                 }}
                 onEdit={(target) => handleOpenEditModal(target)}
                 onDelete={(info) => setDeleteTarget(info)}
+                onRunAgent={(target) => onRunAgent(target)}
               />
             ))}
           </div>
@@ -113,6 +118,7 @@ function PathTreeGroup({
             setSelectedPath={setSelectedPath}
             handleOpenEditModal={handleOpenEditModal}
             setDeleteTarget={setDeleteTarget}
+            onRunAgent={onRunAgent}
           />
         ))}
       </div>
@@ -154,6 +160,10 @@ export default function TestCasePage() {
   const [modalEditData, setModalEditData] = useState<TestCase | null>(null);
   const [modalEditPath, setModalEditPath] = useState<number[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
+  const [agentRunTc, setAgentRunTc] = useState<TestCase | null>(null);
+  const [showExecProfile, setShowExecProfile] = useState(false);
+
+  const handleRunAgent = (tc: TestCase) => setAgentRunTc(tc);
 
   useEffect(() => {
     const load = async () => {
@@ -574,13 +584,22 @@ export default function TestCasePage() {
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={handleOpenAddModal}
-                  disabled={selectedPath.length === 0}
-                  className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 flex-shrink-0 ml-4"
-                >
-                  + Add Test Case
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                  <button
+                    onClick={() => setShowExecProfile(true)}
+                    className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-sm rounded hover:bg-indigo-100 border border-indigo-200"
+                    title="AI 에이전트 실행 대상(baseUrl)·seed 절차 설정"
+                  >
+                    AI 실행 프로파일
+                  </button>
+                  <button
+                    onClick={handleOpenAddModal}
+                    disabled={selectedPath.length === 0}
+                    className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    + Add Test Case
+                  </button>
+                </div>
               </div>
 
               {/* Unassigned TCs (Test Studio DRAFT without Segment) */}
@@ -663,6 +682,7 @@ export default function TestCasePage() {
                       setSelectedPath={setSelectedPath}
                       handleOpenEditModal={handleOpenEditModal}
                       setDeleteTarget={setDeleteTarget}
+                      onRunAgent={handleRunAgent}
                     />
                   ))}
                 </div>
@@ -703,6 +723,24 @@ export default function TestCasePage() {
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {/* AI 시험 실행 (dry run) */}
+      {agentRunTc && (
+        <AgentRunModal
+          productId={product.id}
+          testCase={agentRunTc}
+          onClose={() => setAgentRunTc(null)}
+        />
+      )}
+
+      {/* AI 실행 프로파일 설정 */}
+      {showExecProfile && (
+        <ExecProfileModal
+          product={product}
+          onClose={() => setShowExecProfile(false)}
+          onSaved={(updated) => setProduct(updated)}
+        />
+      )}
     </div>
   );
 }

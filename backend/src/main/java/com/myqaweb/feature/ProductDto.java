@@ -25,6 +25,14 @@ public class ProductDto {
             String name,
             Platform platform,
             String description,
+            String execBaseUrl,
+            String execSeedNote,
             LocalDateTime createdAt
+    ) {}
+
+    /** 에이전트 실행 프로파일 설정 (registry_v20). */
+    public record ExecProfileRequest(
+            String execBaseUrl,
+            String execSeedNote
     ) {}
 }

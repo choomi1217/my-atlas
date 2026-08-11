@@ -20,6 +20,7 @@ import {
   ticketApi,
 } from '@/api/features';
 import ProgressStatsComponent from '@/components/features/ProgressStats';
+import BatchAgentRunModal from '@/components/features/BatchAgentRunModal';
 import ResultStatusBadge from '@/components/features/ResultStatusBadge';
 import StatusButtonGroup from '@/components/features/StatusButtonGroup';
 import CommentThread from '@/components/features/CommentThread';
@@ -72,6 +73,12 @@ function ResultRow({
           <span className="text-xs font-mono text-gray-500 shrink-0">T{result.testCaseId}</span>
           <span className="font-medium text-gray-800 truncate">{result.testCaseTitle}</span>
           <ResultStatusBadge status={result.status} size="sm" />
+          {result.executedBy === 'AGENT' && (
+            <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded shrink-0">AGENT</span>
+          )}
+          {result.executedBy === 'CI' && (
+            <span className="text-[10px] font-semibold bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded shrink-0">CI</span>
+          )}
           {ticketCount > 0 && (
             <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
               {ticketCount} ticket{ticketCount > 1 ? 's' : ''}
@@ -319,6 +326,7 @@ export default function VersionPhaseDetailPage() {
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!versionId || !phaseId || !productId) return;
@@ -596,15 +604,34 @@ export default function VersionPhaseDetailPage() {
             )}
             총 {phase.totalTestCaseCount} TC
           </p>
-          <button
-            onClick={handleRefreshAllTickets}
-            disabled={isRefreshingAll}
-            className="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-300 rounded-lg hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isRefreshingAll ? '갱신 중...' : 'Refresh All Tickets'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowBatchModal(true)}
+              className="px-3 py-1.5 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+              title="Phase의 TC를 AI 에이전트가 일괄 실행하고 결과를 자동 기록합니다"
+            >
+              AI 일괄 실행
+            </button>
+            <button
+              onClick={handleRefreshAllTickets}
+              disabled={isRefreshingAll}
+              className="px-3 py-1.5 text-sm text-indigo-600 border border-indigo-300 rounded-lg hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isRefreshingAll ? '갱신 중...' : 'Refresh All Tickets'}
+            </button>
+          </div>
         </div>
       </div>
+
+      {showBatchModal && (
+        <BatchAgentRunModal
+          productId={Number(productId)}
+          phaseId={Number(phaseId)}
+          phaseName={`${version.name} > ${phase.phaseName}`}
+          onClose={() => setShowBatchModal(false)}
+          onDone={loadData}
+        />
+      )}
 
       {error && <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg">{error}</div>}
 

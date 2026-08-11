@@ -1,0 +1,17 @@
+{
+  "name": "my-atlas-agent-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "registry_v20 — Agentic Test Execution 워커 (Playwright + Claude로 TC를 브라우저에서 실행·판정)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "run-job": "node src/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.3",
+    "playwright": "1.47.2"
+  }
+}

@@ -62,6 +62,8 @@ public class TestResultController {
                 entity.getStatus(),
                 entity.getComment(),
                 entity.getExecutedAt(),
+                entity.getExecutedBy(),
+                entity.getAgentExecutionResultId(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -81,6 +83,8 @@ public class TestResultController {
             RunResultStatus status,
             String comment,
             LocalDateTime executedAt,
+            ExecutedBy executedBy,
+            Long agentExecutionResultId,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) {}
