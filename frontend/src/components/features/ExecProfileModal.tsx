@@ -84,7 +84,7 @@ export default function ExecProfileModal({
               value={seedNote}
               onChange={(e) => setSeedNote(e.target.value)}
               rows={4}
-              placeholder="예: /login 에서 admin/admin 으로 로그인"
+              placeholder="예: /login 에서 id/password로 로그인"
               className="w-full px-3 py-2 border rounded text-sm"
             />
             <p className="text-xs text-gray-400 mt-1">

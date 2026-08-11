@@ -175,7 +175,7 @@ duration_ms, token_cost
 
 ## Phase 0 PoC 측정 결과 (2026-07-14)
 
-> 실행 주체: Claude(에이전트 역할) + **Playwright MCP**(목표 아키텍처 도구). 대상 앱: 로컬 my-atlas `http://localhost:5173`(worktree 5178 슬롯과 동일 코드·공유 DB). 로그인 admin/admin. run 식별자 `{seq}=pw-1527`. DB 리셋 없음(생성 리소스에 suffix 부여).
+> 실행 주체: Claude(에이전트 역할) + **Playwright MCP**(목표 아키텍처 도구). 대상 앱: 로컬 my-atlas `http://localhost:5173`(worktree 5178 슬롯과 동일 코드·공유 DB). 로그인 시드 계정(id/password). run 식별자 `{seq}=pw-1527`. DB 리셋 없음(생성 리소스에 suffix 부여).
 
 ### 실행 환경 복구 (착수 전 발생한 실측 이슈 — 그 자체가 발견)
 

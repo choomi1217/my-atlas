@@ -40,13 +40,13 @@ if (seedNote && seedNote.trim()) {
   await agenticGoal(page, agent, seedNote, maxStepActions);  // 그 다음 LLM이 seedNote 목표 수행
 }
 ```
-그런데 당시 `exec_seed_note`는 "먼저 `/login` 페이지로 이동해 username에 admin, password에 admin을 입력하고 Login 버튼을 클릭해 로그인한다. 로그인 후 ..." 였다. **이미 로그인된 상태인데도 에이전트는 이 문구를 그대로 따라 `/login`으로 다시 이동해서 username 칸에 "admin"을 반복 입력하다가(다음 칸으로 못 넘어가고 제자리걸음), 허용된 액션 4번(`maxStepActions`)을 전부 로그인 재시도에 써버렸다.**
+그런데 당시 `exec_seed_note`는 "먼저 `/login` 페이지로 이동해 username에 id, password에 pw를 입력하고 Login 버튼을 클릭해 로그인한다. 로그인 후 ..." 였다. **이미 로그인된 상태인데도 에이전트는 이 문구를 그대로 따라 `/login`으로 다시 이동해서 username 칸에 값을 반복 입력하다가(다음 칸으로 못 넘어가고 제자리걸음), 허용된 액션 4번(`maxStepActions`)을 전부 로그인 재시도에 써버렸다.**
 
 ```
 seed[0] url=/ → navigate=/login
-seed[1] url=/login → fill(a0)=admin
-seed[2] url=/login → fill(a0)=admin   (제자리걸음)
-seed[3] url=/login → fill(a0)=admin
+seed[1] url=/login → fill(a0)=id
+seed[2] url=/login → fill(a0)=id   (제자리걸음)
+seed[3] url=/login → fill(a0)=id
 seed 목표 미완료 — maxActions(4) 소진
 ```
 

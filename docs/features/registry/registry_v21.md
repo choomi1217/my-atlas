@@ -16,7 +16,7 @@ registry_v20에서 **에이전트 실행 엔진**을 구현하고 docker로 실�
 구체적으로 v20의 `agent-worker/src/agent.js` `autoLogin`은:
 - `POST /api/auth/login` (my-atlas 전용 엔드포인트) 호출
 - 응답의 `data.token`/`username`/`role` 파싱 → `localStorage['my-atlas-token']`, `['my-atlas-user']` 주입
-- 자격증명은 워커 env `AGENT_WORKER_USERNAME/PASSWORD`(=admin/admin) **고정**
+- 자격증명은 워커 env `AGENT_WORKER_USERNAME/PASSWORD`(id/password를 `.env`에 고정 설정) **고정**
 
 → **my-atlas 자기 테스트에만 통한다.** Toss 같은 외부 제품을 `hello / hello!@~~@#` 같은 별도 계정으로 로그인시키는 것은 현재 불가:
 1. 엔드포인트·응답·localStorage 키가 전부 다름

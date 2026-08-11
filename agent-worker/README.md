@@ -31,7 +31,7 @@ node src/index.js <jobId>          # 백엔드에서 생성된 agent_execution_j
 | 변수 | 설명 |
 |------|------|
 | `BACKEND_URL` | my-atlas 백엔드 (기본 http://localhost:8085) |
-| `AGENT_WORKER_USERNAME/PASSWORD` | 백엔드 로그인 (seed admin/admin) |
+| `AGENT_WORKER_USERNAME/PASSWORD` | 백엔드 로그인 (시드 계정 id/password, `.env`에 직접 설정) |
 | `ANTHROPIC_API_KEY` | Claude 호출 키 (필수) |
 | `AGENT_MODEL` | 모델명 (기본 claude-haiku-4-5-20251001) |
 | `HEADLESS` | 헤드리스 여부 (docker면 true) |
