@@ -21,7 +21,9 @@ DB_CONTAINER="myqaweb-db"
 DB_USER="myqaweb"
 DB_NAME="myqaweb"
 
-BACKUP_DIR="$HOME/dev/qa/my-atlas/.claude/worktrees/ops-env/backups"
+# NOTE: 원래 ops-env worktree 하위 경로였으나 ops_v34에서 worktree 폐기 → 레포 루트 기준으로 변경.
+# 이 스크립트는 2026-04-23 v23 마이그레이션 1회성 작업용이며, 참조 백업 파일은 보존되어 있지 않을 수 있다.
+BACKUP_DIR="${BACKUP_DIR:-$HOME/dev/qa/my-atlas/backups}"
 PROD_BACKUP="${BACKUP_DIR}/aws-backup-pre-v23-20260423200633.sql"
 DEV_BACKUP="${BACKUP_DIR}/dev-backup-pre-v23-20260423205342.sql"
 

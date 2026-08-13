@@ -53,12 +53,15 @@ hotfix/*      ← 긴급 수정 브랜치 (main 에서 분기, main + develop �
 
 | 항목 | 평가 |
 |---|---|
-| Feature 격리 | ✅ worktree 로 도메인별 동시 작업 가능 |
 | 코드 리뷰 PR 흐름 | ✅ feature → develop → main 흐름 명확 |
 | CI 강제 | ✅ JaCoCo 70%, ESLint, E2E 통과 필수 |
 | 자동 배포 | ✅ main push → S3/EC2 자동 배포 |
 | Slack 알림 | ✅ 모든 워크플로우에 Block Kit 포맷 |
-| Worktree 동기화 스크립트 | ✅ `wt.sh sync` 로 reset 자동화 |
+| 머지 전략 | ✅ Section 2 정책 적용 후 false-positive conflict 재발 zero |
+
+> ⚠️ **2026-08-12 정정** — 작성 당시 ✅ 로 평가했던 두 항목(`worktree 로 도메인별 동시 작업`,
+> `wt.sh sync 로 reset 자동화`)은 이후 실패로 판명되어 제거했다. worktree 모델 자체가
+> `ops_v34.md` 에서 폐기됐다. 아래 4.3 / 4.5 참조.
 
 ---
 
@@ -86,25 +89,24 @@ hotfix/*      ← 긴급 수정 브랜치 (main 에서 분기, main + develop �
 
 **원인**: worktree 가 영구 작업 공간이라 같은 브랜치명을 재사용. squash 머지 후 develop 만 정리되고 feature/ops-env 는 옛 commit 들을 그대로 보유.
 
-**대응 (운영 가이드)**:
-- **Worktree 는 영구로 유지하되, 브랜치는 일회성 사용**
-- 새 작업 시 develop 기반 새 브랜치 생성 (예: `feature/v24-slack`, `feature/kb-v8`)
-- 머지 완료 후 `wt.sh sync <name>` 으로 worktree 를 develop HEAD 로 reset
+**당시 대응 (❌ 폐기됨)**: "Worktree 는 영구로 유지하되, 브랜치는 일회성 사용" + 머지 후 `wt.sh sync` 로 reset.
+
+> 🔴 **2026-08-12 — 이 처방이 실패했다.**
+> "영구 작업 공간 + 일회성 브랜치"는 애초에 양립 불가능한 조합이었다. 이를 `git reset --hard origin/develop`
+> 으로 봉합하니 브랜치 이름과 내용이 무관해졌고, 4.5 의 심링크 문제와 맞물려 **sync 자체가 불가능한
+> 자기잠금 루프**가 됐다. 12개 worktree 중 10개가 3~4개월간 방치(behind 40~89)됐다.
+>
+> **현재 대응**: worktree 모델 전면 폐기 (`ops_v34.md`). 단일 레포에서 `git switch` 로 브랜치 전환하고,
+> 브랜치는 작업 단위 1개씩 만들어 머지 후 삭제한다. 재사용할 고정 브랜치가 없으므로 squash residue 자체가 발생하지 않는다.
 
 ```bash
-# ❌ 잘못된 패턴 — worktree 의 fixed branch 재사용
-cd worktrees/ops-env  # 이미 feature/ops-env 에 옛 작업 잔재
-# 새 작업 시작 → push 거부
-
-# ✅ 권장 패턴 — 매번 새 브랜치
-cd worktrees/ops-env
-./scripts/wt.sh sync ops-env  # develop HEAD 로 reset
-git checkout -b feature/v24-slack origin/develop  # 새 브랜치
+# ✅ 현재 패턴 — 단일 레포, 매번 새 브랜치
+git switch develop && git pull origin develop
+git switch -c feature/v24-slack
 # 작업, 커밋, push
 gh pr create --base develop ...
+# 머지 후: git switch develop && git pull && git branch -d feature/v24-slack
 ```
-
-이 가이드는 CLAUDE.md 의 "Branch Hygiene — Squash Merge 주의" 섹션에도 반영.
 
 ### 4.4 PR head=main 같은 잘못된 PR (#117 사례)
 
@@ -133,9 +135,15 @@ gh pr create --base develop --head chore/forward-merge-main-to-develop
 
 **원인**: `wt.sh` 가 worktree 의 `.claude/agents` 를 메인 레포로의 심볼릭 링크로 설정. git 은 보안상 심볼릭 링크 너머의 tracked 파일을 수정하지 않음.
 
-**현재 우회**: `/tmp` 에 별도 clone 해서 머지 작업 수행 후 push. worktree 는 머지 작업에 사용하지 않음.
+**당시 우회**: `/tmp` 에 별도 clone 해서 머지 작업 수행 후 push.
 
-**대응**: 향후 `wt.sh` 리팩으로 symlink → 단방향 복사 메커니즘 전환 (별도 진행, `ops_v29.md` 의 Section 7 향후 확장 참조).
+> ✅ **2026-08-12 — 해소됨.** worktree 폐기(`ops_v34.md`)로 심링크 자체가 사라졌다.
+>
+> 이 심링크는 CLAUDE.md 의 "공용 파일 양쪽 작성" 규칙(docs/scripts/CLAUDE.md/.claude/agents)을
+> 수동으로 지키기 번거로워 도입한 우회책이었다. git 이 이를 typechange(T)/deleted(D)로 인식해
+> worktree 가 영구 dirty 상태가 됐고, `wt.sh sync` 의 dirty 체크가 abort 되면서
+> **sync 가 만든 심링크가 다음 sync 를 막는** 루프를 만들었다.
+> worktree 가 없으면 이중 작성 대상 자체가 없으므로 규칙과 심링크를 함께 폐기했다.
 
 ### 4.6 docker-compose.yml 의 반복 충돌
 
@@ -183,8 +191,9 @@ gh pr create --base develop --head chore/forward-merge-main-to-develop
 
 ## 7. 참고
 
-- `CLAUDE.md` — Branch Strategy / Branch Hygiene / Squash Merge 주의 섹션
-- `scripts/wt.sh` — worktree sync 스크립트
+- `CLAUDE.md` — 로컬 개발 워크플로우 / Git Branch Strategy 섹션
+- `scripts/dev.sh` — 로컬 스택 관리 (`up` / `fresh` / `down` / `status`) — 구 `wt.sh` 대체
+- `docs/ops/ops_v34.md` — **worktree 폐기 및 브랜치 위생 복구** (본 문서 3 / 4.3 / 4.5 정정 근거)
 - `docs/ops/ops_v29.md` — 본 전략의 코드/설정 변경
-- `docs/ops/ops_v6.md` ~ `ops_v15.md` — Worktree Docker / DB 분리 진화 과정
+- `docs/ops/ops_v6.md` ~ `ops_v15.md` — Worktree Docker / DB 분리 진화 과정 (역사적 기록, 현행 아님)
 - 오늘 사례: PR #115, #117, #118, #119, #120

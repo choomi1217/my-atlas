@@ -1,4 +1,5 @@
 ---
+name: e2e-test-writer
 description: Agent-C - Playwright E2E test writer (API + UI)
 tools: ["Read", "Write", "Edit", "Glob", "Grep"]
 effort: high

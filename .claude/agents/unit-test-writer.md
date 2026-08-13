@@ -1,4 +1,5 @@
 ---
+name: unit-test-writer
 description: Agent-B - Backend and frontend unit/integration test writer
 tools: ["Read", "Write", "Edit", "Glob", "Grep"]
 effort: high
