@@ -22,7 +22,7 @@ Claude AI와 OpenAI 임베딩을 활용하여 QA 전문가의 테스트 컨벤�
 
 ### 신규 마이그레이션: 타임스탬프 버전 (CRITICAL)
 
-V14부터는 **타임스탬프 기반 버전**을 사용한다. 여러 Worktree/Agent가 동시에 마이그레이션을 생성해도 충돌하지 않는다.
+V14부터는 **타임스탬프 기반 버전**을 사용한다. 여러 브랜치/Agent가 동시에 마이그레이션을 생성해도 충돌하지 않는다.
 
 **파일명 형식:**
 ```
@@ -48,54 +48,46 @@ V202604140900__add_chat_session.sql
 ## Test Infrastructure
 
 > 테스트 수·도메인별 내역은 시간에 따라 변하므로 여기 하드코딩하지 않는다. 최신 수치는 각 CI(JaCoCo 리포트, Playwright 결과)와 `docs/ops/ops.md`가 소유한다.
-
-### Backend
-- **Unit**: JUnit 5 + Mockito (Service + Controller 전 도메인) — `cd backend && ./gradlew test`
-- **Integration**: Testcontainers (pgvector) — KB/FAQ vector search, PDF pipeline, Company activation mutex
-
-### Frontend
-- **Unit**: Vitest + React Testing Library — `cd frontend && npm test`
-
-### E2E
-- **Playwright** (API + UI, Chromium) — `cd qa && npx playwright test`
+> 테스트 프레임워크·실행 명령은 각 하위 `CLAUDE.md`와 빌드 파일이 소유한다.
 
 ---
 
-## Worktree Git 생명주기
+## 로컬 개발 워크플로우
 
-이 프로젝트의 worktree는 기능 도메인별 **영구 작업 공간**이다 (일회성이 아님).
+**단일 레포에서 브랜치를 전환하며 작업한다.** 영구 worktree는 사용하지 않는다 (ops_v34에서 폐기).
 
 ### 작업 사이클
-1. **시작**: `./scripts/wt.sh sync <name>` — develop 최신 상태로 동기화
-2. **작업**: 코드 수정, 커밋
-3. **PR**: push → PR(→develop) 생성
-4. **머지 후**: 반드시 `./scripts/wt.sh sync <name>` 실행 — develop으로 리셋
+1. **시작**: `git switch develop && git pull origin develop`
+2. **분기**: `git switch -c feature/<작업명>` — 작업 단위 1브랜치
+3. **작업**: 코드 수정, 커밋
+4. **PR**: push → PR(→develop) 생성
+5. **머지 후**: 브랜치 삭제 (GitHub "Automatically delete head branches"가 원격 자동 처리)
+   → 로컬은 `git switch develop && git pull && git branch -d feature/<작업명>`
 
 ### 규칙
-- ❌ 머지 후 리셋 없이 다음 작업 시작 금지 (유령 커밋 누적)
-- ❌ develop에서 3일 이상 뒤처진 상태로 작업 금지
-- ✅ 작업 시작 전 반드시 sync
-- ✅ Claude 세션 시작 시 자동으로 sync 상태 확인
-- ✅ PR 머지 후 즉시 sync
+- ❌ **영구 worktree 금지** — 도메인별 상주 작업 공간을 만들지 않는다
+- ❌ 브랜치에 세대 접미사 금지 (`-v9`, `-v11`, `-v2.5`) — 버전은 문서가 관리한다
+- ❌ 머지된 브랜치를 로컬에 남겨두지 않는다
+- ✅ 작업 단위 1브랜치, 머지되면 삭제
+- ✅ 작업 시작 전 develop pull
+
+> **왜 worktree를 버렸나**: "영구 작업 공간"과 "일회성 feature 브랜치"는 양립할 수 없다.
+> 이 모순을 `git reset --hard origin/develop`으로 봉합하려다 브랜치 이름과 내용이 무관해졌고,
+> 공용파일 심링크가 영구 dirty를 만들어 sync 자체가 불가능해지는 자기잠금 루프가 발생했다.
+> 전체 진단은 `docs/ops/ops_v34.md` 참조.
+
+### 병렬 작업이 필요할 때
+
+동시에 여러 브랜치를 만져야 하면 **harness의 임시 worktree**(`isolation: "worktree"`)를 쓴다.
+작업 종료 시 자동 정리되므로 방치될 수 없다.
+
+수동으로 worktree를 만들어야 하는 예외 상황이라면:
+- 레포 **바깥**에 생성한다 (`.claude/` 안에 만들지 않는다)
+- 작업 종료 즉시 `git worktree remove` — 상주시키지 않는다
 
 ### develop → main
 - 기능이 완전히 완료되면 develop → main PR 생성
 - main PR은 유저가 직접 판단
-
-### Claude 세션 시작 시 자동 검증
-
-Claude가 worktree에서 세션을 시작할 때:
-1. `git fetch origin && git log --oneline origin/develop..HEAD`로 ahead 확인
-2. ahead > 0이면 "이 worktree에 미머지 커밋이 있습니다. sync 먼저 할까요?" 안내
-3. `git log --oneline HEAD..origin/develop`로 behind 확인
-4. behind > 3이면 "develop보다 N커밋 뒤처져 있습니다. sync 권장" 안내
-
-### 상태 확인 명령
-```bash
-./scripts/wt.sh status              # 전체 worktree 동기화 상태 표시
-./scripts/wt.sh sync <name>         # 특정 worktree 동기화
-./scripts/wt.sh sync --all          # 전체 worktree 동기화
-```
 
 ---
 
@@ -108,7 +100,7 @@ main (production-ready, AWS 배포 대상)
   │
 develop (integration branch, localhost 개발)
   ↑
-  ├─ feature/xyz (feature branches, Claude WorkTree로 분리)
+  ├─ feature/xyz (feature branches)
   ├─ bugfix/xyz
   └─ hotfix/xyz (emergency fixes to main)
 ```
@@ -118,6 +110,12 @@ develop (integration branch, localhost 개발)
 - 모든 작업 → `feature/*` or `bugfix/*` from `develop`
 - Hotfix는 `main`에서 분기 → `main` + `develop` 양쪽 머지
 - PR은 최소 **1 code review** 필수
+- 브랜치명은 **작업 단위** 기준. 세대 접미사(`-v9`, `-v11`) 금지
+- 머지 방식은 `docs/ops/git-strategy.md` Section 2가 소유 (forward-merge/release는 merge commit, 단발성은 squash)
+
+> ⚠️ **`git cherry`로 유실 판정 금지** — patch-id는 커밋 **전체 diff**의 해시라, squash 머지로
+> 다른 파일과 뭉쳐지면 이미 반영된 커밋도 `+`(미반영)로 표시된다. 브랜치 삭제 전 판정은
+> 반드시 **소스 실물 대조**로 한다. (ops_v34 감사에서 false-negative 2건 확인)
 
 ---
 
@@ -271,60 +269,6 @@ cd /Users/yeongmi/dev/qa/my-atlas && docker compose down
   - 버전 히스토리 업데이트
   - 테스트 결과 작성
 
-### Worktree 환경에서의 파일 작성 규칙
-
-Worktree에서 작업할 때, **공용 파일**의 읽기/쓰기는 반드시 **메인 레포 경로**를 우선 사용한다.
-
-**메인 레포 경로:** `/Users/yeongmi/dev/qa/my-atlas/`
-
-#### 양쪽 작성 대상 (공용 파일)
-
-| 경로 | 이유 |
-|------|------|
-| `docs/**` | 유저가 Cursor IDE(develop)에서 문서를 확인 |
-| `scripts/**` | 유저가 메인 레포에서 즉시 실행 가능해야 함 |
-| `CLAUDE.md` | 모든 worktree Claude가 동일 규칙을 공유해야 함 |
-| `.claude/agents/**` | Sub-agent 정의가 모든 worktree에서 동일해야 함 |
-
-#### 읽기
-- 위 경로의 파일을 읽을 때는 메인 레포 절대경로를 사용한다
-- 예: `/Users/yeongmi/dev/qa/my-atlas/docs/ops/v11.md`
-- 유저가 develop 브랜치에서 작성한 요구사항을 확인할 수 있다
-
-#### 쓰기 (2곳에 작성)
-1. **메인 레포 절대경로**에 먼저 작성 (유저가 즉시 확인/사용 가능)
-2. **자기 worktree**에도 동일 파일 작성 (PR 커밋용)
-
-예시 (ops-env worktree에서 작업 시):
-```
-# docs
-1. /Users/yeongmi/dev/qa/my-atlas/docs/ops/v11.md  ← 메인 레포 (유저 확인용)
-2. docs/ops/v11.md                                   ← worktree (git 커밋용)
-
-# scripts
-1. /Users/yeongmi/dev/qa/my-atlas/scripts/wt.sh     ← 메인 레포 (유저 실행용)
-2. scripts/wt.sh                                      ← worktree (git 커밋용)
-```
-
-#### 양쪽 작성 불필요 (worktree 전용)
-
-| 경로 | 이유 |
-|------|------|
-| `backend/src/**` | 소스 코드는 feature 브랜치에서만 변경, PR 머지로 반영 |
-| `frontend/src/**` | 동일 |
-| `qa/**` | 동일 |
-| `.env` | 환경별 다름 |
-| `docker-compose.yml` | worktree별 포트/컨테이너 이름이 다름 |
-| `docker-compose.override.yml` | worktree 전용 설정 |
-
-**예외:** `docker-compose.db.yml`은 공용 파일 — DB 설정은 모든 환경에서 동일하므로 양쪽 작성
-
-#### 규칙
-- ❌ worktree에만 작성하지 않는다 (유저가 못 봄/못 씀)
-- ❌ 메인 레포에만 작성하지 않는다 (PR에 포함 안됨)
-- ✅ 공용 파일은 반드시 양쪽 모두에 작성한다
-- ✅ 소스 코드(`src/**`)는 worktree에만 작성한다
-
 ---
 
 ## 문서 기반 구현 워크플로우 (Doc-Driven Development)
@@ -423,33 +367,11 @@ Claude Slack Hook 개선
 
 ---
 
-## Spring Configuration Summary
-
-### application.yml (주요 설정)
-
-| 항목 | 설정값 |
-|------|--------|
-| Hibernate ddl-auto | **none** — Flyway가 schema 단독 소유, Hibernate는 ORM만 담당 (다중 worktree 공유 DB 환경에서 entity drift로 인한 boot 실패 방지) |
-| Flyway | enabled, classpath:db/migration |
-| AI 모델 | Spring AI (Anthropic) — 모델명은 application.yml 참조 |
-| 임베딩 모델 | text-embedding-3-small (OpenAI, 1536 dims) |
-| pgvector | COSINE_DISTANCE |
-| Multipart | max 500MB (PDF 업로드 대응) |
-| Actuator | health, info 노출 |
-| 로깅 | Console + File (./logs/backend_{session}.log) |
-
-- `FEATURE_EMBEDDING_ENABLED` (application.yml, default: false) — 임베딩 기능 토글
-- Test 환경(`test/resources/application.yml`): H2 인메모리 DB, Flyway 비활성, 더미 API 키
-- 로컬 `.env`(gitignored) 예시는 [README.md](./README.md) Quick Start 참조.
-
----
-
 ## Quick Start
 
-### Prerequisites
-- Docker & Docker Compose
-- Java 21 (backend local dev)
-- Node.js 20+ (frontend local dev)
+> 설정값(모델명, 임베딩 차원, Multipart 한도, Actuator, 로깅 등)은
+> `backend/src/main/resources/application.yml`이 소유한다. 설정 **근거**는 `backend/CLAUDE.md` 참조.
+> 로컬 `.env`(gitignored) 예시는 [README.md](./README.md) Quick Start 참조.
 
 ### Run Everything
 ```bash
@@ -466,20 +388,11 @@ docker compose up -d
 ### Docker 운영 규칙
 - DB는 `docker-compose.db.yml`로 독립 실행 — `docker compose down` 해도 DB는 유지됨
 - App(backend + frontend)은 `docker-compose.yml`로 자유롭게 올림/내림
-- Worktree에서는 메인 DB가 떠있는 상태에서 `docker compose up -d` 실행
-- **시작 순서**: DB(`docker-compose.db.yml`) → 메인 App → Worktree App
-- **종료 순서**: Worktree App → 메인 App → DB(드물게)
+- **시작 순서**: DB(`docker-compose.db.yml`) → App(`docker-compose.yml`)
+- **종료 순서**: App → DB(드물게)
+- `agent-worker`는 `profiles: ["worker"]` — 내릴 때 `docker compose --profile worker down` 필요
+  (프로파일 없이 `down`하면 agent-worker가 남아 네트워크를 잡는다)
 - `docker compose -f docker-compose.db.yml down -v` **절대 금지** (볼륨 삭제 방지)
-
-### Backend Only
-```bash
-cd backend && ./gradlew bootRun
-```
-
-### Frontend Only
-```bash
-cd frontend && npm install && npm run dev
-```
 
 ---
 
@@ -490,9 +403,12 @@ cd frontend && npm install && npm run dev
 - **Frontend details** → `frontend/CLAUDE.md`
 - **E2E test details** → `qa/CLAUDE.md`
 - **Ops 현황 종합 (인프라·AWS·CI/CD)** → `docs/ops/ops.md`
-- **Feature Registry 명세** → `docs/features/feature-registry/feature-registry.md`
+- **Feature Registry 명세** → `docs/features/registry/registry.md`
 - **Knowledge Base 명세** → `docs/features/knowledge-base/knowledge-base.md`
 - **My Senior 명세** → `docs/features/senior/my-senior.md`
+- **Platform 명세** → `docs/features/platform/platform.md`
+- **Test Studio 명세** → `docs/features/test-studio/test-studio.md`
+- **Words Convention 명세** → `docs/features/words-convention/words-convention.md`
 - **테스트 전략** → `docs/qa/qa_v1.md` (종합 플랜)
 - **Spring AI config** → `backend/src/main/resources/application.yml`
 

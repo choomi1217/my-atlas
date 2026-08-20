@@ -1,0 +1,81 @@
+From 6a348853b9ffa535f0f2e15d75b73fa14e576382 Mon Sep 17 00:00:00 2001
+From: choomi1217 <whdudal1217@naver.com>
+Date: Mon, 27 Apr 2026 14:26:57 +0900
+Subject: [PATCH] [feat] Seed Miridih company + Bizhows product + root segment
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+미리디 비즈하우스 포트폴리오 작업의 DB 골격을 시드한다.
+- Company: Miridih (is_active=false, my-atlas와 공존)
+- Product: Bizhows (Miridih 산하, WEB)
+- Segment Root: Bizhows (Bizhows Product 산하)
+
+Phase A~L의 Segment L1/L2 + TestCase는 후속 마이그레이션에서 단계적으로 추가한다.
+참조: docs/qa/portfolio/miridih/phase_a.md
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ ...02604271500__seed_miridih_bizhows_root.sql | 50 +++++++++++++++++++
+ 1 file changed, 50 insertions(+)
+ create mode 100644 backend/src/main/resources/db/migration/V202604271500__seed_miridih_bizhows_root.sql
+
+diff --git a/backend/src/main/resources/db/migration/V202604271500__seed_miridih_bizhows_root.sql b/backend/src/main/resources/db/migration/V202604271500__seed_miridih_bizhows_root.sql
+new file mode 100644
+index 0000000..0e56c15
+--- /dev/null
++++ b/backend/src/main/resources/db/migration/V202604271500__seed_miridih_bizhows_root.sql
+@@ -0,0 +1,50 @@
++-- V202604271500: Seed Miridih Company + Bizhows Product + Bizhows Root Segment
++--
++-- 목적: 미리디 비즈하우스 포트폴리오 작업의 DB 골격 추가
++--   - Company: Miridih (is_active=false, my-atlas와 공존)
++--   - Product: Bizhows (Miridih 산하, WEB)
++--   - Segment Root: Bizhows (Bizhows Product 산하, parent_id=NULL)
++--
++-- 후속: Phase A~L의 Segment L1/L2 + TestCase는 이후 마이그레이션에서 단계적으로 추가한다.
++--   참조: docs/qa/portfolio/miridih/phase_a.md
++--
++-- 멱등성: 모든 INSERT는 NOT EXISTS 가드로 보호한다 (V7 패턴 동일).
++
++-- ============================================
++-- 1. Company 삽입 (Miridih)
++-- ============================================
++INSERT INTO company (name, is_active)
++SELECT 'Miridih', false
++WHERE NOT EXISTS (SELECT 1 FROM company WHERE name = 'Miridih');
++
++-- ============================================
++-- 2. Product 삽입 (Bizhows)
++-- ============================================
++INSERT INTO product (company_id, name, platform, description)
++SELECT
++  c.id,
++  'Bizhows',
++  'WEB',
++  '미리디 산하 POD 인쇄 커머스 플랫폼. 회원/디자인/주문/결제/제작/배송 전 과정의 QA 대상.'
++FROM company c
++WHERE c.name = 'Miridih'
++  AND NOT EXISTS (
++    SELECT 1 FROM product p
++    WHERE p.name = 'Bizhows' AND p.company_id = c.id
++  );
++
++-- ============================================
++-- 3. Segment Root 삽입 (Bizhows)
++-- ============================================
++INSERT INTO segment (product_id, name, parent_id)
++SELECT p.id, 'Bizhows', NULL
++FROM product p
++JOIN company c ON p.company_id = c.id
++WHERE c.name = 'Miridih'
++  AND p.name = 'Bizhows'
++  AND NOT EXISTS (
++    SELECT 1 FROM segment s
++    WHERE s.product_id = p.id
++      AND s.parent_id IS NULL
++      AND s.name = 'Bizhows'
++  );
+-- 
+2.39.2 (Apple Git-143)
+
