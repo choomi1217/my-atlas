@@ -1,0 +1,39 @@
+# 원격 브랜치 삭제 기록 — ops_v34 (2026-08-12)
+#
+# 삭제 근거: 전량 squash 머지 잔재. 각 브랜치의 대표 산출물이 origin/develop에 실물 존재함을 확인.
+# 복구: git branch <name> <sha> && git push origin <name>
+#
+# BRANCH                                             SHA                                        LAST
+add-claude-github-actions-1786422505593              4c932463c51be8397d11a4fbc3a59f01155f648f   2026-08-11
+bugfix/version-test-time-sensitive                   73c7c17d8dec5ea3d871028aae6a93d2f5cbc584   2026-05-06
+chore/changelog-v2026.08.06                          c89718ab8a8508cee20fc7794ac108941b0967e9   2026-08-06
+chore/changelog-v2026.08.11                          1ade43a7d30bf9023834534d568771e34c208ed5   2026-08-11
+chore/changelog-v2026.08.11.0653                     291a94b0d37919177210ca068da377f32dcb2ca4   2026-08-11
+chore/forward-merge-claude-workflows                 f5069ff4b481a6e660f71ef3a25ba7d002e5c395   2026-08-11
+chore/forward-merge-main                             f80d91b3f077db3c7113bbad3f8610ad5bfae0b0   2026-08-06
+chore/forward-merge-main-to-develop                  7b17b0b5053e94be141786cb5679976be17dbace   2026-04-27
+chore/resolve-pr119-conflict                         b5aff306afbbc0b59fe934f214994a90948f4db8   2026-04-27
+dev/feature/resume                                   5aeaf2ae9d3e15fda0c4b30c3f14f492a54b88ce   2026-05-19
+feature-registry                                     0e67723333c8399a25b35fb9d2b5c915d31f2566   2026-04-08
+feature/faq-improve-v1                               8c441bc702297ad9a31a12347bf97e2f752bda21   2026-03-24
+feature/knowledge-base                               4098226d93a64a3c449aa991223e5b5023d2954b   2026-04-22
+feature/miridih-bizhows-seed                         6a348853b9ffa535f0f2e15d75b73fa14e576382   2026-04-27
+feature/my-senior                                    9dd7e07b926cfe9936be7738c8f0261157fb11e3   2026-04-29
+feature/ops-env                                      38f5556e54aa92ed3898c161b0f36101e481f68a   2026-04-20
+feature/ops-v23-v24                                  153a05a93916971294ba65e55bdaf5ccf7af23cc   2026-04-23
+feature/platform                                     e4f66ae8fbe919a6c1adc4cd1c2f36c6f2c1fd1e   2026-04-22
+feature/platform-v9                                  2c4d44ac43ca137b8efbff9c4e07e22fbdd39c3c   2026-04-22
+feature/registry                                     d8611abd35ecacf9f07db9d987676bf31ec0e6b0   2026-04-17
+feature/registry-segment-multi-root                  0396d7b13f482da5175b9d9baa69c550950ec81d   2026-08-11
+feature/resume-polish                                852e69e88e3ff0de5e324106f181c042bebf6baa   2026-04-23
+feature/resume-public                                4bb9a9c0c62b52a0290bafa1b0f6d9bb83946adc   2026-04-10
+feature/resume-ui                                    d28c27433643e58b0dafd8ed2793c1ba59abbe1a   2026-04-22
+feature/test-studio                                  794f969bd8b608ce73c607cd1e88be45c4138010   2026-07-30
+feature/test-studio-v2.5                             224e255e163cf3fec2ffc92e4f5c202d9f2bc4b5   2026-07-28
+feature/words-convention                             7bee3f0f593ecc60ea5318209169a23543207052   2026-04-21
+hotfix/ci-deploy-scripts                             6c3cd948957baa30355ecbed6f45c5b7e198b700   2026-04-23
+hotfix/docker-compose-aws-env                        ae3649e9237c783cdfbfd7e4d4e0bce590f77bb3   2026-04-23
+hotfix/image-urls-and-platform-v9                    6b42b9b6b83da3567be298c9369662bf715a7ba7   2026-04-23
+hotfix/image-urls-and-platform-v9-develop            f64c2f9c79499e09b1a4986307872573d65bec78   2026-04-23
+release/platform-v9-kb-v7                            8e6ea59a9459c6b8eb2a0315c59c6425a36cabc7   2026-04-22
+release/resume-polish                                76bae9cc2e3d9136d80dfb25657ad101759d0780   2026-04-23

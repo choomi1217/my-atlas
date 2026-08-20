@@ -1,4 +1,5 @@
 ---
+name: build-verifier
 description: Agent-D - Build and test verification specialist
 model: haiku
 tools: ["Bash", "Read", "Glob", "Grep"]
