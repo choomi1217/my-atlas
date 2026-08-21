@@ -7,7 +7,6 @@ on:
       - 'frontend/**'
       - '.github/workflows/frontend-ci.yml'
   # ⚠️ pull_request 에는 paths 필터를 두지 않는다. 사유는 backend-ci.yml 참조.
-  # required check 이름은 matrix 때문에 "Build & Test Frontend (20.x)" 다.
   pull_request:
     branches: [ main, develop ]
 
@@ -34,24 +33,28 @@ jobs:
             echo "relevant=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # ⚠️ job 이름에 "(20.x)" 를 직접 넣는다. matrix 로 만들지 않는다.
+  # ruleset 의 required context 가 "Build & Test Frontend (20.x)" 인데,
+  # matrix job 이 if: 로 skip 되면 matrix 가 전개되지 않아
+  # "Build & Test Frontend" 로만 보고된다 → required 이름과 불일치 → PR 영구 BLOCKED.
+  # node 버전을 늘릴 일이 생기면 그때 matrix 로 되돌리되 ruleset context 도 함께 고칠 것.
   build-and-test:
-    name: Build & Test Frontend
+    name: Build & Test Frontend (20.x)
     needs: changes
     if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [ 20.x ]  # TODO: Adjust Node version as needed
+    env:
+      NODE_VERSION: '20.x'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js ${{ matrix.node-version }}
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
