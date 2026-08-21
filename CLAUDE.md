@@ -54,7 +54,7 @@ V202604140900__add_chat_session.sql
 
 ## 로컬 개발 워크플로우
 
-**단일 레포에서 브랜치를 전환하며 작업한다.** 영구 worktree는 사용하지 않는다 (ops_v34에서 폐기).
+**단일 레포에서 브랜치를 전환하며 작업한다.** 영구 worktree는 사용하지 않는다 (ops_v35에서 폐기).
 
 ### 작업 사이클
 1. **시작**: `git switch develop && git pull origin develop`
@@ -74,7 +74,7 @@ V202604140900__add_chat_session.sql
 > **왜 worktree를 버렸나**: "영구 작업 공간"과 "일회성 feature 브랜치"는 양립할 수 없다.
 > 이 모순을 `git reset --hard origin/develop`으로 봉합하려다 브랜치 이름과 내용이 무관해졌고,
 > 공용파일 심링크가 영구 dirty를 만들어 sync 자체가 불가능해지는 자기잠금 루프가 발생했다.
-> 전체 진단은 `docs/ops/ops_v34.md` 참조.
+> 전체 진단은 `docs/ops/ops_v35.md` Part 1 참조.
 
 ### 병렬 작업이 필요할 때
 
@@ -115,7 +115,7 @@ develop (integration branch, localhost 개발)
 
 > ⚠️ **`git cherry`로 유실 판정 금지** — patch-id는 커밋 **전체 diff**의 해시라, squash 머지로
 > 다른 파일과 뭉쳐지면 이미 반영된 커밋도 `+`(미반영)로 표시된다. 브랜치 삭제 전 판정은
-> 반드시 **소스 실물 대조**로 한다. (ops_v34 감사에서 false-negative 2건 확인)
+> 반드시 **소스 실물 대조**로 한다. (ops_v35 Part 1 감사에서 false-negative 2건 확인)
 
 ---
 
