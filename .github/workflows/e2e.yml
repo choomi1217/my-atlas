@@ -9,19 +9,39 @@ on:
       - 'qa/**'
       - 'docker-compose*.yml'
       - '.github/workflows/e2e.yml'
+  # ⚠️ pull_request 에는 paths 필터를 두지 않는다. 사유는 backend-ci.yml 참조.
+  # 배포 계열 job(deploy-gate 이하)은 push + refs/heads/main 조건이라 PR 에서는 애초에 돌지 않는다.
   pull_request:
     branches: [main, develop]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'qa/**'
-      - 'docker-compose*.yml'
-      - '.github/workflows/e2e.yml'
   workflow_dispatch:
 
 jobs:
+  changes:
+    name: Detect E2E-relevant Changes
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+              | grep -qE '^(backend/|frontend/|qa/|docker-compose.*\.yml|\.github/workflows/e2e\.yml)'; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
   api-e2e:
     name: API E2E Tests (Playwright request fixture)
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -315,8 +335,10 @@ jobs:
   notify-slack:
     name: Slack Notification
     runs-on: ubuntu-latest
-    needs: [api-e2e, ui-e2e, deploy-backend, deploy-frontend]
-    if: ${{ always() }}
+    needs: [changes, api-e2e, ui-e2e, deploy-backend, deploy-frontend]
+    # paths 필터를 제거하면서 이 워크플로가 모든 PR 에서 트리거된다.
+    # relevant 조건이 없으면 문서 전용 PR 마다 Slack 알림이 발사되므로 기존 동작을 유지하기 위해 추가한다.
+    if: ${{ always() && needs.changes.outputs.relevant == 'true' }}
     steps:
       - name: Determine results
         id: results
