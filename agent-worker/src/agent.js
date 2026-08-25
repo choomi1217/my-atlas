@@ -221,13 +221,17 @@ async function askJson(agent, system, userContent) {
 const ACTION_SYSTEM = `너는 웹 QA 테스트를 실행하는 에이전트다.
 주어진 목표(action)를 달성하기 위해 페이지의 상호작용 요소 중 하나에 대해 다음 액션 하나를 결정한다.
 반드시 아래 JSON만 출력한다(설명 금지):
-{"thought": "간단한 근거", "type": "click|fill|select|navigate|done", "ref": "aN 또는 null", "value": "입력/선택/URL 값 또는 null"}
+{"thought": "간단한 근거", "type": "click|fill|select|navigate|key|back|scroll|done", "ref": "aN 또는 null", "value": "입력/선택/URL/키 값 또는 null"}
 - click: ref 요소 클릭
 - fill: ref 입력칸에 value 입력
 - select: ref 셀렉트에서 value 옵션 선택
 - navigate: value(URL 또는 경로)로 이동
+- key: value 키를 누른다 (enter|search|back|tab|escape). **입력칸에 값을 넣는 것만으로 검색·제출이 실행되지 않는 화면에서는 fill 다음에 반드시 key=enter 를 해야 한다.**
+- back: 뒤로 가기
+- scroll: 화면을 value(down|up) 방향으로 스크롤. 찾는 요소가 화면 밖에 있을 때 쓴다
 - done: 목표 동작을 이미 수행 완료했을 때만
 요소 목록에 없는 것은 조작할 수 없다.
+입력의 availableActions 배열에 없는 type은 이 플랫폼에서 쓸 수 없으니 절대 쓰지 마라.
 여러 요소의 name이 서로 같으면(예: 네비게이션 링크와 소개 카드가 같은 문구를 쓰는 경우) href/testId/type으로 구분하고, 목표(action)나 목적지 URL과 실제로 일치하는 요소를 선택하라. 구분할 근거가 전혀 없으면 ref가 더 작은(문서상 더 먼저 나오는) 요소를 우선한다.
 중요: 목표가 "~를 클릭해서 …로 이동한다"처럼 동작+결과 상태로 적혀 있어도, 판단 기준은 그 결과 상태(url/화면)에 이미 도달했는지다. 현재 url/elements가 이미 그 결과 상태를 만족하면, 그 동작을 문자 그대로 다시 수행하지 말고 done 하라.
 중요: 목표(action)에 클릭·입력이 필요하면 먼저 그 동작을 수행하라. 아직 안 했으면 절대 done 하지 마라.
@@ -241,6 +245,10 @@ const JUDGE_SYSTEM = `너는 웹 QA 판정자다.
 입력의 pageText는 페이지에 보이는 텍스트(카드 제목·목록 항목 등)이니, "X가 목록에 추가됨" 같은 기대는 pageText에 X가 있는지로 확인하라.
 select/input의 현재 값 확인은 elements 배열의 value 필드만으로 충분한 근거다 — pageText에 그 값이 별도로 또 나타나지 않아도 된다.
 accessibilityTree는 페이지의 실제 포함(부모-자식) 구조를 중첩된 형태로 담고 있다. "X가 Y의 자식으로 표시됨", "X가 Y 아래에 있음"처럼 계층/포함 관계를 묻는 기대는 pageText의 순서로 추측하지 말고, accessibilityTree에서 Y에 해당하는 노드의 children 안에 X가 있는지로 판정하라.
+중요: url에 "(대상 앱 밖)"이 붙어 있으면 테스트 대상이 아닌 화면(런처·다른 앱)을 보고 있는 것이다.
+그 화면에 기대와 비슷한 요소가 있어도 절대 PASS 하지 마라 — INCONCLUSIVE로 판정하고 앱을 벗어났음을 근거에 적어라.
+중요: url에 "(앱 응답 없음/크래시 다이얼로그)"가 붙어 있으면 앱이 멈췄거나 죽은 것이다.
+화면 이름이 목표와 같아도 기대가 충족된 것이 아니다 — 반드시 FAIL로 판정하고 앱이 응답하지 않았음을 근거에 적어라.
 반드시 아래 JSON만 출력한다(설명 금지):
 {"verdict": "PASS|FAIL|INCONCLUSIVE", "reasoning": "관측 근거"}
 - PASS: 기대가 명확히 충족됨 (pageText/elements에 근거 있음)
@@ -274,54 +282,122 @@ async function executeAction(page, action) {
   await waitReady(page); // 액션 후 SPA 렌더·네트워크 안정화 대기
 }
 
-/** 자유 서술 목표를 향해 브라우저를 구동 (seed 로그인 등, 판정 없음) */
-export async function agenticGoal(page, agent, goalText, maxActions) {
+/**
+ * 사용자가 중단을 요청했을 때 던진다.
+ *
+ * 이 예외를 만나면 워커는 **아무 보고도 하지 않고** 조용히 끝내야 한다.
+ * `cancelJob`이 이미 status·completedAt을 종료 상태로 만들었고,
+ * `completeJob`은 DONE/FAILED만 허용하므로 `complete(CANCELLED)`를 부르면
+ * 예외가 나고 그게 catch로 흘러가 **CANCELLED를 FAILED로 덮어쓴다**.
+ */
+export class CancelledError extends Error {
+  constructor(message = '사용자가 실행을 중단했습니다') {
+    super(message);
+    this.name = 'CancelledError';
+  }
+}
+
+/**
+ * 이 워커가 구동할 수 없는 대상의 Job일 때 던진다.
+ *
+ * **Job을 FAILED로 만들면 안 된다.** 워커를 잘못 붙인 것은 운영자의 실수이지
+ * Job의 실패가 아니며, FAILED로 표시해 버리면 올바른 종류의 워커가 와도
+ * 그 Job을 다시 실행할 수 없다. PENDING 그대로 두고 운영자에게만 알린다.
+ */
+export class TargetMismatchError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'TargetMismatchError';
+  }
+}
+
+/** 웹(Playwright) 조작 객체 — 기존 함수를 그대로 위임한다. 동작 변화 없음. */
+export function createWebOps(page) {
+  return {
+    kind: 'WEB',
+    availableActions: ['click', 'fill', 'select', 'navigate', 'done'],
+    /** 대상 진입 — baseUrl 이동 후 결정적 로그인 (기존 runTestCase 도입부와 동일) */
+    async enter(target, agent) {
+      await page.goto(target.baseUrl, { waitUntil: 'domcontentloaded' });
+      await waitReady(page);
+      await autoLogin(page, agent.username, agent.password);
+    },
+    async snapshot() {
+      const elements = await snapshotStable(page);
+      // 웹은 ref가 곧 셀렉터(data-agent-ref)라 별도 locator 맵이 필요 없다
+      return { elements, locators: null };
+    },
+    text: () => pageText(page),
+    tree: () => accessibilityTree(page),
+    location: async () => page.url(),
+    execute: (action) => executeAction(page, action),
+    async close() {
+      /* 브라우저 수명은 호출부(index.js)가 관리한다 */
+    },
+  };
+}
+
+/** 자유 서술 목표를 향해 대상을 구동 (seed 네비게이션 등, 판정 없음) */
+export async function agenticGoal(ops, agent, goalText, maxActions) {
   for (let i = 0; i < maxActions; i++) {
-    const elements = await snapshotStable(page);
+    const { elements, locators } = await ops.snapshot();
+    const url = await ops.location();
     const action = await askJson(agent, ACTION_SYSTEM, JSON.stringify({
       goal: goalText,
-      url: page.url(),
+      url,
       elements,
+      availableActions: ops.availableActions,
     }));
-    console.log(`[worker] seed[${i}] url=${page.url()} → ${action.type}${action.ref ? `(${action.ref})` : ''}${action.value ? `=${action.value}` : ''} :: ${action.thought || ''}`);
+    console.log(`[worker] seed[${i}] url=${url} → ${action.type}${action.ref ? `(${action.ref})` : ''}${action.value ? `=${action.value}` : ''} :: ${action.thought || ''}`);
     if (action.type === 'done') return;
-    await executeAction(page, action);
+    await ops.execute(action, locators);
   }
-  console.log(`[worker] seed 목표 미완료 — maxActions(${maxActions}) 소진, url=${page.url()}`);
+  console.log(`[worker] seed 목표 미완료 — maxActions(${maxActions}) 소진`);
 }
 
 /**
  * TC 1건을 실행하고 판정한다.
  * @returns {Promise<{verdict:string, stepLogs:Array, durationMs:number, tokenCost:number}>}
  */
-export async function runTestCase(page, agent, tc, baseUrl, seedNote, maxStepActions) {
+export async function runTestCase(ops, agent, tc, target, maxStepActions, shouldStop) {
   const started = agent.now();
   const startTokens = agent.tokenCost;
   const stepLogs = [];
 
-  // 1) 대상 진입 → 결정적 로그인 → seed 네비게이션(agentic)
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await waitReady(page);
-  await autoLogin(page, agent.username, agent.password);
-  if (seedNote && seedNote.trim()) {
-    await agenticGoal(page, agent, seedNote, maxStepActions);
+  // 1) 대상 진입 (웹: goto + 결정적 로그인 / 모바일: 앱은 세션이 이미 띄웠다)
+  await ops.enter(target, agent);
+
+  // 2) 전제조건 네비게이션.
+  //    TC의 Segment Path가 있으면 그것이 전제조건이다 (v24 §4) — Product 단위 seedNote보다 우선.
+  const pathGoal = (tc.segmentPath || []).filter(Boolean).join(' > ');
+  const seedGoal = pathGoal
+    ? `아래 경로가 가리키는 화면까지 이동한다: ${pathGoal}. 이미 그 화면이면 done 하라.`
+    : (target.seedNote || '').trim();
+  if (seedGoal) {
+    await agenticGoal(ops, agent, seedGoal, maxStepActions);
   }
 
-  // 2) TC step 순차 실행·판정
+  // 3) TC step 순차 실행·판정
   const steps = (tc.steps || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
   let verdict = 'PASS';
   for (const step of steps) {
+    // 상용 서비스를 조작하는 중이므로 step 단위로 중단 요청을 확인한다.
+    // CancelledError는 아래 catch가 아니라 호출부까지 올라가야 하므로 try 밖에서 던진다.
+    if (shouldStop && (await shouldStop())) {
+      throw new CancelledError();
+    }
     const history = []; // step 내 이미 시도한 액션 (반복 방지). 성공/실패 모두 여기 남기고, 로그는 이걸 그대로 쓴다.
     try {
       // 액션 결정·실행 (step당 최대 maxStepActions)
       for (let i = 0; i < maxStepActions; i++) {
-        const elements = await snapshotStable(page);
+        const { elements, locators } = await ops.snapshot();
         const action = await askJson(agent, ACTION_SYSTEM, JSON.stringify({
           action: step.action,
           expectedState: step.expected,
-          url: page.url(),
+          url: await ops.location(),
           elements,
           previousActions: history,
+          availableActions: ops.availableActions,
         }));
         const targetEl = action.ref ? elements.find((e) => e.ref === action.ref) : null;
         const targetLabel = targetEl ? `"${targetEl.name}"${targetEl.href ? `→${targetEl.href}` : ''}` : null;
@@ -331,7 +407,7 @@ export async function runTestCase(page, agent, tc, baseUrl, seedNote, maxStepAct
           break;
         }
         try {
-          await executeAction(page, action);
+          await ops.execute(action, locators);
           history.push(desc);
         } catch (e) {
           // 실패한 액션도 히스토리에 남겨 다음엔 다른 요소를 시도하게 한다
@@ -339,12 +415,13 @@ export async function runTestCase(page, agent, tc, baseUrl, seedNote, maxStepAct
         }
       }
       // expected 대조 판정 (상호작용 요소 + 보이는 텍스트 + 접근성 트리로 결과 확인)
-      const observed = await snapshotStable(page);
-      const text = await pageText(page);
-      const axTree = await accessibilityTree(page);
+      const { elements: observed } = await ops.snapshot();
+      const text = await ops.text();
+      const axTree = await ops.tree();
+      const where = await ops.location();
       const judged = await askJson(agent, JUDGE_SYSTEM, JSON.stringify({
         expected: step.expected,
-        url: page.url(),
+        url: where,
         elements: observed,
         pageText: text,
         accessibilityTree: axTree,
@@ -352,7 +429,7 @@ export async function runTestCase(page, agent, tc, baseUrl, seedNote, maxStepAct
       stepLogs.push({
         order: step.order,
         actionTaken: history.join(' → '),
-        observed: page.url(),
+        observed: where,
         judgment: `${judged.verdict}: ${judged.reasoning}`,
         screenshotKey: null,
       });
@@ -362,7 +439,7 @@ export async function runTestCase(page, agent, tc, baseUrl, seedNote, maxStepAct
       stepLogs.push({
         order: step.order,
         actionTaken: history.join(' → '),
-        observed: page.url(),
+        observed: await ops.location().catch(() => ''),
         judgment: `INCONCLUSIVE: 실행 오류 — ${err.message}`,
         screenshotKey: null,
       });

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -28,6 +29,7 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
     private final ProductRepository productRepository;
     private final VersionPhaseRepository versionPhaseRepository;
     private final TestResultRepository testResultRepository;
+    private final SegmentRepository segmentRepository;
 
     @Override
     @Transactional
@@ -54,14 +56,16 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
     @Override
     @Transactional(readOnly = true)
     public AgentExecutionDto.JobResponse getJob(Long jobId) {
-        return AgentExecutionDto.JobResponse.from(findJob(jobId));
+        AgentExecutionJobEntity job = findJob(jobId);
+        return AgentExecutionDto.JobResponse.from(job, execTargetKindOf(job.getProductId()));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<AgentExecutionDto.JobResponse> listByProduct(Long productId) {
+        ExecTargetKind kind = execTargetKindOf(productId);
         return jobRepository.findAllByProductIdOrderByCreatedAtDesc(productId).stream()
-                .map(AgentExecutionDto.JobResponse::from)
+                .map(j -> AgentExecutionDto.JobResponse.from(j, kind))
                 .toList();
     }
 
@@ -69,7 +73,7 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
     @Transactional(readOnly = true)
     public List<AgentExecutionDto.JobResponse> listByPhase(Long phaseId) {
         return jobRepository.findAllByPhaseIdOrderByCreatedAtDesc(phaseId).stream()
-                .map(AgentExecutionDto.JobResponse::from)
+                .map(j -> AgentExecutionDto.JobResponse.from(j, execTargetKindOf(j.getProductId())))
                 .toList();
     }
 
@@ -178,19 +182,48 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
         if (job.getScope() == AgentExecutionScope.SINGLE) {
             TestCaseEntity tc = testCaseRepository.findById(job.getTargetTestCaseId())
                     .orElseThrow(() -> new EntityNotFoundException("TestCase not found: " + job.getTargetTestCaseId()));
-            testCases = List.of(AgentExecutionDto.TestCaseContext.from(tc));
+            testCases = List.of(AgentExecutionDto.TestCaseContext.from(tc, resolveSegmentNames(tc)));
         } else {
             // PHASE_* : scope에 맞는 phase의 TC 목록을 해석
             testCases = resolvePhaseTestCaseIds(job.getPhaseId(), job.getScope()).stream()
                     .map(id -> testCaseRepository.findById(id).orElse(null))
                     .filter(Objects::nonNull)
-                    .map(AgentExecutionDto.TestCaseContext::from)
+                    .map(tc -> AgentExecutionDto.TestCaseContext.from(tc, resolveSegmentNames(tc)))
                     .toList();
         }
 
         return new AgentExecutionDto.WorkerContextResponse(
-                job.getId(), job.getScope(),
+                job.getId(), job.getScope(), product.getExecTargetKind(),
                 product.getExecBaseUrl(), product.getExecSeedNote(), testCases);
+    }
+
+    /** 제품이 선언한 실행 대상 종류. 제품을 못 찾으면 기존 동작(WEB)으로 본다. */
+    private ExecTargetKind execTargetKindOf(Long productId) {
+        return productRepository.findById(productId)
+                .map(ProductEntity::getExecTargetKind)
+                .orElse(ExecTargetKind.WEB);
+    }
+
+    /**
+     * TC의 Segment 경로를 루트→말단 순의 이름 목록으로 해석한다.
+     * <p>
+     * Registry에서는 TC가 놓인 Segment 경로가 곧 전제조건을 선언한다
+     * (예: {@code 검색창 > 검색 전 화면 > 나와 가까운 매장 목록}).
+     * 에이전트가 TC step을 실행하기 전에 그 화면까지 이동해야 하므로 반드시 함께 넘긴다.
+     * ID 배열로는 에이전트가 아무것도 할 수 없어 이름으로 해석한다.
+     *
+     * @return 해석된 이름 목록. path가 비었거나 세그먼트가 삭제됐으면 빈 목록
+     */
+    private List<String> resolveSegmentNames(TestCaseEntity tc) {
+        Long[] path = tc.getPath();
+        if (path == null || path.length == 0) {
+            return List.of();
+        }
+        return Arrays.stream(path)
+                .filter(Objects::nonNull)
+                .map(id -> segmentRepository.findById(id).map(SegmentEntity::getName).orElse(null))
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     /**

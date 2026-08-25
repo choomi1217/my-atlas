@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { productApi } from '@/api/features';
-import { Product } from '@/types/features';
+import { ExecTargetKind, Product } from '@/types/features';
+
+const TARGET_KINDS: { value: ExecTargetKind; label: string; hint: string }[] = [
+  { value: 'WEB', label: '웹 (브라우저)', hint: 'Playwright로 Base URL을 열어 실행합니다.' },
+  { value: 'ANDROID', label: 'Android 앱', hint: 'Appium으로 에뮬레이터/기기의 앱을 실행합니다. Base URL은 쓰지 않습니다.' },
+  { value: 'IOS', label: 'iOS 앱', hint: '아직 지원하지 않습니다.' },
+];
 
 interface ExecProfileModalProps {
   product: Product;
@@ -19,8 +25,13 @@ export default function ExecProfileModal({
 }: ExecProfileModalProps) {
   const [baseUrl, setBaseUrl] = useState(product.execBaseUrl ?? '');
   const [seedNote, setSeedNote] = useState(product.execSeedNote ?? '');
+  const [targetKind, setTargetKind] = useState<ExecTargetKind>(
+    product.execTargetKind ?? 'WEB'
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isWeb = targetKind === 'WEB';
 
   const handleSave = async () => {
     setSaving(true);
@@ -29,7 +40,8 @@ export default function ExecProfileModal({
       const updated = await productApi.setExecProfile(
         product.id,
         baseUrl.trim(),
-        seedNote.trim()
+        seedNote.trim(),
+        targetKind
       );
       onSaved(updated);
       onClose();
@@ -62,19 +74,46 @@ export default function ExecProfileModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Base URL
+              실행 대상
             </label>
-            <input
-              type="text"
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder="http://localhost:5173"
-              className="w-full px-3 py-2 border rounded text-sm"
-            />
+            <select
+              value={targetKind}
+              onChange={(e) => setTargetKind(e.target.value as ExecTargetKind)}
+              className="w-full px-3 py-2 border rounded text-sm bg-white"
+            >
+              {TARGET_KINDS.map((k) => (
+                <option key={k.value} value={k.value}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
             <p className="text-xs text-gray-400 mt-1">
-              에이전트가 실행을 시작할 대상 URL
+              {TARGET_KINDS.find((k) => k.value === targetKind)?.hint}
             </p>
+            {targetKind === 'IOS' && (
+              <p className="text-xs text-amber-700 mt-1">
+                iOS는 아직 실행할 수 없습니다. 선택해도 워커가 Job을 집지 않습니다.
+              </p>
+            )}
           </div>
+
+          {isWeb && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Base URL
+              </label>
+              <input
+                type="text"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+                placeholder="http://localhost:5173"
+                className="w-full px-3 py-2 border rounded text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                에이전트가 실행을 시작할 대상 URL
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

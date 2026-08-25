@@ -30,8 +30,13 @@ export interface Product {
   description?: string;
   execBaseUrl?: string | null;
   execSeedNote?: string | null;
+  /** 에이전트 실행 대상 종류. 워커는 자기가 구동 가능한 종류의 Job만 집는다. */
+  execTargetKind?: ExecTargetKind;
   createdAt: string;
 }
+
+/** 에이전트 실행 대상 종류 (registry_v24 Step 8). 제품 분류인 Platform과 별개다. */
+export type ExecTargetKind = 'WEB' | 'ANDROID' | 'IOS';
 
 /**
  * Agentic Test Execution (registry_v20).

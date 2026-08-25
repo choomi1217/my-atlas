@@ -46,6 +46,14 @@ public class ProductEntity {
     @Column(name = "exec_seed_note", columnDefinition = "TEXT")
     private String execSeedNote;
 
+    /**
+     * 에이전트 실행 대상 종류 (registry_v24 Step 8).
+     * 제품 분류인 {@link #platform}과 별개다 — 워커는 자기가 구동 가능한 종류의 Job만 집는다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "exec_target_kind", length = 20, nullable = false)
+    private ExecTargetKind execTargetKind = ExecTargetKind.WEB;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
