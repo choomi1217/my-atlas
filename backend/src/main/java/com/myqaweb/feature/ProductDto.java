@@ -27,12 +27,14 @@ public class ProductDto {
             String description,
             String execBaseUrl,
             String execSeedNote,
+            ExecTargetKind execTargetKind,
             LocalDateTime createdAt
     ) {}
 
-    /** 에이전트 실행 프로파일 설정 (registry_v20). */
+    /** 에이전트 실행 프로파일 설정 (registry_v20, v24에서 execTargetKind 추가). */
     public record ExecProfileRequest(
             String execBaseUrl,
-            String execSeedNote
+            String execSeedNote,
+            ExecTargetKind execTargetKind
     ) {}
 }

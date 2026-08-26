@@ -34,6 +34,10 @@ export default function AgentRunModal({
   const [job, setJob] = useState<AgentExecutionJob | null>(null);
   const [result, setResult] = useState<AgentExecutionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<number | null>(null);
+  // 중지는 되돌릴 수 없으므로 한 번 더 확인받는다
+  const [confirmingStop, setConfirmingStop] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const startedRef = useRef(false);
   const stoppedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -58,12 +62,17 @@ export default function AgentRunModal({
             productId,
             testCase.id
           );
+          setJobId(jobId);
           timerRef.current = setInterval(async () => {
             if (stoppedRef.current) return;
             try {
               const j = await agentExecutionApi.getJob(jobId);
               if (stoppedRef.current) return;
               setJob(j);
+              if (j.status === 'CANCELLED') {
+                clearTimer();
+                return;
+              }
               if (j.status === 'DONE' || j.status === 'FAILED') {
                 clearTimer();
                 if (j.status === 'DONE') {
@@ -94,6 +103,24 @@ export default function AgentRunModal({
   }, [productId, testCase.id]);
 
   const running = !job || job.status === 'PENDING' || job.status === 'RUNNING';
+
+  /**
+   * 실행 중단. 워커는 TC·step 경계에서 취소 상태를 확인하고 조용히 멈춘다.
+   * 상용 서비스를 조작하는 중일 수 있으므로 사람이 멈출 수단은 반드시 필요하다.
+   */
+  const handleStop = async () => {
+    if (jobId == null) return;
+    setStopping(true);
+    try {
+      const j = await agentExecutionApi.cancel(jobId);
+      setJob(j);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '중지 실패');
+    } finally {
+      setStopping(false);
+      setConfirmingStop(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -132,6 +159,10 @@ export default function AgentRunModal({
             ) : job?.status === 'FAILED' ? (
               <span className="text-sm text-red-700">
                 실행 실패: {job.errorMessage || '알 수 없는 오류'}
+              </span>
+            ) : job?.status === 'CANCELLED' ? (
+              <span className="text-sm text-gray-700">
+                중지됨 — 진행 중이던 TC의 결과는 기록되지 않습니다.
               </span>
             ) : (
               <span className="text-sm text-gray-700">실행 완료</span>
@@ -197,10 +228,39 @@ export default function AgentRunModal({
           )}
         </div>
 
-        <div className="px-5 py-3 border-t flex justify-end">
+        <div className="px-5 py-3 border-t flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            {running && jobId != null && (
+              confirmingStop ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700">중지할까요?</span>
+                  <button
+                    onClick={handleStop}
+                    disabled={stopping}
+                    className="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded"
+                  >
+                    {stopping ? '중지 중…' : '중지'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingStop(false)}
+                    className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                  >
+                    계속
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmingStop(true)}
+                  className="px-4 py-1.5 text-sm border border-red-300 text-red-700 hover:bg-red-50 rounded"
+                >
+                  중지
+                </button>
+              )
+            )}
+          </div>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+            className="px-4 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded flex-shrink-0"
           >
             닫기
           </button>

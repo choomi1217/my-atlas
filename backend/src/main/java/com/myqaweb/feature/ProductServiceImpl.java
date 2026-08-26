@@ -71,6 +71,10 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
         entity.setExecBaseUrl(request.execBaseUrl());
         entity.setExecSeedNote(request.execSeedNote());
+        // 미지정이면 기존 값을 유지한다 — 대상 종류를 실수로 WEB으로 되돌리지 않기 위함
+        if (request.execTargetKind() != null) {
+            entity.setExecTargetKind(request.execTargetKind());
+        }
         return toResponse(productRepository.save(entity));
     }
 
@@ -83,6 +87,7 @@ public class ProductServiceImpl implements ProductService {
                 entity.getDescription(),
                 entity.getExecBaseUrl(),
                 entity.getExecSeedNote(),
+                entity.getExecTargetKind(),
                 entity.getCreatedAt()
         );
     }

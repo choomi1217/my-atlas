@@ -64,3 +64,6 @@ docs/qa/portfolio/
 
 # Claude
 .claude/settings.local.json
+
+# MCP 설정 — nvm 절대경로가 박혀 있어 머신 종속이다 (reference: Playwright MCP는 Node 20 고정 필요)
+.mcp.json

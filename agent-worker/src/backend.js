@@ -63,6 +63,11 @@ export class BackendClient {
     return this.#request('GET', `/api/agent-executions?productId=${productId}`);
   }
 
+  /** Job 단건 조회 (중단 여부 확인용) */
+  getJob(jobId) {
+    return this.#request('GET', `/api/agent-executions/${jobId}`);
+  }
+
   /** Job 점유: PENDING → RUNNING */
   claim(jobId) {
     return this.#request('POST', `/api/agent-executions/${jobId}/claim`);

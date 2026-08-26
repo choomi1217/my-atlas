@@ -1,5 +1,6 @@
 import apiClient from './client';
 import {
+  ExecTargetKind,
   ApiResponse,
   ApplySuggestedPathResult,
   Company,
@@ -132,11 +133,12 @@ export const productApi = {
   setExecProfile: async (
     id: number,
     execBaseUrl: string,
-    execSeedNote: string
+    execSeedNote: string,
+    execTargetKind?: ExecTargetKind
   ): Promise<Product> => {
     const response = await apiClient.patch<ApiResponse<Product>>(
       `/api/products/${id}/exec-profile`,
-      { execBaseUrl, execSeedNote }
+      { execBaseUrl, execSeedNote, execTargetKind }
     );
     return response.data.data;
   },

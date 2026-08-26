@@ -71,7 +71,7 @@ class TestCaseServiceImplTest {
                 .thenReturn(List.of());
 
         company = new CompanyEntity(1L, "Test Company", true, LocalDateTime.now());
-        product = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", null, null, null, LocalDateTime.now());
+        product = new ProductEntity(1L, company, "Product A", Platform.WEB, "Web app", null, null, null, ExecTargetKind.WEB, LocalDateTime.now());
         testCase = new TestCaseEntity(
                 1L, product, new Long[]{1L, 2L}, null, "Test social login",
                 "Social login feature", "Allow users to login with social accounts",
@@ -344,7 +344,7 @@ class TestCaseServiceImplTest {
         // Arrange — segment 10 exists but belongs to a DIFFERENT product (id=999)
         CompanyEntity otherCompany = new CompanyEntity(2L, "Other", true, LocalDateTime.now());
         ProductEntity otherProduct = new ProductEntity(
-                999L, otherCompany, "Other Product", Platform.WEB, null, null, null, null, LocalDateTime.now());
+                999L, otherCompany, "Other Product", Platform.WEB, null, null, null, null, ExecTargetKind.WEB, LocalDateTime.now());
 
         SegmentEntity wrongProductSeg = new SegmentEntity();
         wrongProductSeg.setId(10L);

@@ -24,6 +24,7 @@ class AgentExecutionServiceImplTest {
     @Mock private ProductRepository productRepository;
     @Mock private VersionPhaseRepository versionPhaseRepository;
     @Mock private TestResultRepository testResultRepository;
+    @Mock private SegmentRepository segmentRepository;
 
     @InjectMocks private AgentExecutionServiceImpl service;
 
@@ -257,5 +258,48 @@ class AgentExecutionServiceImplTest {
 
         assertThat(ctx.testCases()).hasSize(1);
         assertThat(ctx.testCases().get(0).id()).isEqualTo(1L);
+    }
+
+    @Test
+    void getExecutionContext_single_resolvesSegmentPathToNames() {
+        AgentExecutionJobEntity j = job(1L, AgentExecutionScope.SINGLE, AgentExecutionStatus.RUNNING, null);
+        j.setTargetTestCaseId(7L);
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(j));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(new ProductEntity()));
+
+        TestCaseEntity tc = new TestCaseEntity();
+        tc.setId(7L);
+        tc.setPath(new Long[] {100L, 200L});
+        when(testCaseRepository.findById(7L)).thenReturn(Optional.of(tc));
+        when(segmentRepository.findById(100L)).thenReturn(Optional.of(segment("검색창")));
+        when(segmentRepository.findById(200L)).thenReturn(Optional.of(segment("나와 가까운 매장 목록")));
+
+        var ctx = service.getExecutionContext(1L);
+
+        // Segment 경로가 곧 TC의 전제조건이므로 루트→말단 순의 이름으로 워커에 전달되어야 한다
+        assertThat(ctx.testCases().get(0).segmentPath())
+                .containsExactly("검색창", "나와 가까운 매장 목록");
+    }
+
+    @Test
+    void getExecutionContext_single_emptyPathYieldsEmptySegmentPath() {
+        AgentExecutionJobEntity j = job(1L, AgentExecutionScope.SINGLE, AgentExecutionStatus.RUNNING, null);
+        j.setTargetTestCaseId(7L);
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(j));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(new ProductEntity()));
+
+        TestCaseEntity tc = new TestCaseEntity();
+        tc.setId(7L);
+        when(testCaseRepository.findById(7L)).thenReturn(Optional.of(tc));
+
+        var ctx = service.getExecutionContext(1L);
+
+        assertThat(ctx.testCases().get(0).segmentPath()).isEmpty();
+    }
+
+    private SegmentEntity segment(String name) {
+        SegmentEntity s = new SegmentEntity();
+        s.setName(name);
+        return s;
     }
 }
