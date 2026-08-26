@@ -1,5 +1,16 @@
 # Changelog
 
+## v2026.08.24 — 2026-08-24
+
+### 🐛 Fixes
+- 평문 admin 크리덴셜 제거 — .env.example / V16 주석
+- frontend required check 이름 불일치 — matrix 제거
+
+### 📝 Docs
+- poc_testplan.md 삭제 — 평문 크리덴셜 제거
+- ops v35 — v34 통합 및 레포 정리 인벤토리
+- changelog v2026.08.20.1359
+
 ## v2026.08.20.1359 — 2026-08-20
 
 _변경 사항 없음 ([type] 커밋 기준)_

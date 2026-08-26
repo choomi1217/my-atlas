@@ -1,5 +1,6 @@
 package com.myqaweb.teststudio;
 
+import com.myqaweb.feature.ExecTargetKind;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myqaweb.common.EmbeddingService;
 import com.myqaweb.convention.ConventionEntity;
@@ -129,7 +130,7 @@ class TestStudioGeneratorTest {
         CompanyEntity company = new CompanyEntity(1L, "Acme", true, LocalDateTime.now());
         product = new ProductEntity(
                 10L, company, "Payment App", Platform.MOBILE,
-                "Payment product", null, null, null, LocalDateTime.now()
+                "Payment product", null, null, null, ExecTargetKind.WEB, LocalDateTime.now()
         );
 
         job = new TestStudioJobEntity();
@@ -441,7 +442,7 @@ class TestStudioGeneratorTest {
         CompanyEntity company = new CompanyEntity(1L, "Acme", true, LocalDateTime.now());
         ProductEntity noDescProduct = new ProductEntity(
                 10L, company, "Payment App", Platform.MOBILE,
-                null, null, null, null, LocalDateTime.now()
+                null, null, null, null, ExecTargetKind.WEB, LocalDateTime.now()
         );
         when(jobRepository.findById(100L)).thenReturn(Optional.of(job));
         when(productRepository.findById(10L)).thenReturn(Optional.of(noDescProduct));
