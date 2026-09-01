@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * HTTP request logging filter for API access statistics.
@@ -42,6 +43,11 @@ public class ApiAccessLogFilter extends OncePerRequestFilter {
             Map.entry("/api/admin", "ADMIN")
     );
 
+    // v36: GET polling endpoints with no statistical value (agent-worker polls every 3s,
+    // no consumer reads this data — see docs/ops/ops_v36.md). POST on the same prefix
+    // (claim/results/complete) must still be logged, so this only applies to GET.
+    private static final Set<String> POLLING_GET_PREFIXES = Set.of("/api/agent-executions");
+
     private final ApiAccessLogRepository repository;
 
     @Override
@@ -61,9 +67,19 @@ public class ApiAccessLogFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
         // Skip non-API, actuator, and SSE streaming endpoints (response already committed)
-        return !uri.startsWith("/api/")
-                || uri.startsWith("/actuator/")
-                || uri.equals("/api/senior/chat");
+        if (!uri.startsWith("/api/") || uri.startsWith("/actuator/") || uri.equals("/api/senior/chat")) {
+            return true;
+        }
+        // v36: skip GET-only polling prefixes (see POLLING_GET_PREFIXES). POST on the
+        // same prefix is real execution history and must still be logged.
+        if ("GET".equalsIgnoreCase(request.getMethod())) {
+            for (String prefix : POLLING_GET_PREFIXES) {
+                if (uri.startsWith(prefix)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void logAccessAsync(HttpServletRequest request, HttpServletResponse response, long durationMs) {
