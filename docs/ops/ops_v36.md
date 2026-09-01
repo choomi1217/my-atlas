@@ -3,7 +3,7 @@
 > 변경 유형: 환경 개선
 > 작성일: 2026-09-01
 > 버전: v36
-> 상태: 진행 중
+> 상태: 구현 완료 (기존 누적분 정리는 User 실행 대기)
 
 ---
 
@@ -109,42 +109,88 @@ CLAUDE.md의 **"스키마 변경 없는 작업에서 DB 데이터 삭제 금지"
 
 ### Step 2 — 폴링 GET 제외 (Agent-A)
 
-- [ ] 2-1. `ApiAccessLogFilter`에 `POLLING_GET_PREFIXES` 상수 추가 (기존 `URI_FEATURE_MAP` 스타일 유지)
-- [ ] 2-2. `shouldNotFilter()`에 GET 한정 제외 조건 추가
+- [x] 2-1. `ApiAccessLogFilter`에 `POLLING_GET_PREFIXES` 상수 추가 (기존 `URI_FEATURE_MAP` 스타일 유지)
+- [x] 2-2. `shouldNotFilter()`에 GET 한정 제외 조건 추가
 
 ### Step 3 — 보존 정책 (Agent-A)
 
-- [ ] 3-1. `ApiAccessLogRepository`에 `deleteOlderThan(cutoff)` 추가 (`@Modifying` + nativeQuery)
-- [ ] 3-2. `AccessLogRetentionScheduler` 신규 작성 (`SnapshotScheduler` 패턴)
-- [ ] 3-3. `application.yml`에 `monitoring.access-log.retention.*` 추가
+- [x] 3-1. `ApiAccessLogRepository`에 `deleteOlderThan(cutoff)` 추가 (`@Modifying` + nativeQuery)
+- [x] 3-2. `AccessLogRetentionScheduler` 신규 작성 (`SnapshotScheduler` 패턴)
+- [x] 3-3. `application.yml`에 `monitoring.access-log.retention.*` 추가
 
 ### Step 4 — 단위 테스트 (Agent-B)
 
-- [ ] 4-1. `ApiAccessLogFilterTest`에 케이스 추가
+- [x] 4-1. `ApiAccessLogFilterTest`에 케이스 추가
   - `GET /api/agent-executions` → `save()` 호출 안 됨
   - `GET /api/agent-executions/123` → 호출 안 됨
   - `POST /api/agent-executions/123/claim` → **호출됨** (이력 보존)
   - `GET /api/test-cases` → 호출됨 (회귀 방지)
-- [ ] 4-2. `AccessLogRetentionSchedulerTest` 신규
+- [x] 4-2. `AccessLogRetentionSchedulerTest` 신규
   - `enabled=true` → `deleteOlderThan()` 호출, cutoff를 `ArgumentCaptor`로 검증
   - `enabled=false` → 호출되지 않음
 
 ### Step 5 — E2E (Agent-C)
 
-- [ ] 5-1. 에이전트 실행 플로우 회귀 확인 (`qa/ui/agent-execution.spec.ts` 기존 파일 활용)
-- [ ] 5-2. 모니터링 대시보드가 여전히 데이터 반환하는지 확인
+- [x] 5-1. 에이전트 실행 플로우 회귀 확인 (`qa/ui/agent-execution.spec.ts` 기존 파일 활용)
+- [x] 5-2. 모니터링 대시보드가 여전히 데이터 반환하는지 확인
 
 > 셀렉터는 추측 금지. 대상 TSX를 반드시 Read 후 작성한다.
 
 ### Step 6 — Agent-D 검증
 
-- [ ] 6-1. `cd backend && ./gradlew clean build`
-- [ ] 6-2. `docker compose up -d --build && sleep 10`
-- [ ] 6-3. `cd qa && npx playwright test` (필터 없이 전체 실행)
-- [ ] 6-4. `docker compose down` (무조건 실행, `agent-worker`는 `--profile worker` 필요)
+- [x] 6-1. `cd backend && ./gradlew clean build`
+- [x] 6-2. `docker compose up -d --build && sleep 10`
+- [x] 6-3. `cd qa && npx playwright test` (필터 없이 전체 실행)
+- [x] 6-4. `docker compose down` (무조건 실행, `agent-worker`는 `--profile worker` 필요)
 
 **판정 규칙**: "0 failed"만으로 성공 선언하지 않는다. "did not run"이 있으면 원인을 조사하고,
 새로 추가한 테스트는 개별 지정 실행으로 실제 동작을 확인한다.
+
+---
+
+## 3-A. 검증 결과 (2026-09-01 실측)
+
+### 단위 테스트 — 21건 전부 통과, skip 0
+
+| 파일 | 결과 |
+|---|---|
+| `ApiAccessLogFilterTest` | 16건 (기존 8 + 신규 8) 전부 통과 |
+| `AccessLogRetentionSchedulerTest` | 5건 전부 통과 |
+
+### E2E — 제 변경으로 인한 회귀 없음
+
+동일 조건(전체 스위트)에서 기준선과 대조했다.
+
+| 대상 | passed | skipped | failed |
+|---|---|---|---|
+| `origin/develop` (기준선) | 368 | 25 | 3 |
+| `feature/access_log` | 368 | 25 | 3 |
+
+**결과가 정확히 일치한다.** 정의된 396건이 전부 계정되며 "did not run"은 없다.
+skip 25건은 전부 기존 `test.fixme()` / 조건부 skip이다.
+
+잔존 실패 3건(`ui/kb.spec.ts:296`, `ui/senior.spec.ts:64`, `ui/senior.spec.ts:123`)은
+**develop에서도 동일하게 실패**하므로 이번 변경과 무관하다. 다만 develop의 CI e2e는
+계속 green이라 **로컬 환경 특유의 실패**로 보이며, 원인은 senior/kb 도메인 사안이라
+이번 범위에서 다루지 않는다. (§6 참조)
+
+> Agent-D 1차 실행에서 `ui/convention.spec.ts:238`이 추가로 실패했으나,
+> 동일 코드 재실행에서 통과해 **flaky**로 판정했다. develop에서도 통과한다.
+
+### E2E 스펙 자체의 판별력 검증
+
+작성된 `qa/api/access-log.spec.ts`가 **수정 여부와 무관하게 통과**하는 문제가 있어 고쳤다.
+
+원인은 `topEndpoints`가 `ORDER BY count DESC LIMIT 20`이라는 점이다. 폴링을 5회만 치면
+로그가 기록되더라도 20위 문턱(실측 **51**) 아래라 창에 못 들어와 관측되지 않는다.
+실제로 초기 버전은 **수정 없는 develop 백엔드에서도 3/3 통과**했다.
+
+현재 창의 20위 값을 읽어 그보다 많이 호출하도록 바꾼 뒤 양쪽에서 실증했다.
+
+| 백엔드 | 결과 |
+|---|---|
+| `origin/develop` (미수정) | ❌ 실패 — `count rose from 0 after 56 polling calls (20th place was 51)` |
+| `feature/access_log` (수정) | ✅ 3/3 통과 |
 
 ---
 
@@ -201,6 +247,7 @@ SELECT method, uri, count(*) FROM api_access_log
 | 동기 INSERT 제거 | `logAccessAsync`가 이름과 달리 request thread에서 `repository.save()`를 실행. 모든 API 요청이 응답 전 INSERT 1회를 기다린다 | `@Async`+`@Transactional` 주의사항(비동기 스레드가 uncommitted row를 못 봄)에 걸려 설계 검토 필요 |
 | `username` 99.1% null | 594,758행 중 5,084행만 채워짐. 필터 체인상(`jwt → dynamicPublicAccess → aiRateLimit → apiAccessLog`) 정상이어야 하는데 null | `DynamicPublicAccessFilter` / `login_required` 설정 확인이 선행되어야 함. **원인 미확인** |
 | Docker/journald 용량 | build cache 4.33GB, dangling 이미지 2.15GB, journald 1.7GB 상한 미설정 | 인프라 정리 사안으로 별도 버전에서 다룸 |
+| E2E 실패 3건 | `ui/kb.spec.ts:296`, `ui/senior.spec.ts:64`, `ui/senior.spec.ts:123` — develop에서도 동일 실패하나 develop CI e2e는 green. 로컬 환경 특유 실패로 보임 | senior/kb 도메인 사안. **quarantine 하지 않았다** — CI에서 통과하는 테스트를 죽이게 되므로 |
 
 ### 6-1. 구 ops_v36에서 이월된 미해결 이슈
 
@@ -234,4 +281,42 @@ SELECT method, uri, count(*) FROM api_access_log
 | 버전 | 날짜 | 내용 |
 |------|------|------|
 | v36 (구) | 2026-08-20 | prod ↔ dev 왕복 파이프라인 설계 — 중단, 2026-09-01 삭제 |
-| v36 | 2026-09-01 | api_access_log 폴링 로그 제외 + 90일 보존 정책 (계획 수립) |
+| v36 | 2026-09-01 | api_access_log 폴링 로그 제외 + 90일 보존 정책 (구현·검증 완료) |
+
+---
+
+## 9. 최종 요약
+
+`api_access_log`의 무한 증가를 **원인 지점에서** 차단했다. 데이터를 지워 대응하는 대신,
+읽는 쪽이 없는 데이터를 애초에 쓰지 않도록 바꾼 것이 이번 작업의 핵심이다.
+
+### 반영된 변경
+
+| 구분 | 내용 |
+|---|---|
+| 필터 | GET `/api/agent-executions**`를 기록 대상에서 제외. POST(claim/results/complete)는 유지 |
+| 스케줄러 | 매일 03:30, 90일 경과 행 삭제. 환경변수로 비활성화 가능 |
+| 안전장치 | `retentionDays <= 0`이면 삭제하지 않음 (설정 실수로 전체 삭제 방지) |
+| 테스트 | 단위 21건 + E2E 3건 |
+
+### 예상 효과
+
+하루 **29,000행 → 약 2,200행**. 90일 보존이 붙으므로 약 50MB 수준에서 평형을 이룬다.
+현재는 133MB에서 무한 증가 중이다.
+
+### 이번 작업에서 건진 것 두 가지
+
+**1. 프록시 self-invocation 함정** — `@Scheduled`가 같은 클래스의 `@Transactional` 메서드를
+호출하면 프록시를 우회해 트랜잭션이 걸리지 않는다. 컴파일·단위테스트·E2E를 전부 통과하고
+운영에서만 실패한다. 리뷰에서 잡아 커밋 전에 수정했고, 탐지 규칙을
+`docs/qa/bugs/spring-proxy-self-invocation.md`에 남겼다.
+
+**2. 통과하지만 아무것도 검증하지 않는 E2E** — 처음 작성한 `access-log.spec.ts`는
+`topEndpoints`의 `LIMIT 20` 때문에 수정 여부와 무관하게 통과했다. 미수정 백엔드에서
+그대로 통과하는 것을 확인하고 나서야 드러났다. **"테스트가 통과한다"와 "테스트가 무언가를
+검증한다"는 다르다** — 새 회귀 테스트는 고쳐야 할 코드에서 실제로 실패하는지 확인해야 한다.
+
+### 남은 일
+
+- 기존 누적 564,461행 정리 — **User가 §4의 SQL을 직접 실행**
+- 배포 다음 날 §5의 쿼리로 일일 증가량이 실제로 떨어졌는지 실측
