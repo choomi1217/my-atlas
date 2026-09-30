@@ -69,16 +69,17 @@
 
 POST는 **실제 실행 이력**이라 반드시 남겨야 추적이 된다. 현재 이 POST들은 극소수라 통계를 오염시키지 않는다.
 
-### 2-2. 보존 정책은 롤백 가능한 플래그로 둔다
+### 2-2. 보존 정책은 환경변수 하나로 끌 수 있게 둔다
 
-`kb.pdf.cleanup.enabled`와 같은 패턴을 따라, 코드 배포 없이 중단할 수 있게 한다.
+코드 배포 없이 중단할 수 있게 한다. 단, 스위치는 **하나만** 둔다 —
+전체 삭제 방지 가드(`days <= 0`)가 이미 "삭제하지 않음"이라, 별도 `enabled` 플래그를
+두면 같은 일을 하는 스위치가 둘이 된다.
 
 ```yaml
 monitoring:
   access-log:
     retention:
-      # v36: 오래된 API 접근 로그 자동 삭제. false 로 두면 삭제하지 않는다.
-      enabled: ${ACCESS_LOG_RETENTION_ENABLED:true}
+      # v36: 오래된 API 접근 로그 자동 삭제. 0 이하로 두면 삭제하지 않는다.
       days: ${ACCESS_LOG_RETENTION_DAYS:90}
 ```
 
@@ -126,8 +127,8 @@ CLAUDE.md의 **"스키마 변경 없는 작업에서 DB 데이터 삭제 금지"
   - `POST /api/agent-executions/123/claim` → **호출됨** (이력 보존)
   - `GET /api/test-cases` → 호출됨 (회귀 방지)
 - [x] 4-2. `AccessLogRetentionSchedulerTest` 신규
-  - `enabled=true` → `deleteOlderThan()` 호출, cutoff를 `ArgumentCaptor`로 검증
-  - `enabled=false` → 호출되지 않음
+  - `days=90` → `deleteOlderThan()` 호출, cutoff를 `ArgumentCaptor`로 검증
+  - `days=0` → 호출되지 않음 (가드 겸 off 스위치)
 
 ### Step 5 — E2E (Agent-C)
 
@@ -191,6 +192,40 @@ skip 25건은 전부 기존 `test.fixme()` / 조건부 skip이다.
 |---|---|
 | `origin/develop` (미수정) | ❌ 실패 — `count rose from 0 after 56 polling calls (20th place was 51)` |
 | `feature/access_log` (수정) | ✅ 3/3 통과 |
+
+---
+
+## 3-B. 간소화 패스 (2026-09-08)
+
+`/ponytail-review`로 diff 전체를 과잉 설계 관점에서 재검토해 **504줄 → 369줄**로 줄였다.
+동작은 그대로다.
+
+| 대상 | 잘라낸 것 | 근거 |
+|---|---|---|
+| `ApiAccessLogFilter` | 원소 1개짜리 `Set` + for 루프 → `uri.startsWith(...)` 인라인. 기존 단일 return 형태 복원 | prefix가 하나뿐인데 순회 구조를 세웠다. 두 번째 prefix가 생기면 그때 되돌리면 된다 |
+| `AccessLogRetentionScheduler` | `retention.enabled` 플래그 제거 | `days <= 0` 가드가 이미 "삭제 안 함"이라 스위치가 둘이었다. off 스위치는 `ACCESS_LOG_RETENTION_DAYS=0` 하나로 통일 |
+| `AccessLogRetentionScheduler` | started/completed 2줄 로그 → 1줄 | 완료 로그에 건수와 cutoff가 다 들어간다 |
+| `ApiAccessLogFilterTest` | 쿼리스트링 케이스 삭제 | `getRequestURI()`는 서블릿 스펙상 쿼리스트링을 포함하지 않는다. 첫 케이스와 입력이 동일해 **절대 실패할 수 없는 테스트**였다 |
+| `ApiAccessLogFilterTest` | POST `complete` 케이스 삭제 | POST `claim`과 같은 분기(POST + 동일 prefix) |
+| `AccessLogRetentionSchedulerTest` | `negativeDays`, `returnsDeletedCount` 삭제 | 전자는 `zeroDays`와 같은 분기, 후자는 반환값을 스텁하고 호출 여부만 확인 — 첫 테스트가 이미 검증 |
+| `qa/api/access-log.spec.ts` | 테스트 2 (`unrelated endpoints are still recorded`) 삭제 | 테스트 1의 step 3 barrier가 `featureCount >= featureBefore + CONTROL_CALLS`로 **똑같이** 주장하고 있었다 |
+| `qa/api/access-log.spec.ts` | 테스트 3 (`well-formed ApiAccessSummary`) 삭제 | 타입 선언된 Java DTO에 `typeof` 검사 + 이 변경이 건드리지 않은 기존 정렬 동작 |
+
+**남긴 것** — `days <= 0` 가드(전체 삭제 방지)와 `@Transactional` 위치 주석(운영에서만 터지는 함정의 기록).
+E2E도 테스트 1만 남겼는데, §3-A에서 **미수정 develop에서 실제로 실패하는 것을 실증한 유일한 테스트**가 그것이다.
+
+### 재검증 (2026-09-08)
+
+| 대상 | 결과 |
+|---|---|
+| `ApiAccessLogFilterTest` | 14건 통과, skip 0 |
+| `AccessLogRetentionSchedulerTest` | 2건 통과, skip 0 |
+| `./gradlew clean build` | BUILD SUCCESSFUL |
+| E2E 전체 | **366 passed / 25 skipped / 3 failed** — 정의된 394건 전부 계정, "did not run" 없음 |
+| `api/access-log.spec.ts` 개별 실행 | 1건 통과 (skip 아님 — threshold 이상으로 호출됨) |
+
+§3-A 대비 passed가 368 → 366으로 정확히 2 줄었고(삭제한 E2E 2건), skipped/failed는 동일하다.
+잔존 실패 3건은 §3-A와 같은 pre-existing 건이다.
 
 ---
 
@@ -282,6 +317,7 @@ SELECT method, uri, count(*) FROM api_access_log
 |------|------|------|
 | v36 (구) | 2026-08-20 | prod ↔ dev 왕복 파이프라인 설계 — 중단, 2026-09-01 삭제 |
 | v36 | 2026-09-01 | api_access_log 폴링 로그 제외 + 90일 보존 정책 (구현·검증 완료) |
+| v36 | 2026-09-08 | 간소화 패스 — 504줄 → 369줄, 동작 동일 (§3-B) |
 
 ---
 
@@ -295,9 +331,9 @@ SELECT method, uri, count(*) FROM api_access_log
 | 구분 | 내용 |
 |---|---|
 | 필터 | GET `/api/agent-executions**`를 기록 대상에서 제외. POST(claim/results/complete)는 유지 |
-| 스케줄러 | 매일 03:30, 90일 경과 행 삭제. 환경변수로 비활성화 가능 |
-| 안전장치 | `retentionDays <= 0`이면 삭제하지 않음 (설정 실수로 전체 삭제 방지) |
-| 테스트 | 단위 21건 + E2E 3건 |
+| 스케줄러 | 매일 03:30, 90일 경과 행 삭제. `ACCESS_LOG_RETENTION_DAYS=0`으로 비활성화 |
+| 안전장치 | `retentionDays <= 0`이면 삭제하지 않음 — 설정 실수로 전체 삭제 방지 겸 off 스위치 |
+| 테스트 | 단위 16건 + E2E 1건 |
 
 ### 예상 효과
 
