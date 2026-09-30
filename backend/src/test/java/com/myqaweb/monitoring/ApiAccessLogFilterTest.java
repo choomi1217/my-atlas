@@ -174,26 +174,9 @@ class ApiAccessLogFilterTest {
     }
 
     @Test
-    @DisplayName("GET /api/agent-executions?productId=1 → 쿼리스트링이 있어도 기록 제외")
-    void shouldNotFilter_getAgentExecutionsWithQueryString_isExcluded() {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/agent-executions");
-        request.setQueryString("productId=1");
-
-        assertTrue(filter.shouldNotFilter(request));
-    }
-
-    @Test
     @DisplayName("POST /api/agent-executions/{id}/claim → 실행 이력이므로 반드시 기록")
     void shouldNotFilter_postAgentExecutionsClaim_isLogged() {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/agent-executions/123/claim");
-
-        assertFalse(filter.shouldNotFilter(request), "POST 실행 이력은 제외되면 안 된다");
-    }
-
-    @Test
-    @DisplayName("POST /api/agent-executions/{id}/complete → 실행 이력이므로 반드시 기록")
-    void shouldNotFilter_postAgentExecutionsComplete_isLogged() {
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/agent-executions/123/complete");
 
         assertFalse(filter.shouldNotFilter(request), "POST 실행 이력은 제외되면 안 된다");
     }

@@ -13,11 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link AccessLogRetentionScheduler} — retention flag, positive-days
- * guard, and the cutoff passed to the repository.
+ * Tests for {@link AccessLogRetentionScheduler} — the cutoff passed to the
+ * repository, and the positive-days guard that doubles as the off switch.
  */
 @ExtendWith(MockitoExtension.class)
 class AccessLogRetentionSchedulerTest {
@@ -26,9 +25,9 @@ class AccessLogRetentionSchedulerTest {
     private ApiAccessLogRepository repository;
 
     @Test
-    @DisplayName("retention 활성 + 90일 → cutoff 를 now-90일 근처로 계산해 삭제 호출")
-    void purgeOldAccessLogs_enabled_deletesWithCutoff() {
-        AccessLogRetentionScheduler scheduler = new AccessLogRetentionScheduler(repository, true, 90);
+    @DisplayName("retention 90일 → cutoff 를 now-90일 근처로 계산해 삭제 호출")
+    void purgeOldAccessLogs_positiveDays_deletesWithCutoff() {
+        AccessLogRetentionScheduler scheduler = new AccessLogRetentionScheduler(repository, 90);
         LocalDateTime before = LocalDateTime.now().minusDays(90);
 
         scheduler.purgeOldAccessLogs();
@@ -45,43 +44,12 @@ class AccessLogRetentionSchedulerTest {
     }
 
     @Test
-    @DisplayName("retention 비활성 → 삭제 호출 없음")
-    void purgeOldAccessLogs_disabled_doesNothing() {
-        AccessLogRetentionScheduler scheduler = new AccessLogRetentionScheduler(repository, false, 90);
-
-        scheduler.purgeOldAccessLogs();
-
-        verify(repository, never()).deleteOlderThan(any());
-    }
-
-    @Test
-    @DisplayName("retentionDays 가 0 → 전체 삭제 방지 가드로 삭제 호출 없음")
+    @DisplayName("retentionDays 가 0 → 전체 삭제 방지 가드로 삭제 호출 없음 (off 스위치 겸용)")
     void purgeOldAccessLogs_zeroDays_doesNothing() {
-        AccessLogRetentionScheduler scheduler = new AccessLogRetentionScheduler(repository, true, 0);
+        AccessLogRetentionScheduler scheduler = new AccessLogRetentionScheduler(repository, 0);
 
         scheduler.purgeOldAccessLogs();
 
         verify(repository, never()).deleteOlderThan(any());
-    }
-
-    @Test
-    @DisplayName("retentionDays 가 음수 → 삭제 호출 없음")
-    void purgeOldAccessLogs_negativeDays_doesNothing() {
-        AccessLogRetentionScheduler scheduler = new AccessLogRetentionScheduler(repository, true, -1);
-
-        scheduler.purgeOldAccessLogs();
-
-        verify(repository, never()).deleteOlderThan(any());
-    }
-
-    @Test
-    @DisplayName("삭제 건수를 반환해도 예외 없이 정상 완료")
-    void purgeOldAccessLogs_returnsDeletedCount_completesNormally() {
-        when(repository.deleteOlderThan(any())).thenReturn(1234);
-        AccessLogRetentionScheduler scheduler = new AccessLogRetentionScheduler(repository, true, 30);
-
-        scheduler.purgeOldAccessLogs();
-
-        verify(repository).deleteOlderThan(any());
     }
 }

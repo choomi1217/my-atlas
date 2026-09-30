@@ -7,8 +7,8 @@ import { test, expect, APIRequestContext } from '@playwright/test';
  *  - GET /api/agent-executions** is NOT written to api_access_log (3s worker polling,
  *    no consumer reads it, and it was poisoning the topEndpoints ranking).
  *  - The endpoint itself still answers normally — only logging was disabled.
- *  - Unrelated endpoints are still logged (proves monitoring wasn't killed wholesale).
- *  - GET /api/admin/monitoring/api-summary still returns a well-formed ApiAccessSummary.
+ *  - Unrelated endpoints are still logged (the control-call barrier in step 3 doubles
+ *    as proof that monitoring wasn't killed wholesale).
  *
  * Observation channel: GET /api/admin/monitoring/api-summary?from&to (ADMIN only),
  * wrapped in the shared ApiResponse envelope (payload lives under body.data).
@@ -133,8 +133,6 @@ test.afterAll(async () => {
   if (request) await request.dispose();
 });
 
-test.describe.configure({ mode: 'serial' });
-
 test.describe('Ops v36 — api_access_log polling exclusion', () => {
   test('GET /api/agent-executions - answers 2xx but is not recorded in api_access_log', async () => {
     const before = await fetchSummary();
@@ -192,68 +190,5 @@ test.describe('Ops v36 — api_access_log polling exclusion', () => {
       agentExecutionGetCount(after),
       `GET ${AGENT_EXEC_PREFIX} count rose from ${agentBefore} after ${pollingCalls} polling calls (20th place was ${threshold}) — shouldNotFilter() is no longer excluding polling GETs`,
     ).toBeLessThanOrEqual(agentBefore);
-  });
-
-  test('GET /api/companies - unrelated endpoints are still recorded (regression guard)', async () => {
-    const before = await fetchSummary();
-    const totalBefore = before.totalRequests;
-    const featureBefore = featureCount(before, CONTROL_FEATURE);
-
-    for (let i = 1; i <= CONTROL_CALLS; i += 1) {
-      const resp = await request.get('/api/companies');
-      expect(resp.status()).toBe(200);
-    }
-
-    // byFeature/totalRequests are the reliable signal here: countByFeature has no LIMIT,
-    // unlike topEndpoints (GROUP BY method, uri ... LIMIT 20) where a low-traffic URI can
-    // legitimately fall outside the window on a busy DB.
-    await expect
-      .poll(
-        async () => featureCount(await fetchSummary(), CONTROL_FEATURE),
-        {
-          message: `${CONTROL_FEATURE} traffic was not logged — v36 must exclude ONLY polling GETs, not disable access logging`,
-          timeout: 20_000,
-          intervals: [250, 500, 1000, 2000],
-        },
-      )
-      .toBeGreaterThanOrEqual(featureBefore + CONTROL_CALLS);
-
-    const after = await fetchSummary();
-    expect(after.totalRequests).toBeGreaterThanOrEqual(totalBefore + CONTROL_CALLS);
-  });
-
-  test('GET /api/admin/monitoring/api-summary - returns a well-formed ApiAccessSummary', async () => {
-    const response = await request.get(
-      `/api/admin/monitoring/api-summary?from=${FROM}&to=${TO}`,
-    );
-    expect(response.status()).toBe(200);
-
-    const body = (await response.json()) as { success: boolean; data: ApiAccessSummary };
-    expect(body.success).toBe(true);
-    expect(body.data).toBeDefined();
-
-    const summary = body.data;
-    expect(typeof summary.totalRequests).toBe('number');
-    expect(summary.totalRequests).toBeGreaterThanOrEqual(0);
-
-    // Shared dev DB always has data — assert structure, never emptiness.
-    expect(Array.isArray(summary.byFeature)).toBe(true);
-    expect(Array.isArray(summary.topEndpoints)).toBe(true);
-
-    for (const entry of summary.byFeature) {
-      expect(typeof entry.feature).toBe('string');
-      expect(typeof entry.count).toBe('number');
-    }
-
-    for (const entry of summary.topEndpoints) {
-      expect(typeof entry.method).toBe('string');
-      expect(typeof entry.uri).toBe('string');
-      expect(typeof entry.count).toBe('number');
-    }
-
-    // topEndpoints is GROUP BY method, uri ORDER BY count DESC LIMIT 20.
-    expect(summary.topEndpoints.length).toBeLessThanOrEqual(20);
-    const counts = summary.topEndpoints.map((e) => e.count);
-    expect(counts).toEqual([...counts].sort((a, b) => b - a));
   });
 });

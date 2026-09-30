@@ -20,15 +20,12 @@ public class AccessLogRetentionScheduler {
     private static final Logger log = LoggerFactory.getLogger(AccessLogRetentionScheduler.class);
 
     private final ApiAccessLogRepository repository;
-    private final boolean retentionEnabled;
     private final int retentionDays;
 
     public AccessLogRetentionScheduler(
             ApiAccessLogRepository repository,
-            @Value("${monitoring.access-log.retention.enabled:true}") boolean retentionEnabled,
             @Value("${monitoring.access-log.retention.days:90}") int retentionDays) {
         this.repository = repository;
-        this.retentionEnabled = retentionEnabled;
         this.retentionDays = retentionDays;
     }
 
@@ -41,19 +38,14 @@ public class AccessLogRetentionScheduler {
     @Scheduled(cron = "0 30 3 * * *")
     @Transactional
     public void purgeOldAccessLogs() {
-        if (!retentionEnabled) {
-            log.info("Access log retention is disabled, skipping");
-            return;
-        }
-        // Guard against a misconfigured value wiping the whole table.
+        // Doubles as the off switch (ACCESS_LOG_RETENTION_DAYS=0) and as the guard
+        // against a misconfigured value wiping the whole table.
         if (retentionDays <= 0) {
-            log.warn("Access log retention skipped: retention days must be positive but was {}", retentionDays);
+            log.info("Access log retention skipped: retention days must be positive but was {}", retentionDays);
             return;
         }
 
         LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
-        log.info("Access log retention started, deleting rows older than {}", cutoff);
-        int deleted = repository.deleteOlderThan(cutoff);
-        log.info("Access log retention completed, deleted {} rows", deleted);
+        log.info("Access log retention deleted {} rows older than {}", repository.deleteOlderThan(cutoff), cutoff);
     }
 }
