@@ -36,7 +36,6 @@ class AccessLogRetentionSchedulerTest {
         ArgumentCaptor<LocalDateTime> captor = ArgumentCaptor.forClass(LocalDateTime.class);
         verify(repository).deleteOlderThan(captor.capture());
         LocalDateTime cutoff = captor.getValue();
-        // 실행 시간 오차를 감안해 범위로만 검증한다 (정확한 등호 비교는 flaky).
         assertTrue(cutoff.isAfter(before.minusMinutes(1)),
                 "cutoff 는 now-90일보다 지나치게 과거일 수 없다: " + cutoff);
         assertTrue(cutoff.isBefore(after.plusMinutes(1)),

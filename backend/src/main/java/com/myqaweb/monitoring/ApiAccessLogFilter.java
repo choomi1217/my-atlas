@@ -65,7 +65,6 @@ public class ApiAccessLogFilter extends OncePerRequestFilter {
                 || uri.startsWith("/actuator/")
                 || uri.equals("/api/senior/chat")
                 // v36: agent-worker polls this every 3s and no consumer reads it (docs/ops/ops_v36.md).
-                // POST on the same prefix (claim/results/complete) is real history and stays logged.
                 || ("GET".equalsIgnoreCase(request.getMethod()) && uri.startsWith("/api/agent-executions"));
     }
 

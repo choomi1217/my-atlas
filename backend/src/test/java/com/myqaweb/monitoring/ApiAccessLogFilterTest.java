@@ -104,7 +104,7 @@ class ApiAccessLogFilterTest {
     @DisplayName("50자 초과 IP 문자열 → 50자로 잘림")
     void extractClientIp_truncatesIfTooLong() {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        String longIp = "a".repeat(200); // 의도적으로 긴 값
+        String longIp = "a".repeat(200);
         request.setRemoteAddr(longIp);
 
         String ip = ApiAccessLogFilter.extractClientIp(request);
