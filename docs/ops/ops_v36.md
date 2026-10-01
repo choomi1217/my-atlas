@@ -1,190 +1,358 @@
-# ops v36 — prod ↔ dev 데이터 왕복 파이프라인
+# ops v36 — api_access_log 정리 (폴링 로그 제외 + 보존 정책)
 
 > 변경 유형: 환경 개선
-> 작성일: 2026-08-20
+> 작성일: 2026-09-01
 > 버전: v36
-> 상태: 진행 중
+> 상태: 구현 완료 (기존 누적분 정리는 User 실행 대기)
 
 ---
 
 ## 1. 배경
 
-`https://youngmi.works/features/companies/3194/products/2641`(WebApp-QA)에 운영 서버에서
-직접 데이터를 입력해 왔다. 앞으로의 대량 입력은 운영이 아닌 로컬에서 하고 싶다.
-따라서 다음 3단계 왕복이 필요하다.
+운영 서버 접근 현황을 점검하다 `api_access_log` 테이블이 **하루 29,000행씩 무한 증가**하는 것을 발견했다.
 
-| 단계 | 방향 | 목적 |
-|------|------|------|
-| **Step 1** | prod → dev | 지금까지 넣은 데이터를 로컬로 가져와 확인 |
-| **Step 2** | dev 내부 | 로컬에서 데이터를 대량 입력 |
-| **Step 3** | dev → prod | 채운 데이터를 운영에 반영 |
+원인은 두 가지가 겹친 것이다.
 
-**대상 범위**: company `3194` / product `2641` 서브트리 20개 테이블로 한정한다.
-`knowledge_base`, `pdf_upload_job`, 다른 product는 전 단계에서 일절 건드리지 않는다.
+1. `agent-worker`가 `POLL_INTERVAL_MS=3000`으로 **3초마다** `GET /api/agent-executions`를 호출한다
+2. `ApiAccessLogFilter`가 `/api/**` 전체를 예외 없이 기록한다
+
+### 1-1. 핵심 — 이 데이터를 읽는 쪽이 없다
+
+`ApiAccessLogRepository`의 소비자 쿼리는 2개뿐인데, 둘 다 이 데이터를 원하지 않는다.
+
+| 쿼리 | worker 행 취급 |
+|---|---|
+| `countByFeature` | `WHERE feature IS NOT NULL` — `/api/agent-executions`는 `URI_FEATURE_MAP`에 없어 `feature=null`이므로 **이미 100% 제외되고 있다** |
+| `topEndpoints` | `GROUP BY method, uri ORDER BY cnt DESC LIMIT 20` — worker 행이 순위를 독점해 **"인기 엔드포인트" 통계를 오염시키고 있다** |
+
+즉 전체의 95%가 **한쪽에서는 버려지고 다른 쪽에서는 결과를 망치는 중**이다.
+저장할 이유가 없으므로 애초에 쌓지 않는 것이 해법이다.
+
+### 1-2. 실측 (2026-08-31 기준)
+
+| 항목 | 값 |
+|---|---|
+| 전체 | 594,758행 / 133MB / 2026-04-20~ |
+| worker 행 | 564,461행 (**95%**) |
+| 일일 증가 | 29,000행 ≈ 6.8MB |
+| 오늘 내역 | 총 19,747행 중 worker 17,508행 |
+| 조치 후 예상 | 약 2,239행/일 ≈ 0.5MB |
+
+### 1-3. 디스크는 위험하지 않다
+
+| 항목 | 값 |
+|---|---|
+| EC2 디스크 | 30GB 중 16GB 사용, **15GB 여유 (53%)** |
+| DB 전체 | 168MB (그중 `api_access_log` 133MB) |
+| 이 테이블만으로 15GB를 채우는 데 걸리는 시간 | 약 6년 |
+
+**이 작업의 목적은 용량 확보가 아니라 통계 신뢰도 회복과 무한 증가 차단이다.**
+
+> 참고: 실제 디스크를 점유하는 것은 이 테이블이 아니라 `/var/lib/docker`(14GB)다.
+> Docker build cache 4.33GB(전량 회수 가능) + dangling 이미지 2.15GB(배포 1회당 약 400MB 적립) +
+> journald 1.7GB(`SystemMaxUse` 미설정). **이번 범위 밖이며 별도 판단이 필요하다.**
 
 ---
 
-## 2. 사전 조사 결과 (확정 사실)
+## 2. 설계
 
-### 2-1. ID 충돌 없음
+### 2-1. 폴링 GET만 제외한다
 
-| 테이블 | prod (product 2641) | 로컬 최대 id | 충돌 |
-|---|---|---|---|
-| segment | 15건 (4152–4166) | 4129 | 0건 |
-| test_case | 13건 (3387–3399) | 3376 | 0건 |
+`shouldNotFilter()`에 제외 조건을 추가하되 **GET만** 걸러낸다.
 
-로컬 시퀀스가 prod보다 뒤처져 있어 Step 1은 순수 insert-only로 성립한다.
+| 메서드 | 경로 | 로그 |
+|---|---|---|
+| GET | `/api/agent-executions**` | ❌ 제외 — 3초마다 반복되는 폴링, 통계 가치 없음 |
+| POST | `/api/agent-executions/{id}/claim` | ✅ 유지 |
+| POST | `/api/agent-executions/{id}/results` | ✅ 유지 |
+| POST | `/api/agent-executions/{id}/complete` | ✅ 유지 |
 
-### 2-2. 이미지 저장 구조
+POST는 **실제 실행 이력**이라 반드시 남겨야 추적이 된다. 현재 이 POST들은 극소수라 통계를 오염시키지 않는다.
 
-`FeatureImageController`가 업로드 결과에서 파일명만 추출해 저장한다.
+### 2-2. 보존 정책은 환경변수 하나로 끌 수 있게 둔다
 
-```java
-String filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);   // → "{uuid}.png"
-```
-
-따라서 `test_case_image.filename`은 **환경 중립적**이다. 환경별로 다른 것은 파일 실물의 위치뿐이다.
-
-| 환경 | ImageService 구현 | 파일 실물 | 서빙 경로 |
-|---|---|---|---|
-| prod (AWS 키 있음) | `S3ImageService` | `s3://my-atlas-images/feature/` | CloudFront `/images/*` |
-| local (AWS 키 없음) | `LocalImageService` | `backend/uploads/images/feature/` | 백엔드 `/images/**` 리소스 핸들러 |
-
-선택은 `S3Config`가 크레덴셜 유무로 자동 분기한다. 로컬 `.env`에 AWS 키가 없으므로 자동으로 로컬 저장이 된다.
-
-### 2-3. 현재 로컬에서 이미지가 안 보이는 이유 (기존 이슈)
-
-`TestCaseImageUrlResolver`는 `/images/feature/{filename}` 상대경로를 반환한다.
-로컬에서 이 요청은 Vite(5173)로 가는데 `vite.config.ts`는 `/api`만 프록시한다.
-백엔드에 `/images/**` 핸들러가 있어도 Vite가 넘겨주질 않는다.
-→ **이번 이식과 무관하게 로컬 이미지는 이미 전부 404다.**
-
-### 2-4. 로컬 업로드 파일의 휘발성 (Step 2 차단 요인)
-
-`docker-compose.yml`의 backend 볼륨에 `uploads` 마운트가 없다.
+코드 배포 없이 중단할 수 있게 한다. 단, 스위치는 **하나만** 둔다 —
+전체 삭제 방지 가드(`days <= 0`)가 이미 "삭제하지 않음"이라, 별도 `enabled` 플래그를
+두면 같은 일을 하는 스위치가 둘이 된다.
 
 ```yaml
-volumes:
-  - ./logs:/app/logs
-  - ./backend/feature-images:/app/feature-images
-  - ./backend/kb-images:/app/kb-images
-  - ./backend/convention-images:/app/convention-images
-  # ← ./backend/uploads:/app/uploads 없음
+monitoring:
+  access-log:
+    retention:
+      # v36: 오래된 API 접근 로그 자동 삭제. 0 이하로 두면 삭제하지 않는다.
+      days: ${ACCESS_LOG_RETENTION_DAYS:90}
 ```
 
-Step 2에서 올린 이미지가 `/app/uploads`에 쌓이는데 이건 컨테이너 수명과 함께 사라진다.
-**Step 2 시작 전에 반드시 마운트를 추가해야 한다.**
+스케줄러는 `statistics/SnapshotScheduler.java` 패턴을 그대로 따른다.
+`@EnableScheduling`은 `MyQaWebApplication`에 이미 있어 추가 설정이 필요 없다.
+실행 시각은 스냅샷 스케줄러(`0 0 0 * * *`)와 겹치지 않게 `0 30 3 * * *`로 둔다.
+
+### 2-3. ⚠️ DB 삭제 규칙에 대한 근거
+
+CLAUDE.md의 **"스키마 변경 없는 작업에서 DB 데이터 삭제 금지"** 에 해당하는 변경이므로 근거를 남긴다.
+
+- 대상은 `api_access_log` **하나뿐**이다. 보호 대상인 `knowledge_base` / `pdf_upload_job`은 **일절 건드리지 않는다**
+- 대시보드 쿼리 2개가 모두 `created_at BETWEEN :from AND :to` 범위 기반이라 90일 보존으로 **기능 영향이 없다**
+- 90일은 기본값이고 환경변수로 조정·비활성화할 수 있다
+- **이미 쌓인 누적분은 Claude가 삭제하지 않는다** (§4)
 
 ---
 
-## 3. 설계
+## 3. 실행 절차
 
-### 3-1. 이미지 왕복 방식
+### Step 1 — 문서 정리
 
-```
-Step 1:  CloudFront(공개 GET) ──curl──> backend/uploads/images/feature/
-                                          (크레덴셜 불필요, 비용 사실상 0)
-Step 2:  로컬 업로드 ────────────────> backend/uploads/images/feature/
-                                          (LocalImageService, AWS 미접촉)
-Step 3:  backend/uploads/images/feature/ ──aws s3 cp──> s3://my-atlas-images/feature/
-                                          (신규 파일만, 크레덴셜 필요)
-```
+- [x] 1-1. 기존 `ops_v36.md`(prod ↔ dev 왕복 파이프라인) 삭제
+  - 핵심 산출물 `scripts/sync-product-from-aws.sh`가 레포에 없음 (커밋된 적 없음)
+  - Step 1~3 체크리스트 전부 미완 (`/images` 프록시 없음, `uploads` 마운트 없음, `backups/` 없음)
+  - 참조하는 문서 없음 → 삭제 안전. 미해결 이슈 2건은 §6으로 이월
+- [x] 1-2. 본 문서 작성
 
-Vite에 `/images` → 백엔드 프록시를 추가하면 로컬에서 세 경우 모두 같은 경로로 보인다.
+### Step 2 — 폴링 GET 제외 (Agent-A)
 
-### 3-2. Step 3 전략 — insert-only 워터마크 방식
+- [x] 2-1. `ApiAccessLogFilter`에 `POLLING_GET_PREFIXES` 상수 추가 (기존 `URI_FEATURE_MAP` 스타일 유지)
+- [x] 2-2. `shouldNotFilter()`에 GET 한정 제외 조건 추가
 
-Step 1에서 가져온 행은 prod에 이미 존재하므로 통째로 되밀면 PK 충돌이 난다. 두 가지 선택지가 있다.
+### Step 3 — 보존 정책 (Agent-A)
 
-| 방식 | 처리 | 장점 | 단점 |
-|---|---|---|---|
-| **(A) 워터마크 insert-only** | Step 1 시점의 테이블별 max(id)를 기록해두고, Step 3에서 `id > 워터마크`인 행만 push | prod에 DELETE 없음, 프로젝트 안전 규칙 부합 | Step 2에서 **기존 행을 수정**한 건 반영 안 됨 |
-| **(B) 범위 한정 replace** | prod의 product 2641 서브트리를 DELETE 후 로컬 것으로 전량 교체 | 추가·수정·삭제 모두 반영 | prod에 DELETE 발생 |
+- [x] 3-1. `ApiAccessLogRepository`에 `deleteOlderThan(cutoff)` 추가 (`@Modifying` + nativeQuery)
+- [x] 3-2. `AccessLogRetentionScheduler` 신규 작성 (`SnapshotScheduler` 패턴)
+- [x] 3-3. `application.yml`에 `monitoring.access-log.retention.*` 추가
 
-**(A)를 기본으로 한다.** CLAUDE.md의 "스키마 변경 없는 작업에서 DB 데이터 삭제 금지" 규칙에 부합하고,
-Step 2의 목적이 "데이터를 더 가득 채워넣기"(추가)라 insert-only로 대부분 커버된다.
+### Step 4 — 단위 테스트 (Agent-B)
 
-(A)의 공백을 메우기 위해 Step 3에 **drift 리포트**를 넣는다. 양쪽에 다 있는데 내용이 다른 행을 찾아
-목록으로 보여주고, 반영 여부는 User가 판단한다. (B)가 필요하다고 판단되면 그때 별도 승인 후 진행한다.
+- [x] 4-1. `ApiAccessLogFilterTest`에 케이스 추가
+  - `GET /api/agent-executions` → `save()` 호출 안 됨
+  - `GET /api/agent-executions/123` → 호출 안 됨
+  - `POST /api/agent-executions/123/claim` → **호출됨** (이력 보존)
+  - `GET /api/test-cases` → 호출됨 (회귀 방지)
+- [x] 4-2. `AccessLogRetentionSchedulerTest` 신규
+  - `days=90` → `deleteOlderThan()` 호출, cutoff를 `ArgumentCaptor`로 검증
+  - `days=0` → 호출되지 않음 (가드 겸 off 스위치)
 
-### 3-3. 시퀀스 관리
+### Step 5 — E2E (Agent-C)
 
-```
-Step 1 직후 : 로컬 시퀀스를 prod max 까지 상향  → 로컬 신규 행은 3400+ 부터 발번
-Step 3 직후 : prod 시퀀스를 push 된 max 까지 상향 → prod 신규 행이 충돌하지 않음
-```
+- [x] 5-1. 에이전트 실행 플로우 회귀 확인 (`qa/ui/agent-execution.spec.ts` 기존 파일 활용)
+- [x] 5-2. 모니터링 대시보드가 여전히 데이터 반환하는지 확인
 
-시퀀스는 **올리기만** 한다. 내리면 PK 충돌을 유발한다.
+> 셀렉터는 추측 금지. 대상 TSX를 반드시 Read 후 작성한다.
 
-### 3-4. ⚠️ 제약: Step 2 동안 prod 데이터 입력 금지
+### Step 6 — Agent-D 검증
 
-로컬과 prod가 **같은 시퀀스 구간**에서 각자 발번하게 되므로, Step 2 진행 중 운영에서
-2641에 데이터를 만들면 Step 3에서 PK가 충돌한다. Step 2 시작 ~ Step 3 완료 구간에는
-운영 입력을 멈춰야 한다.
+- [x] 6-1. `cd backend && ./gradlew clean build`
+- [x] 6-2. `docker compose up -d --build && sleep 10`
+- [x] 6-3. `cd qa && npx playwright test` (필터 없이 전체 실행)
+- [x] 6-4. `docker compose down` (무조건 실행, `agent-worker`는 `--profile worker` 필요)
 
----
-
-## 4. 실행 절차
-
-### Step 1 — prod → dev
-
-- [ ] 1-1. `scripts/sync-product-from-aws.sh export` — prod에서 20개 테이블 추출
-- [ ] 1-2. `import` — 로컬 백업 자동 수행 후 적재, 로컬 시퀀스 상향
-- [ ] 1-3. 워터마크 기록 (`backups/watermark-2641.tsv`) — Step 3에서 사용
-- [ ] 1-4. 이미지 파일 확보 — `test_case_image.filename`을 CloudFront에서 받아 `backend/uploads/images/feature/`에 저장
-- [ ] 1-5. `vite.config.ts`에 `/images` → 백엔드 프록시 추가
-- [ ] 1-6. `docker-compose.yml`에 `./backend/uploads:/app/uploads` 마운트 추가
-- [ ] 1-7. `verify` + 화면 확인 (데이터·이미지 모두)
-
-### Step 2 — dev 데이터 입력
-
-- [ ] 2-1. 운영 입력 중단 (3-4 제약)
-- [ ] 2-2. 로컬에서 데이터 입력 — 이미지는 자동으로 로컬 디스크에 저장됨
-
-### Step 3 — dev → prod
-
-- [ ] 3-1. prod 전체 백업 (pg_dump)
-- [ ] 3-2. drift 리포트 — 양쪽에 있으나 내용이 다른 행 목록 출력
-- [ ] 3-3. 신규 이미지 파일을 S3에 업로드 (`aws s3 cp`, 신규분만)
-- [ ] 3-4. `id > 워터마크`인 행만 prod에 push (트랜잭션 + FK 일시 해제)
-- [ ] 3-5. prod 시퀀스 상향
-- [ ] 3-6. verify — 양쪽 row count 대조 + 운영 화면 확인
+**판정 규칙**: "0 failed"만으로 성공 선언하지 않는다. "did not run"이 있으면 원인을 조사하고,
+새로 추가한 테스트는 개별 지정 실행으로 실제 동작을 확인한다.
 
 ---
 
-## 5. 비용에 대한 정정
+## 3-A. 검증 결과 (2026-09-01 실측)
 
-"AWS 비용이 발생하지 않도록" 이라고 하셨는데, 실제 비용 구조는 이렇다.
+### 단위 테스트 — 21건 전부 통과, skip 0
 
-| 항목 | 로컬 작업 시 절감되나 |
+| 파일 | 결과 |
 |---|---|
-| EC2 + ALB (~$36–41/월) | **아니오** — 사용량과 무관한 고정비 |
-| S3 PUT / CloudFront 전송 | 절감되나 원래 금액이 미미 (PUT 1,000건당 $0.005) |
-| **Anthropic API** (Test Studio, 에이전트 실행) | **아니오** — 로컬 `.env`에도 같은 키가 있어 동일하게 과금 |
-| **OpenAI 임베딩** | **아니오** — 동일. 단 `feature.embedding.enabled` 기본값이 `false`라 현재는 미호출 |
+| `ApiAccessLogFilterTest` | 16건 (기존 8 + 신규 8) 전부 통과 |
+| `AccessLogRetentionSchedulerTest` | 5건 전부 통과 |
 
-즉 **로컬 작업으로 줄어드는 AWS 비용은 사실상 0에 가깝다.**
-실제로 아껴야 할 것은 AI API 비용이고, 그건 실행 위치가 아니라 **AI 기능을 쓰느냐**로 갈린다.
-Step 2에서 Test Studio 자동 생성을 쓰면 로컬이어도 과금되고, 수동 입력만 하면 어디서 하든 0이다.
+### E2E — 제 변경으로 인한 회귀 없음
 
-다만 "운영 데이터를 어지럽히지 않고 로컬에서 편하게 채운다"는 목적 자체는 유효하므로 계획은 그대로 진행한다.
+동일 조건(전체 스위트)에서 기준선과 대조했다.
+
+| 대상 | passed | skipped | failed |
+|---|---|---|---|
+| `origin/develop` (기준선) | 368 | 25 | 3 |
+| `feature/access_log` | 368 | 25 | 3 |
+
+**결과가 정확히 일치한다.** 정의된 396건이 전부 계정되며 "did not run"은 없다.
+skip 25건은 전부 기존 `test.fixme()` / 조건부 skip이다.
+
+잔존 실패 3건(`ui/kb.spec.ts:296`, `ui/senior.spec.ts:64`, `ui/senior.spec.ts:123`)은
+**develop에서도 동일하게 실패**하므로 이번 변경과 무관하다. 다만 develop의 CI e2e는
+계속 green이라 **로컬 환경 특유의 실패**로 보이며, 원인은 senior/kb 도메인 사안이라
+이번 범위에서 다루지 않는다. (§6 참조)
+
+> Agent-D 1차 실행에서 `ui/convention.spec.ts:238`이 추가로 실패했으나,
+> 동일 코드 재실행에서 통과해 **flaky**로 판정했다. develop에서도 통과한다.
+
+### E2E 스펙 자체의 판별력 검증
+
+작성된 `qa/api/access-log.spec.ts`가 **수정 여부와 무관하게 통과**하는 문제가 있어 고쳤다.
+
+원인은 `topEndpoints`가 `ORDER BY count DESC LIMIT 20`이라는 점이다. 폴링을 5회만 치면
+로그가 기록되더라도 20위 문턱(실측 **51**) 아래라 창에 못 들어와 관측되지 않는다.
+실제로 초기 버전은 **수정 없는 develop 백엔드에서도 3/3 통과**했다.
+
+현재 창의 20위 값을 읽어 그보다 많이 호출하도록 바꾼 뒤 양쪽에서 실증했다.
+
+| 백엔드 | 결과 |
+|---|---|
+| `origin/develop` (미수정) | ❌ 실패 — `count rose from 0 after 56 polling calls (20th place was 51)` |
+| `feature/access_log` (수정) | ✅ 3/3 통과 |
 
 ---
 
-## 6. 현재까지 완료된 것
+## 3-B. 간소화 패스 (2026-09-08)
 
-- `scripts/sync-product-from-aws.sh` 작성 완료 (export / backup / import / verify)
-  - insert-only, TRUNCATE·DELETE 0건
-  - `BEGIN…COMMIT` + `ON_ERROR_STOP=1` → 실패 시 전량 롤백 (PK 충돌 시뮬레이션으로 실증)
-  - import 직전 로컬 DB 전체 pg_dump 자동 수행
-  - 로컬에 product 2641 존재 시 중단 (`FORCE=1`로만 우회)
-- 로컬 dry-run 검증 완료 (product 2637 기준)
-- **미실행**: SSH 구간(export)은 권한 대기 중
+`/ponytail-review`로 diff 전체를 과잉 설계 관점에서 재검토해 **504줄 → 369줄**로 줄였다.
+동작은 그대로다.
+
+| 대상 | 잘라낸 것 | 근거 |
+|---|---|---|
+| `ApiAccessLogFilter` | 원소 1개짜리 `Set` + for 루프 → `uri.startsWith(...)` 인라인. 기존 단일 return 형태 복원 | prefix가 하나뿐인데 순회 구조를 세웠다. 두 번째 prefix가 생기면 그때 되돌리면 된다 |
+| `AccessLogRetentionScheduler` | `retention.enabled` 플래그 제거 | `days <= 0` 가드가 이미 "삭제 안 함"이라 스위치가 둘이었다. off 스위치는 `ACCESS_LOG_RETENTION_DAYS=0` 하나로 통일 |
+| `AccessLogRetentionScheduler` | started/completed 2줄 로그 → 1줄 | 완료 로그에 건수와 cutoff가 다 들어간다 |
+| `ApiAccessLogFilterTest` | 쿼리스트링 케이스 삭제 | `getRequestURI()`는 서블릿 스펙상 쿼리스트링을 포함하지 않는다. 첫 케이스와 입력이 동일해 **절대 실패할 수 없는 테스트**였다 |
+| `ApiAccessLogFilterTest` | POST `complete` 케이스 삭제 | POST `claim`과 같은 분기(POST + 동일 prefix) |
+| `AccessLogRetentionSchedulerTest` | `negativeDays`, `returnsDeletedCount` 삭제 | 전자는 `zeroDays`와 같은 분기, 후자는 반환값을 스텁하고 호출 여부만 확인 — 첫 테스트가 이미 검증 |
+| `qa/api/access-log.spec.ts` | 테스트 2 (`unrelated endpoints are still recorded`) 삭제 | 테스트 1의 step 3 barrier가 `featureCount >= featureBefore + CONTROL_CALLS`로 **똑같이** 주장하고 있었다 |
+| `qa/api/access-log.spec.ts` | 테스트 3 (`well-formed ApiAccessSummary`) 삭제 | 타입 선언된 Java DTO에 `typeof` 검사 + 이 변경이 건드리지 않은 기존 정렬 동작 |
+
+**남긴 것** — `days <= 0` 가드(전체 삭제 방지)와 `@Transactional` 위치 주석(운영에서만 터지는 함정의 기록).
+E2E도 테스트 1만 남겼는데, §3-A에서 **미수정 develop에서 실제로 실패하는 것을 실증한 유일한 테스트**가 그것이다.
+
+### 재검증 (2026-09-08)
+
+| 대상 | 결과 |
+|---|---|
+| `ApiAccessLogFilterTest` | 14건 통과, skip 0 |
+| `AccessLogRetentionSchedulerTest` | 2건 통과, skip 0 |
+| `./gradlew clean build` | BUILD SUCCESSFUL |
+| E2E 전체 | **366 passed / 25 skipped / 3 failed** — 정의된 394건 전부 계정, "did not run" 없음 |
+| `api/access-log.spec.ts` 개별 실행 | 1건 통과 (skip 아님 — threshold 이상으로 호출됨) |
+
+§3-A 대비 passed가 368 → 366으로 정확히 2 줄었고(삭제한 E2E 2건), skipped/failed는 동일하다.
+잔존 실패 3건은 §3-A와 같은 pre-existing 건이다.
 
 ---
 
-## 7. 버전 히스토리
+## 4. 기존 누적분 정리 — User가 직접 실행
+
+이미 쌓인 564,461행은 **Claude가 삭제하지 않는다.** 운영 DB 삭제이므로 SQL만 제공한다.
+
+```sql
+-- 1) 실행 전 건수 확인
+SELECT count(*) FROM api_access_log
+ WHERE method = 'GET' AND uri LIKE '/api/agent-executions%';
+
+-- 2) 삭제 (약 564,000행)
+DELETE FROM api_access_log
+ WHERE method = 'GET' AND uri LIKE '/api/agent-executions%';
+
+-- 3) 통계 갱신
+VACUUM ANALYZE api_access_log;
+```
+
+> ⚠️ `VACUUM FULL`을 쓰지 않는다. 테이블 전체 잠금이 걸려 운영 중 API가 멈춘다.
+> 디스크 실물 반환이 필요하면 트래픽 없는 시간에 별도로 판단한다.
+
+---
+
+## 5. 검증 (배포 후 실측)
+
+조치 효과는 **다음 날 운영 DB에서 직접 확인**한다.
+
+```sql
+-- 일자별 증가량: 조치일 이후 하루 2,000행대로 떨어져야 한다
+SELECT created_at::date AS day,
+       count(*) AS rows,
+       count(*) FILTER (WHERE uri LIKE '/api/agent-executions%') AS agent_rows
+  FROM api_access_log
+ WHERE created_at > now() - interval '7 days'
+ GROUP BY 1 ORDER BY 1 DESC;
+
+-- topEndpoints 정상화: worker 폴링이 1위에서 사라져야 한다
+SELECT method, uri, count(*) FROM api_access_log
+ WHERE created_at > now() - interval '1 day'
+ GROUP BY 1,2 ORDER BY 3 DESC LIMIT 10;
+```
+
+**기대값**: `agent_rows`가 POST 몇 건 수준으로만 남고, 일일 총 행수가 29,000 → 2,200 근처.
+
+---
+
+## 6. 이번 범위에서 제외한 것
+
+| 항목 | 내용 | 사유 |
+|---|---|---|
+| 폴링 간격 상향 | `POLL_INTERVAL_MS` 3초→15초 | Step 2로 로그 문제는 해소됨. 운영 재기동(`--force-recreate`)과 잡 픽업 지연이 따로 붙는 사안 |
+| 동기 INSERT 제거 | `logAccessAsync`가 이름과 달리 request thread에서 `repository.save()`를 실행. 모든 API 요청이 응답 전 INSERT 1회를 기다린다 | `@Async`+`@Transactional` 주의사항(비동기 스레드가 uncommitted row를 못 봄)에 걸려 설계 검토 필요 |
+| `username` 99.1% null | 594,758행 중 5,084행만 채워짐. 필터 체인상(`jwt → dynamicPublicAccess → aiRateLimit → apiAccessLog`) 정상이어야 하는데 null | `DynamicPublicAccessFilter` / `login_required` 설정 확인이 선행되어야 함. **원인 미확인** |
+| Docker/journald 용량 | build cache 4.33GB, dangling 이미지 2.15GB, journald 1.7GB 상한 미설정 | 인프라 정리 사안으로 별도 버전에서 다룸 |
+| E2E 실패 3건 | `ui/kb.spec.ts:296`, `ui/senior.spec.ts:64`, `ui/senior.spec.ts:123` — develop에서도 동일 실패하나 develop CI e2e는 green. 로컬 환경 특유 실패로 보임 | senior/kb 도메인 사안. **quarantine 하지 않았다** — CI에서 통과하는 테스트를 죽이게 되므로 |
+
+### 6-1. 구 ops_v36에서 이월된 미해결 이슈
+
+삭제한 문서 §2에 기록돼 있던 **레포에 아직 남아있는 실제 버그 2건**. 이번 작업 범위는 아니다.
+
+1. **로컬 이미지 전량 404** — `TestCaseImageUrlResolver`가 `/images/feature/{filename}` 상대경로를 반환하는데
+   `frontend/vite.config.ts`는 `/api`만 프록시한다. 백엔드에 `/images/**` 핸들러가 있어도 Vite가 넘기지 않는다
+2. **로컬 업로드 파일 휘발** — `docker-compose.yml`의 backend 볼륨에 `./backend/uploads:/app/uploads` 마운트가 없어,
+   로컬에서 올린 이미지가 컨테이너 수명과 함께 사라진다
+
+---
+
+## 7. 변경 파일
+
+| 구분 | 경로 |
+|---|---|
+| 수정 | `backend/src/main/java/com/myqaweb/monitoring/ApiAccessLogFilter.java` |
+| 수정 | `backend/src/main/java/com/myqaweb/monitoring/ApiAccessLogRepository.java` |
+| 신규 | `backend/src/main/java/com/myqaweb/monitoring/AccessLogRetentionScheduler.java` |
+| 수정 | `backend/src/main/resources/application.yml` |
+| 수정 | `backend/src/test/java/com/myqaweb/monitoring/ApiAccessLogFilterTest.java` |
+| 신규 | `backend/src/test/java/com/myqaweb/monitoring/AccessLogRetentionSchedulerTest.java` |
+| 삭제 → 재작성 | `docs/ops/ops_v36.md` |
+
+**마이그레이션 파일 없음** — 스키마 변경이 없다.
+
+---
+
+## 8. 버전 히스토리
 
 | 버전 | 날짜 | 내용 |
 |------|------|------|
-| v36 | 2026-08-20 | prod ↔ dev 왕복 파이프라인 설계 (계획 수립) |
+| v36 (구) | 2026-08-20 | prod ↔ dev 왕복 파이프라인 설계 — 중단, 2026-09-01 삭제 |
+| v36 | 2026-09-01 | api_access_log 폴링 로그 제외 + 90일 보존 정책 (구현·검증 완료) |
+| v36 | 2026-09-08 | 간소화 패스 — 504줄 → 369줄, 동작 동일 (§3-B) |
+
+---
+
+## 9. 최종 요약
+
+`api_access_log`의 무한 증가를 **원인 지점에서** 차단했다. 데이터를 지워 대응하는 대신,
+읽는 쪽이 없는 데이터를 애초에 쓰지 않도록 바꾼 것이 이번 작업의 핵심이다.
+
+### 반영된 변경
+
+| 구분 | 내용 |
+|---|---|
+| 필터 | GET `/api/agent-executions**`를 기록 대상에서 제외. POST(claim/results/complete)는 유지 |
+| 스케줄러 | 매일 03:30, 90일 경과 행 삭제. `ACCESS_LOG_RETENTION_DAYS=0`으로 비활성화 |
+| 안전장치 | `retentionDays <= 0`이면 삭제하지 않음 — 설정 실수로 전체 삭제 방지 겸 off 스위치 |
+| 테스트 | 단위 16건 + E2E 1건 |
+
+### 예상 효과
+
+하루 **29,000행 → 약 2,200행**. 90일 보존이 붙으므로 약 50MB 수준에서 평형을 이룬다.
+현재는 133MB에서 무한 증가 중이다.
+
+### 이번 작업에서 건진 것 두 가지
+
+**1. 프록시 self-invocation 함정** — `@Scheduled`가 같은 클래스의 `@Transactional` 메서드를
+호출하면 프록시를 우회해 트랜잭션이 걸리지 않는다. 컴파일·단위테스트·E2E를 전부 통과하고
+운영에서만 실패한다. 리뷰에서 잡아 커밋 전에 수정했고, 탐지 규칙을
+`docs/qa/bugs/spring-proxy-self-invocation.md`에 남겼다.
+
+**2. 통과하지만 아무것도 검증하지 않는 E2E** — 처음 작성한 `access-log.spec.ts`는
+`topEndpoints`의 `LIMIT 20` 때문에 수정 여부와 무관하게 통과했다. 미수정 백엔드에서
+그대로 통과하는 것을 확인하고 나서야 드러났다. **"테스트가 통과한다"와 "테스트가 무언가를
+검증한다"는 다르다** — 새 회귀 테스트는 고쳐야 할 코드에서 실제로 실패하는지 확인해야 한다.
+
+### 남은 일
+
+- 기존 누적 564,461행 정리 — **User가 §4의 SQL을 직접 실행**
+- 배포 다음 날 §5의 쿼리로 일일 증가량이 실제로 떨어졌는지 실측

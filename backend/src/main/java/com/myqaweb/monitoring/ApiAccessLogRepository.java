@@ -1,6 +1,7 @@
 package com.myqaweb.monitoring;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -34,4 +35,8 @@ public interface ApiAccessLogRepository extends JpaRepository<ApiAccessLogEntity
     List<Object[]> topEndpoints(
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
+
+    @Modifying
+    @Query(value = "DELETE FROM api_access_log WHERE created_at < :cutoff", nativeQuery = true)
+    int deleteOlderThan(@Param("cutoff") LocalDateTime cutoff);
 }
