@@ -1,5 +1,20 @@
 # Changelog
 
+## v2026.08.26 — 2026-08-26
+
+### ✨ Features
+- Android 테스트 자동화 — Appium 드라이버 + 실행 대상 종류 선언
+
+### 🐛 Fixes
+- 이력서 PDF 2개 누락 — 프로덕션 다운로드 버튼 복구
+
+### 📝 Docs
+- registry_v24 — Android 트랙 분리 + 구현 후 실측 기록
+- changelog v2026.08.24
+
+### 🔧 Chore
+- .mcp.json 추적 해제 — 머신 종속 경로
+
 ## v2026.08.24 — 2026-08-24
 
 ### 🐛 Fixes

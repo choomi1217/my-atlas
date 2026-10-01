@@ -63,7 +63,9 @@ public class ApiAccessLogFilter extends OncePerRequestFilter {
         // Skip non-API, actuator, and SSE streaming endpoints (response already committed)
         return !uri.startsWith("/api/")
                 || uri.startsWith("/actuator/")
-                || uri.equals("/api/senior/chat");
+                || uri.equals("/api/senior/chat")
+                // v36: agent-worker polls this every 3s and no consumer reads it (docs/ops/ops_v36.md).
+                || ("GET".equalsIgnoreCase(request.getMethod()) && uri.startsWith("/api/agent-executions"));
     }
 
     private void logAccessAsync(HttpServletRequest request, HttpServletResponse response, long durationMs) {
