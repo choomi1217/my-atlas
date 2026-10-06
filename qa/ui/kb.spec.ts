@@ -265,7 +265,8 @@ test.describe('Knowledge Base UI E2E', () => {
     let pinTestId: number;
 
     test.beforeAll(async () => {
-      // Create a dedicated test KB via API
+      // Create a dedicated test KB via API. A new entry is always unpinned
+      // (create() never sets pinnedAt, column default is NULL).
       const resp = await apiRequest.post('/api/kb', {
         data: {
           title: 'E2E Pin UI Test KB',
@@ -273,55 +274,48 @@ test.describe('Knowledge Base UI E2E', () => {
           category: 'Testing',
         },
       });
+      expect(resp.ok(), 'pin test KB creation failed').toBeTruthy();
       const body = await resp.json() as any;
       pinTestId = body.data.id;
-      // Make sure it's unpinned at start
-      await apiRequest.patch(`/api/kb/${pinTestId}/unpin`).catch(() => {});
     });
 
     test.afterAll(async () => {
       if (pinTestId) {
-        await apiRequest.patch(`/api/kb/${pinTestId}/unpin`).catch(() => {});
-        await apiRequest.delete(`/api/kb/${pinTestId}`).catch(() => {});
+        await apiRequest.patch(`/api/kb/${pinTestId}/unpin`);
+        await apiRequest.delete(`/api/kb/${pinTestId}`);
       }
     });
 
     test('Pin toggle button is visible on /kb page', async ({ page }) => {
       await page.goto('/kb');
-      await page.waitForResponse((resp) => resp.url().includes('/api/kb') && resp.request().method() === 'GET');
-      const toggle = page.getByTestId(`kb-pin-toggle-${pinTestId}`);
-      await expect(toggle).toBeVisible();
+      await expect(page.getByTestId(`kb-pin-toggle-${pinTestId}`)).toBeVisible();
     });
 
-    test('clicking Pin toggle pins the entry', async ({ page }) => {
+    test('Pin 토글로 고정 → 새로고침 후에도 유지 → 해제', async ({ page }) => {
       await page.goto('/kb');
-      await page.waitForResponse((resp) => resp.url().includes('/api/kb') && resp.request().method() === 'GET');
-
       const toggle = page.getByTestId(`kb-pin-toggle-${pinTestId}`);
-      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-label', 'Pin');
 
-      // Wait for pin API
-      await page.waitForResponse(
-        (resp) => resp.url().includes(`/api/kb/${pinTestId}/pin`) && resp.request().method() === 'PATCH'
+      const pinResp = page.waitForResponse(
+        (r) => r.url().includes(`/api/kb/${pinTestId}/pin`) && r.status() === 200
       );
-
-      // "FAQ 고정됨" indicator should appear
-      await expect(page.getByText('📌 FAQ 고정됨')).toBeVisible({ timeout: 5000 });
-    });
-
-    test('clicking Pin toggle on already-pinned unpins the entry', async ({ page }) => {
-      // Ensure pinned via API
-      await apiRequest.patch(`/api/kb/${pinTestId}/pin`).catch(() => {});
-
-      await page.goto('/kb');
-      await page.waitForResponse((resp) => resp.url().includes('/api/kb') && resp.request().method() === 'GET');
-
-      const toggle = page.getByTestId(`kb-pin-toggle-${pinTestId}`);
       await toggle.click();
+      await pinResp;
 
-      await page.waitForResponse(
-        (resp) => resp.url().includes(`/api/kb/${pinTestId}/unpin`) && resp.request().method() === 'PATCH'
+      // Reload: proves the pin survived on the server and the list exposes pinnedAt.
+      // This is the only place in the suite that covers that.
+      await page.reload();
+      const afterReload = page.getByTestId(`kb-pin-toggle-${pinTestId}`);
+      await expect(afterReload).toHaveAttribute('aria-label', 'Unpin');
+
+      const unpinResp = page.waitForResponse(
+        (r) => r.url().includes(`/api/kb/${pinTestId}/unpin`) && r.status() === 200
       );
+      await afterReload.click();
+      await unpinResp;
+
+      await expect(page.getByTestId(`kb-pin-toggle-${pinTestId}`))
+        .toHaveAttribute('aria-label', 'Pin');
     });
   });
 });
