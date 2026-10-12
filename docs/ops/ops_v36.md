@@ -171,9 +171,13 @@ CLAUDE.md의 **"스키마 변경 없는 작업에서 DB 데이터 삭제 금지"
 skip 25건은 전부 기존 `test.fixme()` / 조건부 skip이다.
 
 잔존 실패 3건(`ui/kb.spec.ts:296`, `ui/senior.spec.ts:64`, `ui/senior.spec.ts:123`)은
-**develop에서도 동일하게 실패**하므로 이번 변경과 무관하다. 다만 develop의 CI e2e는
-계속 green이라 **로컬 환경 특유의 실패**로 보이며, 원인은 senior/kb 도메인 사안이라
+**develop에서도 동일하게 실패**하므로 이번 변경과 무관하다. 원인은 senior/kb 도메인 사안이라
 이번 범위에서 다루지 않는다. (§6 참조)
+
+> **2026-10-06 정정** — 위 문단에 원래 "develop CI e2e는 green이라 로컬 환경 특유의 실패로
+> 보인다"고 적었으나 **사실이 아니었다.** `ui/kb.spec.ts`는 CI에서도 결정적으로 실패한다
+> (PR #160에서 최초 + 재시도 2회 전부). 원인은 환경이 아니라 테스트가 DB 상태에 의존한 것으로,
+> `bugfix/kb-pin-e2e`에서 해소했다. senior 2건은 그대로 남아 있다.
 
 > Agent-D 1차 실행에서 `ui/convention.spec.ts:238`이 추가로 실패했으나,
 > 동일 코드 재실행에서 통과해 **flaky**로 판정했다. develop에서도 통과한다.
@@ -282,7 +286,7 @@ SELECT method, uri, count(*) FROM api_access_log
 | 동기 INSERT 제거 | `logAccessAsync`가 이름과 달리 request thread에서 `repository.save()`를 실행. 모든 API 요청이 응답 전 INSERT 1회를 기다린다 | `@Async`+`@Transactional` 주의사항(비동기 스레드가 uncommitted row를 못 봄)에 걸려 설계 검토 필요 |
 | `username` 99.1% null | 594,758행 중 5,084행만 채워짐. 필터 체인상(`jwt → dynamicPublicAccess → aiRateLimit → apiAccessLog`) 정상이어야 하는데 null | `DynamicPublicAccessFilter` / `login_required` 설정 확인이 선행되어야 함. **원인 미확인** |
 | Docker/journald 용량 | build cache 4.33GB, dangling 이미지 2.15GB, journald 1.7GB 상한 미설정 | 인프라 정리 사안으로 별도 버전에서 다룸 |
-| E2E 실패 3건 | `ui/kb.spec.ts:296`, `ui/senior.spec.ts:64`, `ui/senior.spec.ts:123` — develop에서도 동일 실패하나 develop CI e2e는 green. 로컬 환경 특유 실패로 보임 | senior/kb 도메인 사안. **quarantine 하지 않았다** — CI에서 통과하는 테스트를 죽이게 되므로 |
+| E2E 실패 3건 | `ui/kb.spec.ts:296`, `ui/senior.spec.ts:64`, `ui/senior.spec.ts:123` — develop에서도 동일 실패 | **quarantine 하지 않았다.** kb 1건은 2026-10-06 `bugfix/kb-pin-e2e`에서 원인 규명·수정(테스트가 DB 상태에 의존). senior 2건은 미해결 |
 
 ### 6-1. 구 ops_v36에서 이월된 미해결 이슈
 
