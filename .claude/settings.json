@@ -4,29 +4,5 @@
       "Bash(./gradlew:*)",
       "Bash(cd backend && ./gradlew:*)"
     ]
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/bin/bash /Users/yeongmi/dev/qa/my-atlas/scripts/claude-slack-notify.sh stop",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/bin/bash /Users/yeongmi/dev/qa/my-atlas/scripts/claude-slack-notify.sh notification",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
   }
 }
