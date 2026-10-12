@@ -1,5 +1,14 @@
 # Changelog
 
+## v2026.10.12.1251 — 2026-10-12
+
+### 📝 Docs
+- changelog v2026.10.12
+
+### 🔧 Chore
+- Notification hook + Slack 알림 스크립트 제거
+- Session Summary 규칙 + Stop hook 제거
+
 ## v2026.10.12 — 2026-10-12
 
 ### ✨ Features
