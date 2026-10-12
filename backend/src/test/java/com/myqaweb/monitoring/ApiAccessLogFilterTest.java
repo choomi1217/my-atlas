@@ -104,7 +104,7 @@ class ApiAccessLogFilterTest {
     @DisplayName("50자 초과 IP 문자열 → 50자로 잘림")
     void extractClientIp_truncatesIfTooLong() {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        String longIp = "a".repeat(200); // 의도적으로 긴 값
+        String longIp = "a".repeat(200);
         request.setRemoteAddr(longIp);
 
         String ip = ApiAccessLogFilter.extractClientIp(request);
@@ -153,5 +153,55 @@ class ApiAccessLogFilterTest {
         ArgumentCaptor<ApiAccessLogEntity> captor = ArgumentCaptor.forClass(ApiAccessLogEntity.class);
         verify(repository).save(captor.capture());
         assertEquals("203.0.113.99", captor.getValue().getIpAddress());
+    }
+
+    // --- shouldNotFilter: v36 polling exclusion ---
+
+    @Test
+    @DisplayName("GET /api/agent-executions → 폴링 경로라 기록 제외")
+    void shouldNotFilter_getAgentExecutions_isExcluded() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/agent-executions");
+
+        assertTrue(filter.shouldNotFilter(request));
+    }
+
+    @Test
+    @DisplayName("GET /api/agent-executions/{id} → 하위 경로도 기록 제외")
+    void shouldNotFilter_getAgentExecutionsSubPath_isExcluded() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/agent-executions/123");
+
+        assertTrue(filter.shouldNotFilter(request));
+    }
+
+    @Test
+    @DisplayName("POST /api/agent-executions/{id}/claim → 실행 이력이므로 반드시 기록")
+    void shouldNotFilter_postAgentExecutionsClaim_isLogged() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/agent-executions/123/claim");
+
+        assertFalse(filter.shouldNotFilter(request), "POST 실행 이력은 제외되면 안 된다");
+    }
+
+    @Test
+    @DisplayName("GET /api/test-cases → 무관한 경로는 계속 기록 (회귀 방지)")
+    void shouldNotFilter_unrelatedGetPath_isLogged() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/test-cases");
+
+        assertFalse(filter.shouldNotFilter(request));
+    }
+
+    @Test
+    @DisplayName("GET /actuator/health → 기존 제외 조건 유지")
+    void shouldNotFilter_actuator_isExcluded() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/actuator/health");
+
+        assertTrue(filter.shouldNotFilter(request));
+    }
+
+    @Test
+    @DisplayName("POST /api/senior/chat → SSE 스트리밍이라 기존대로 제외")
+    void shouldNotFilter_seniorChat_isExcluded() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/senior/chat");
+
+        assertTrue(filter.shouldNotFilter(request));
     }
 }

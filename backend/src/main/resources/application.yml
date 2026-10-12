@@ -121,3 +121,10 @@ slack:
 convention:
   image:
     upload-dir: ${CONVENTION_IMAGE_UPLOAD_DIR:convention-images}
+
+# API access log retention
+monitoring:
+  access-log:
+    retention:
+      # v36: 오래된 API 접근 로그 자동 삭제. 0 이하로 두면 삭제하지 않는다.
+      days: ${ACCESS_LOG_RETENTION_DAYS:90}
