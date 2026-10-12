@@ -1,5 +1,31 @@
 # Changelog
 
+## v2026.10.12 — 2026-10-12
+
+### ✨ Features
+- api_access_log 90일 보존 스케줄러
+
+### 🐛 Fixes
+- KB Pin E2E — DB 상태 의존 제거
+
+### ♻️ Refactor
+- 의미없는 주석 제거
+- access_log 간소화 — 과잉 설계 제거
+- 폴링 GET을 api_access_log 기록 대상에서 제외
+
+### ✅ Tests
+- access_log 폴링 제외 E2E
+
+### 📝 Docs
+- ops_v36 — 간소화 패스 기록
+- ops_v36 — 구현 결과 및 검증 반영
+- Spring 프록시 self-invocation 함정 기록
+- ops_v36 — api_access_log 정리 계획
+- changelog v2026.08.26
+
+### 🔧 Chore
+- graphify-out 무시
+
 ## v2026.08.26 — 2026-08-26
 
 ### ✨ Features
