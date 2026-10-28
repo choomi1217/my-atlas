@@ -463,25 +463,16 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
   // 1) 대상 진입 (웹: goto + 결정적 로그인 / 모바일: 앱은 세션이 이미 띄웠다)
   await ops.enter(target, agent);
 
-  // 2) 전제조건 네비게이션.
-  //    TC의 Segment Path·전제조건이 있으면 그것이 목표다 (v24 §4) — Product 단위 seedNote보다 우선.
+  // 2) 전제조건 네비게이션 — TC 전제조건 필드에 적힌 경우에만 (registry_v29). 없으면 Product seedNote.
+  //    Segment Path로 미리 가지 않는다(v24 §4 폐기): Step이 홈에서 출발하도록 쓰인 TC가 그 이동과 충돌한다.
   //    TC는 매번 앱 재시작 직후 첫 화면에서 출발한다(registry_v28 #3). "이미 그 화면이면 done"만 주면
-  //    첫 화면(홈)에 비슷한 목록이 보이는 것만으로 경로 중간 단계(검색창 등)를 건너뛴다 (registry_v29).
-  const pathGoal = (tc.segmentPath || []).filter(Boolean).join(' > ');
+  //    첫 화면(홈)에 비슷한 목록이 보이는 것만으로 중간 단계(검색창 등)를 건너뛴다.
   const preText = (tc.preconditions || '').trim();
-  const seedGoal =
-    pathGoal || preText
-      ? [
-          pathGoal && `아래 경로가 가리키는 화면까지 이동한다: ${pathGoal}.`,
-          preText && `전제조건: ${preText}`,
-          'TC는 앱을 막 시작한 첫 화면에서 출발한다. 첫 화면에 비슷한 요소가 보여도 경로의 다음 단계(예: 검색창을 눌러 여는 화면)를 실제로 거쳐, 마지막 단계 화면에 도착했을 때만 done 하라.',
-        ]
-          .filter(Boolean)
-          .join(' ')
-      : (target.seedNote || '').trim();
+  const seedGoal = preText
+    ? `전제조건 상태까지 이동한다: ${preText}. TC는 앱을 막 시작한 첫 화면에서 출발한다. 첫 화면에 비슷한 요소가 보여도 전제조건에 적힌 단계(예: 검색창 터치)를 실제로 거쳐, 그 상태에 도착했을 때만 done 하라.`
+    : (target.seedNote || '').trim();
   if (seedGoal) {
-    const preLabel = [pathGoal, preText].filter(Boolean).join(' · ') || (target.seedNote || '').trim();
-    prog.precondition = { text: clip(preLabel, 300), status: 'RUNNING' };
+    prog.precondition = { text: clip(preText || (target.seedNote || '').trim(), 300), status: 'RUNNING' };
     emit();
     let reached = false;
     try {

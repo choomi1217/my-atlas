@@ -20,7 +20,8 @@
 
 ## 조치 (`agent-worker/src/agent.js`)
 
-- 전제조건 목표 = Segment Path + TC `preconditions` + "TC는 앱 첫 화면에서 출발 — 경로 단계를 실제로 거쳐 마지막 단계 화면에서만 done".
+- **시작 위치 규칙 변경 (User 결정)**: 전제조건 네비게이션은 TC `preconditions` 필드에 적힌 경우에만. 비어 있으면 홈(앱 재시작 직후 화면)에서 Step 시작 — Segment Path로 미리 이동하던 v24 §4 규칙 폐기 (Step이 홈에서 출발하도록 쓰인 T3411·T3417·T3430과 충돌).
+- 전제조건 목표 문구: "TC는 앱 첫 화면에서 출발 — 적힌 단계를 실제로 거쳐 그 상태에서만 done".
 - 전제조건 루프에 `previousActions` 전달 (Step 루프와 같은 형식).
 - `askJson`: JSON이 없으면 1회 재요청. (prefill은 최신 모델에서 400이라 미사용)
 - 전제조건 예외는 미도달로 처리하고 Step 진행 — Job 전체 실패 방지.
@@ -32,6 +33,8 @@
 | T3412 | FAIL ×3 (전제조건 동작 0회) | **PASS ×2** (Job 23·26, 검색창 터치 → 도달) |
 | T3411 | 전제조건 홈 착각 1/3 | 도달 ×2 (Job 24·27), Step 2·3 PASS — Step 1(image #1)만 INCONCLUSIVE |
 | T3417 | 미도달 (반복 클릭) | Job 25 서술 응답으로 FAILED → 재요청·예외 보호 추가 후 Job 28 정상 완료. 전제조건 미도달·Step 2·4·5 FAIL은 아래 칩 라벨 한계 |
+
+운영 설정: 패스오더 Product seedNote("홈 이동 후 Path가 전제조건")는 새 규칙과 충돌 → User가 비움.
 
 ## 남은 한계 (v30)
 
