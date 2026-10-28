@@ -9,6 +9,13 @@
  */
 import { remote } from 'webdriverio';
 import { XMLParser } from 'fast-xml-parser';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
+const ADB =
+  process.env.ADB_PATH ||
+  (process.env.ANDROID_HOME ? `${process.env.ANDROID_HOME}/platform-tools/adb` : 'adb');
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -406,6 +413,19 @@ export async function createMobileOps(cfg) {
         default:
           throw new Error(`알 수 없는 액션 타입: ${action.type}`);
       }
+    },
+
+    /**
+     * 라이브 뷰용 화면 캡처. Appium 세션은 명령을 순차 처리하므로 쓰지 않고 adb로 직접 뜬다
+     * (세션을 쓰면 에이전트 액션이 스크린샷 뒤로 밀린다).
+     */
+    async frame() {
+      const { stdout } = await execFileAsync(ADB, ['-s', cfg.deviceName || 'emulator-5554', 'exec-out', 'screencap', '-p'], {
+        encoding: 'buffer',
+        maxBuffer: 32 * 1024 * 1024,
+        timeout: 10000,
+      });
+      return { data: stdout, contentType: 'image/png' };
     },
 
     async close() {

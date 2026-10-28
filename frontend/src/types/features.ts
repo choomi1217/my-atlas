@@ -92,6 +92,41 @@ export interface AgentExecutionResult {
   createdAt: string;
 }
 
+export type AgentLivePhase = 'PRECONDITION' | 'ACTING' | 'JUDGING';
+
+export type AgentLiveStepStatus =
+  | 'PENDING'
+  | 'ACTING'
+  | 'JUDGING'
+  | 'PASS'
+  | 'FAIL'
+  | 'INCONCLUSIVE';
+
+export interface AgentLiveStep {
+  order: number;
+  action: string;
+  expected: string;
+  status: AgentLiveStepStatus;
+  judgment: string | null;
+}
+
+export interface AgentLivePrecondition {
+  text: string;
+  status: 'RUNNING' | 'DONE' | 'INCOMPLETE';
+}
+
+/** AI 실행 중계 — 현재 TC/Step 진행 상황 */
+export interface AgentLiveProgress {
+  testCaseId: number;
+  testCaseTitle: string;
+  tcIndex: number;
+  tcTotal: number;
+  phase: AgentLivePhase;
+  precondition: AgentLivePrecondition | null;
+  currentStep: number | null;
+  steps: AgentLiveStep[];
+}
+
 /**
  * Segment interface for hierarchical path nodes.
  */

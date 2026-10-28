@@ -331,6 +331,10 @@ export function createWebOps(page) {
     tree: () => accessibilityTree(page),
     location: async () => page.url(),
     execute: (action) => executeAction(page, action),
+    /** 라이브 뷰용 현재 화면 캡처 */
+    async frame() {
+      return { data: await page.screenshot({ type: 'jpeg', quality: 60 }), contentType: 'image/jpeg' };
+    },
     async close() {
       /* 브라우저 수명은 호출부(index.js)가 관리한다 */
     },
@@ -349,20 +353,50 @@ export async function agenticGoal(ops, agent, goalText, maxActions) {
       availableActions: ops.availableActions,
     }));
     console.log(`[worker] seed[${i}] url=${url} → ${action.type}${action.ref ? `(${action.ref})` : ''}${action.value ? `=${action.value}` : ''} :: ${action.thought || ''}`);
-    if (action.type === 'done') return;
+    if (action.type === 'done') return true;
     await ops.execute(action, locators);
   }
   console.log(`[worker] seed 목표 미완료 — maxActions(${maxActions}) 소진`);
+  return false;
 }
 
 /**
  * TC 1건을 실행하고 판정한다.
  * @returns {Promise<{verdict:string, stepLogs:Array, durationMs:number, tokenCost:number}>}
  */
-export async function runTestCase(ops, agent, tc, target, maxStepActions, shouldStop) {
+export async function runTestCase(ops, agent, tc, target, maxStepActions, shouldStop, onProgress) {
   const started = agent.now();
   const startTokens = agent.tokenCost;
   const stepLogs = [];
+
+  const steps = (tc.steps || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  // 라이브 진행 상태 (UI 스텝 플로우용). 보고 실패가 실행을 깨면 안 되므로 emit은 예외를 삼킨다.
+  const clip = (s, n) => String(s ?? '').slice(0, n);
+  const prog = {
+    phase: 'PRECONDITION',
+    precondition: null,
+    currentStep: null,
+    steps: steps.slice(0, 200).map((s) => ({
+      order: s.order,
+      action: clip(s.action, 5000),
+      expected: clip(s.expected, 5000),
+      status: 'PENDING',
+      judgment: null,
+    })),
+  };
+  const emit = () => {
+    try {
+      onProgress?.(structuredClone(prog)); // 복제본: 리포터가 보관하는 동안 원본이 바뀐다
+    } catch {
+      /* 진행 보고는 실행에 영향을 주지 않는다 */
+    }
+  };
+  const mark = (idx, status, judgment) => {
+    if (!prog.steps[idx]) return; // 200개 초과분은 보고 대상 아님
+    prog.steps[idx].status = status;
+    if (judgment !== undefined) prog.steps[idx].judgment = clip(judgment, 5000);
+  };
 
   // 1) 대상 진입 (웹: goto + 결정적 로그인 / 모바일: 앱은 세션이 이미 띄웠다)
   await ops.enter(target, agent);
@@ -374,18 +408,26 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
     ? `아래 경로가 가리키는 화면까지 이동한다: ${pathGoal}. 이미 그 화면이면 done 하라.`
     : (target.seedNote || '').trim();
   if (seedGoal) {
-    await agenticGoal(ops, agent, seedGoal, maxStepActions);
+    prog.precondition = { text: clip(pathGoal || (target.seedNote || '').trim(), 300), status: 'RUNNING' };
+    emit();
+    const reached = await agenticGoal(ops, agent, seedGoal, maxStepActions);
+    // 도달 못 했는데 '완료'로 보이면 거짓 초록이다 — 미도달을 그대로 드러낸다
+    prog.precondition.status = reached ? 'DONE' : 'INCOMPLETE';
+    emit();
   }
 
   // 3) TC step 순차 실행·판정
-  const steps = (tc.steps || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
   let verdict = 'PASS';
-  for (const step of steps) {
+  for (const [idx, step] of steps.entries()) {
     // 상용 서비스를 조작하는 중이므로 step 단위로 중단 요청을 확인한다.
     // CancelledError는 아래 catch가 아니라 호출부까지 올라가야 하므로 try 밖에서 던진다.
     if (shouldStop && (await shouldStop())) {
       throw new CancelledError();
     }
+    prog.phase = 'ACTING';
+    prog.currentStep = step.order;
+    mark(idx, 'ACTING');
+    emit();
     const history = []; // step 내 이미 시도한 액션 (반복 방지). 성공/실패 모두 여기 남기고, 로그는 이걸 그대로 쓴다.
     try {
       // 액션 결정·실행 (step당 최대 maxStepActions)
@@ -419,6 +461,9 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
       const text = await ops.text();
       const axTree = await ops.tree();
       const where = await ops.location();
+      prog.phase = 'JUDGING';
+      mark(idx, 'JUDGING');
+      emit();
       const judged = await askJson(agent, JUDGE_SYSTEM, JSON.stringify({
         expected: step.expected,
         url: where,
@@ -435,6 +480,8 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
       });
       if (judged.verdict === 'FAIL') verdict = 'FAIL';
       else if (judged.verdict === 'INCONCLUSIVE' && verdict !== 'FAIL') verdict = 'INCONCLUSIVE';
+      mark(idx, ['PASS', 'FAIL', 'INCONCLUSIVE'].includes(judged.verdict) ? judged.verdict : 'INCONCLUSIVE', judged.reasoning);
+      emit();
     } catch (err) {
       stepLogs.push({
         order: step.order,
@@ -444,6 +491,8 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
         screenshotKey: null,
       });
       if (verdict !== 'FAIL') verdict = 'INCONCLUSIVE';
+      mark(idx, 'INCONCLUSIVE', err.message);
+      emit();
     }
   }
 

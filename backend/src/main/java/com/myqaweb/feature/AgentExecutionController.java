@@ -3,7 +3,10 @@ package com.myqaweb.feature;
 import com.myqaweb.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +24,9 @@ import java.util.Map;
 @RequestMapping("/api/agent-executions")
 @RequiredArgsConstructor
 public class AgentExecutionController {
+
+    /** 라이브 프레임 최대 크기 (10MB). */
+    public static final int MAX_FRAME_BYTES = 10 * 1024 * 1024;
 
     private final AgentExecutionService agentExecutionService;
 
@@ -104,5 +110,51 @@ public class AgentExecutionController {
     public ResponseEntity<ApiResponse<AgentExecutionDto.JobResponse>> completeJob(
             @PathVariable Long id, @Valid @RequestBody AgentExecutionDto.CompleteJobRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Agent execution job completed", agentExecutionService.completeJob(id, request)));
+    }
+
+    // --- 라이브 뷰 (registry_v26) ---
+
+    /** 워커가 최신 화면 프레임 업로드. RUNNING이 아니면 409, 10MB 초과면 413. */
+    @PutMapping(value = "/{id}/frame", consumes = {MediaType.IMAGE_PNG_VALUE, MediaType.IMAGE_JPEG_VALUE})
+    public ResponseEntity<Void> putFrame(
+            @PathVariable Long id,
+            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType,
+            @RequestBody byte[] data) {
+        if (data.length > MAX_FRAME_BYTES) {
+            return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).build();
+        }
+        return agentExecutionService.storeFrame(id, data, contentType)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.status(HttpStatus.CONFLICT).build();
+    }
+
+    /** 프론트가 폴링하는 최신 화면 프레임. 없으면 204. */
+    @GetMapping("/{id}/frame")
+    public ResponseEntity<byte[]> getFrame(@PathVariable Long id) {
+        return agentExecutionService.getFrame(id)
+                .map(f -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(f.contentType()))
+                        .cacheControl(CacheControl.noStore())
+                        .body(f.data()))
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    // --- 라이브 진행 상황 (registry_v27) ---
+
+    /** 워커가 최신 TC/step 진행 상황 업로드. RUNNING이 아니면 409. */
+    @PutMapping(value = "/{id}/progress", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> putProgress(
+            @PathVariable Long id, @Valid @RequestBody AgentExecutionDto.LiveProgress progress) {
+        return agentExecutionService.storeProgress(id, progress)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.status(HttpStatus.CONFLICT).build();
+    }
+
+    /** 프론트가 폴링하는 최신 진행 상황. 없으면 data=null. */
+    @GetMapping("/{id}/progress")
+    public ResponseEntity<ApiResponse<AgentExecutionDto.LiveProgress>> getProgress(@PathVariable Long id) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(ApiResponse.ok(agentExecutionService.getProgress(id).orElse(null)));
     }
 }

@@ -27,6 +27,7 @@ import {
   Dashboard,
   AgentExecutionJob,
   AgentExecutionResult,
+  AgentLiveProgress,
 } from '@/types/features';
 // ProgressStats is used indirectly via Version/VersionPhase types
 
@@ -814,6 +815,26 @@ export const agentExecutionApi = {
       `/api/agent-executions/${jobId}`
     );
     return response.data.data;
+  },
+
+  /** 실행 화면 최신 프레임. 204(프레임 없음/종료) 또는 빈 응답이면 null */
+  getFrame: async (jobId: number): Promise<Blob | null> => {
+    const response = await apiClient.get<Blob>(
+      `/api/agent-executions/${jobId}/frame`,
+      { responseType: 'blob' }
+    );
+    if (response.status === 204 || !response.data || response.data.size === 0) {
+      return null;
+    }
+    return response.data;
+  },
+
+  /** 현재 TC/Step 진행 상황. 진행 정보가 없으면(종료 등) null */
+  getProgress: async (jobId: number): Promise<AgentLiveProgress | null> => {
+    const response = await apiClient.get<ApiResponse<AgentLiveProgress | null>>(
+      `/api/agent-executions/${jobId}/progress`
+    );
+    return response.data.data ?? null;
   },
 
   getResult: async (
