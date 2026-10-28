@@ -14,6 +14,7 @@ import {
  * agent-execution API를 route 모킹: 프레임 엔드포인트는 1x1 PNG, 진행 상황 엔드포인트는 3 step 진행 상황을 돌려준다.
  * v26: 실행 중에는 라이브 프레임(<img>)이 보이고, DONE 이후에는 라이브 뷰가 사라져야 한다.
  * v27: 실행 중 TC 헤더 / 노드 플로우 / 현재 step 상세 / 확대 오버레이가 보여야 한다.
+ * v28: 노드 한 줄 요약, 노드 클릭 시 해당 step/전제조건 상세, '현재 Step 보기'·재클릭으로 복귀.
  */
 
 const JOB_ID = 987656;
@@ -205,12 +206,45 @@ test.describe('Agent Live View UI (worker stubbed)', () => {
     await expect(flow.getByTestId('agent-live-node-2')).toHaveAttribute('data-status', 'FAIL');
     await expect(flow.getByTestId('agent-live-node-3')).toHaveAttribute('data-status', 'JUDGING');
 
-    // 현재 위치 상세
+    // 현재 위치 상세 (step 동작 텍스트는 노드 요약에도 있으므로 detail로 스코프)
     const detail = page.getByTestId('agent-live-detail');
     await expect(detail).toContainText('Step 3/3');
     await expect(detail).toContainText('기대 결과 판정 중');
     await expect(detail).toContainText('검색 버튼 클릭');
     await expect(detail).toContainText('결과 목록 표시');
+
+    // v28: 노드 한 줄 요약 + 클릭 시 상세 (확대 오버레이는 같은 testid의 플로우를 하나 더 그리므로 열기 전에 검증)
+    const pre = flow.getByTestId('agent-live-node-pre');
+    const node2 = flow.getByTestId('agent-live-node-2');
+    const follow = detail.getByTestId('agent-live-detail-follow');
+    await expect(flow.getByTestId('agent-live-node-1-summary')).toHaveText('검색창 클릭');
+    await expect(flow.getByTestId('agent-live-node-pre-summary')).toHaveText('홈 > 검색');
+    await expect(follow).toBeHidden();
+
+    // step 2 노드 선택 → 해당 step 상세 (판정 포함)
+    await node2.click();
+    await expect(node2).toHaveAttribute('aria-pressed', 'true');
+    await expect(detail).toContainText('Step 2/3');
+    await expect(detail).toContainText('✕ FAIL');
+    await expect(detail).toContainText('검색어 입력');
+    await expect(detail).toContainText('FAIL: 자동완성 없음');
+
+    // '현재 Step 보기' → 현재 step 추적으로 복귀
+    await follow.click();
+    await expect(node2).toHaveAttribute('aria-pressed', 'false');
+    await expect(detail).toContainText('Step 3/3');
+    await expect(detail).toContainText('기대 결과 판정 중');
+    await expect(follow).toBeHidden();
+
+    // 전제조건 노드 선택 → 경로 상세, 다시 클릭하면 선택 해제
+    await pre.click();
+    await expect(pre).toHaveAttribute('aria-pressed', 'true');
+    await expect(detail).toContainText('전제조건');
+    await expect(detail).toContainText('홈 > 검색');
+    await pre.click();
+    await expect(pre).toHaveAttribute('aria-pressed', 'false');
+    await expect(detail).toContainText('Step 3/3');
+    await expect(detail).toContainText('기대 결과 판정 중');
 
     // 확대: 열기 → 오버레이(다크 플로우 포함) → Esc로 닫기
     await expect(page.getByTestId('agent-live-frame')).toBeVisible();

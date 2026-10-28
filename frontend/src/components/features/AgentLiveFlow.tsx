@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type {
   AgentLiveProgress,
   AgentLiveStep,
@@ -10,7 +11,7 @@ interface AgentLiveFlowProps {
 }
 
 const NODE_BASE =
-  'shrink-0 min-w-[84px] rounded-lg border px-2 py-1.5 text-center';
+  'shrink-0 min-w-[84px] max-w-[140px] rounded-lg border px-2 py-1.5 text-center';
 const ACTIVE_STYLE =
   'border-indigo-500 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-200';
 
@@ -55,30 +56,65 @@ function stepTooltip(step: AgentLiveStep): string {
   return step.judgment ? `${base}\n판정: ${step.judgment}` : base;
 }
 
+type NodeKey = 'pre' | number;
+
+interface Selection {
+  testCaseId: number;
+  key: NodeKey;
+}
+
 interface FlowNodeProps {
   testId: string;
   status: string;
   title: string;
   name: string;
+  summary: string;
   style: NodeStyle;
+  selected: boolean;
+  dark: boolean;
+  onToggle: () => void;
 }
 
-function FlowNode({ testId, status, title, name, style }: FlowNodeProps) {
+function FlowNode({
+  testId,
+  status,
+  title,
+  name,
+  summary,
+  style,
+  selected,
+  dark,
+  onToggle,
+}: FlowNodeProps) {
+  const selectedStyle = selected
+    ? `outline outline-2 outline-offset-1 ${
+        dark ? 'outline-white/70' : 'outline-gray-500'
+      }`
+    : '';
   return (
-    <div
+    <button
+      type="button"
       data-testid={testId}
       data-status={status}
       title={title}
-      className={`${NODE_BASE} ${style.className}`}
+      aria-pressed={selected}
+      onClick={onToggle}
+      className={`${NODE_BASE} ${style.className} ${selectedStyle}`}
     >
-      <div className="text-xs font-semibold">{name}</div>
-      <div className="text-[11px] flex items-center justify-center gap-1">
+      <span className="block text-xs font-semibold">{name}</span>
+      <span className="text-[11px] flex items-center justify-center gap-1">
         {style.spinner && (
           <span className="inline-block w-2.5 h-2.5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
         )}
         {style.label}
-      </div>
-    </div>
+      </span>
+      <span
+        data-testid={`${testId}-summary`}
+        className="block truncate text-[10px] opacity-70"
+      >
+        {summary}
+      </span>
+    </button>
   );
 }
 
@@ -117,9 +153,43 @@ export default function AgentLiveFlow({
   const { precondition, steps, phase, currentStep } = progress;
   const current = steps.find((s) => s.order === currentStep);
 
+  // 선택은 TC가 바뀌면 자동으로 무효 (effect 없이 testCaseId 비교)
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const selectedKey =
+    selection && selection.testCaseId === progress.testCaseId
+      ? selection.key
+      : null;
+  const selectedStep =
+    typeof selectedKey === 'number'
+      ? steps.find((s) => s.order === selectedKey)
+      : undefined;
+  const selectedPre = selectedKey === 'pre' ? precondition : null;
+  const hasSelection = Boolean(selectedStep || selectedPre);
+
+  const toggle = (key: NodeKey) =>
+    setSelection((prev) =>
+      prev && prev.testCaseId === progress.testCaseId && prev.key === key
+        ? null
+        : { testCaseId: progress.testCaseId, key },
+    );
+
   let detailTitle: string | null = null;
   let detailRows: { label: string; value: string }[] = [];
-  if (phase === 'PRECONDITION') {
+  if (selectedStep) {
+    detailTitle = `Step ${selectedStep.order}/${steps.length} · ${
+      STEP_STYLES[selectedStep.status].label
+    }`;
+    detailRows = [
+      { label: '동작', value: selectedStep.action },
+      { label: '기대 결과', value: selectedStep.expected },
+    ];
+    if (selectedStep.judgment) {
+      detailRows.push({ label: '판정', value: selectedStep.judgment });
+    }
+  } else if (selectedPre) {
+    detailTitle = `전제조건 · ${PRECONDITION_STYLES[selectedPre.status].label}`;
+    detailRows = [{ label: '경로', value: selectedPre.text }];
+  } else if (phase === 'PRECONDITION') {
     detailTitle = '전제조건 화면으로 이동 중';
     detailRows = precondition ? [{ label: '경로', value: precondition.text }] : [];
   } else if (current) {
@@ -164,7 +234,11 @@ export default function AgentLiveFlow({
               status={precondition.status}
               title={`경로: ${precondition.text}`}
               name="전제조건"
+              summary={precondition.text}
               style={PRECONDITION_STYLES[precondition.status]}
+              selected={selectedKey === 'pre'}
+              dark={dark}
+              onToggle={() => toggle('pre')}
             />
             {steps.length > 0 && <Arrow />}
           </>
@@ -177,7 +251,11 @@ export default function AgentLiveFlow({
               status={step.status}
               title={stepTooltip(step)}
               name={`Step ${step.order}`}
+              summary={step.action}
               style={STEP_STYLES[step.status]}
+              selected={selectedKey === step.order}
+              dark={dark}
+              onToggle={() => toggle(step.order)}
             />
           </div>
         ))}
@@ -192,12 +270,28 @@ export default function AgentLiveFlow({
               : 'border-indigo-100 bg-indigo-50'
           }`}
         >
-          <div
-            className={`text-xs font-semibold mb-1 ${
-              dark ? 'text-white' : 'text-indigo-700'
-            }`}
-          >
-            {detailTitle}
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div
+              className={`text-xs font-semibold ${
+                dark ? 'text-white' : 'text-indigo-700'
+              }`}
+            >
+              {detailTitle}
+            </div>
+            {hasSelection && (
+              <button
+                type="button"
+                data-testid="agent-live-detail-follow"
+                onClick={() => setSelection(null)}
+                className={`shrink-0 rounded border px-1.5 py-0.5 text-[11px] ${
+                  dark
+                    ? 'border-white/30 text-white hover:bg-white/10'
+                    : 'border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                }`}
+              >
+                현재 Step 보기
+              </button>
+            )}
           </div>
           <DetailRows rows={detailRows} dark={dark} />
         </div>

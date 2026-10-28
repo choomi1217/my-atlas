@@ -234,6 +234,39 @@ export async function createMobileOps(cfg) {
   });
 
   /**
+   * 화면 덤프 캐시 (registry_v28). 액션 직후 안정화에서 얻은 XML을 판정 단계의
+   * snapshot/text/location이 재사용해, 한 화면을 3~4번 덤프하던 낭비를 없앤다.
+   * execute() 시작·앱 복귀 때 무효화한다 — 화면이 바뀐 뒤의 XML을 쓰면 안 된다.
+   */
+  const cache = { xml: null };
+  async function dump() {
+    cache.xml = await driver.getPageSource();
+    return cache.xml;
+  }
+  const cachedXml = async () => cache.xml ?? dump();
+
+  /**
+   * 액션 후 화면 안정 대기 — 고정 sleep 대신, 연속 두 덤프가 같아질 때까지(최대 4회, ~2s).
+   * 안정된 XML은 캐시에 남긴다.
+   */
+  // 액션 직후 화면 확보: 짧게 기다렸다 1회 덤프, 화면이 아직 그대로면 1회만 더.
+  // "두 번 연속 같을 때까지" 반복하면 지도처럼 계속 변하는 화면에서 느린 덤프만 4회 쌓인다 (실측 exec 9.9s).
+  let preActionXml = null;
+  async function settle() {
+    await sleep(600);
+    try {
+      let xml = await driver.getPageSource();
+      if (preActionXml && xml === preActionXml) {
+        await sleep(400);
+        xml = await driver.getPageSource();
+      }
+      cache.xml = xml;
+    } catch {
+      cache.xml = null; // 덤프 실패 → 다음 관측이 새로 뜬다
+    }
+  }
+
+  /**
    * ANR("isn't responding")·크래시("has stopped") 시스템 다이얼로그 감지.
    *
    * 이 다이얼로그가 떠도 `getCurrentActivity()`는 여전히 대상 화면을 가리키므로,
@@ -250,7 +283,7 @@ export async function createMobileOps(cfg) {
   ];
   async function detectSystemAlert() {
     try {
-      const xml = await driver.getPageSource();
+      const xml = await cachedXml();
       return ALERT_PATTERNS.some((re) => re.test(xml));
     } catch {
       return false;
@@ -283,6 +316,11 @@ export async function createMobileOps(cfg) {
     // 네이티브에는 URL 이동(navigate)과 셀렉트(select)가 없다. 대신 키·뒤로·스크롤이 있다.
     availableActions: ['click', 'fill', 'key', 'back', 'scroll', 'done'],
 
+    /** 다음 관측이 새로 덤프하도록 캐시를 버린다 (판정 직전 최신 화면 확보용) */
+    refresh() {
+      cache.xml = null;
+    },
+
     /**
      * 대상 진입 — 대상 앱을 명시적으로 전면에 올린다.
      * 세션 생성만 믿으면 앱이 스플래시나 백그라운드인 상태에서 시작해
@@ -291,8 +329,28 @@ export async function createMobileOps(cfg) {
      * 에이전트가 재로그인을 시도하면 액션 예산만 소진된다 (v20 B2-1).
      */
     async enter() {
+      // TC 독립성 — 화면 상태만 초기화한다. terminate는 데이터를 지우지 않으므로 로그인은 유지된다.
+      // 이전 TC의 마지막 화면에서 시작하면 실행마다 결과가 달라진다 (registry_v28 #3).
+      cache.xml = null;
+      await driver.terminateApp(cfg.appPackage).catch(() => {});
       await driver.activateApp(cfg.appPackage).catch(() => {});
-      await sleep(1500);
+      // 고정 sleep 대신 앱이 전면에 오고 상호작용 요소가 보일 때까지 대기 (최대 ~10s)
+      const deadline = Date.now() + 10000;
+      while (Date.now() < deadline) {
+        try {
+          if ((await driver.getCurrentPackage()) === cfg.appPackage) {
+            const xml = await driver.getPageSource();
+            if (mapSource(xml, cfg.snapshotMaxDepth ?? 25).elements.length > 0) {
+              cache.xml = xml;
+              return;
+            }
+          }
+        } catch {
+          /* 앱 기동 중 일시 오류 — 재시도 */
+        }
+        await sleep(500);
+      }
+      console.log('[worker] 앱 재시작 후 10초 내 화면 준비 확인 실패 — 계속 진행');
     },
 
     async snapshot(tries = 3) {
@@ -303,20 +361,21 @@ export async function createMobileOps(cfg) {
         console.log(`[worker] 대상 앱 밖(${pkg}) — ${cfg.appPackage}로 복귀`);
         await driver.activateApp(cfg.appPackage).catch(() => {});
         await sleep(1500);
+        cache.xml = null; // 앱을 되돌렸으니 이전 덤프는 낡았다
       }
       let mapped = { elements: [], locators: {} };
       for (let i = 0; i < tries; i++) {
-        const xml = await driver.getPageSource();
+        const xml = await cachedXml();
         mapped = { ...mapSource(xml, cfg.snapshotMaxDepth ?? 25), xml };
         if (mapped.elements.length > 0) return mapped;
+        cache.xml = null; // 빈 결과는 캐시하지 않는다 — 재시도는 새로 덤프
         await sleep(600);
       }
       return mapped;
     },
 
     async text() {
-      const xml = await driver.getPageSource();
-      return screenText(xml);
+      return screenText(await cachedXml());
     },
 
     /** 네이티브에는 웹의 접근성 트리 대응물을 따로 만들지 않는다 (elements+text로 판정) */
@@ -349,6 +408,8 @@ export async function createMobileOps(cfg) {
     },
 
     async execute(action, locators) {
+      preActionXml = cache.xml; // settle이 "아직 안 바뀜"을 알아보는 기준
+      cache.xml = null; // 화면이 바뀔 것이므로 이전 덤프 무효화
       const loc = action.ref ? locators[action.ref] : null;
       switch (action.type) {
         case 'click': {
@@ -357,7 +418,7 @@ export async function createMobileOps(cfg) {
           if (el) await el.click();
           else if (loc.center) await driver.execute('mobile: clickGesture', loc.center);
           else throw new Error('요소를 찾을 수 없음');
-          await sleep(1200);
+          await settle();
           return;
         }
         case 'fill': {
@@ -376,7 +437,7 @@ export async function createMobileOps(cfg) {
               .execute('mobile: type', { text })
               .catch(async () => driver.keys(text.split('')));
           }
-          await sleep(1200);
+          await settle();
           return;
         }
         case 'key': {
@@ -386,14 +447,19 @@ export async function createMobileOps(cfg) {
           const code = KEYCODES[name];
           if (!code) throw new Error(`지원하지 않는 키: ${action.value}`);
           await driver.pressKeyCode(code);
-          await sleep(1200);
+          await settle();
           return;
         }
         case 'back':
           await driver.back();
-          await sleep(1200);
+          await settle();
           return;
         case 'scroll':
+          // 키보드가 열려 있으면 스크롤 제스처(y 400~1800)가 키보드 위를 지나가며
+          // Gboard 글라이드 입력이 글자를 친다(스와이프 1회 = 글자 1개). 먼저 닫는다 (registry_v28 #6)
+          if (await driver.isKeyboardShown().catch(() => false)) {
+            await driver.hideKeyboard().catch(() => {});
+          }
           await driver.execute('mobile: scrollGesture', {
             left: 100,
             top: 400,
@@ -402,7 +468,7 @@ export async function createMobileOps(cfg) {
             direction: String(action.value || 'down'),
             percent: 0.8,
           });
-          await sleep(900);
+          await settle();
           return;
         case 'select':
           throw new Error('이 플랫폼에는 select가 없다. 목록을 클릭으로 열고 항목을 클릭하라');
