@@ -279,11 +279,13 @@ const ACTION_SYSTEM = `너는 웹 QA 테스트를 실행하는 에이전트다.
 중요: 목표(action)에 클릭·입력이 필요하면 먼저 그 동작을 수행하라. 아직 안 했으면 절대 done 하지 마라.
 중요: ref 번호는 스냅샷마다 다시 매겨지므로 같은 요소도 매번 다른 ref로 보일 수 있다. previousActions에 지금 클릭하려는 것과 같은 이름(name)의 click이 이미 성공적으로("[실패]" 표시 없이) 기록돼 있다면, 그 요소는 이미 클릭한 것이니 같은 이름을 다시 클릭하지 말고 done 하라(단, 클릭 후 나타난 새 입력 필드에 fill 등 다른 동작이 남아있으면 그것부터 하라).
 "버튼 클릭" 목표면 그 버튼 ref를 click, "입력" 목표면 fill 하라.
+중요: 목표가 "~ 확인"처럼 보는 것만 요구하고 터치·클릭·입력을 명시하지 않으면, 화면 상태를 바꾸는 동작(체크박스·토글·필터·드롭다운 클릭, 창 열기)을 하지 말고 done 하라 — 확인하려고 상태를 바꾸면 검증 대상이 바뀐다. 확인할 대상이 화면 밖에 있을 때의 scroll만 허용한다.
 previousActions는 이 step에서 이미 시도한 액션이다. 같은 액션을 반복하지 말고, [실패] 표시가 있으면 다른 요소를 시도하라. 목표 동작을 완료했으면 done 하라.
 중요: 입력에 expectedState(이 액션 완료 후 도달해야 할 상태)가 있으면, 그 상태에 이미 도달했는지를 기준으로 done 여부를 판단하라. 목표(action) 문구에 없는 추가 동작(예: 한 단계 더 들어가서 다른 걸 또 클릭하는 것)은 expectedState 달성에 필요하지 않으면 하지 마라 — 목표를 넘어서 더 진행하지 마라.`;
 
 const JUDGE_SYSTEM = `너는 웹 QA 판정자다.
 직전 액션 수행 후의 페이지 상태가 기대(expected)를 충족하는지 판정한다.
+입력의 action·actionsTaken은 이 step에서 이미 수행한 동작이다. 지금 페이지 상태는 그 동작을 모두 마친 **뒤**의 상태이니, "스크롤 후", "검색 후", "터치 후" 같은 기대는 현재 상태로 판정하라. 단, 동작을 했다는 사실만으로 PASS 하지 말고 pageText/elements에 기대의 근거가 있는지로 판정하라.
 입력의 pageText는 페이지에 보이는 텍스트(카드 제목·목록 항목 등)이니, "X가 목록에 추가됨" 같은 기대는 pageText에 X가 있는지로 확인하라.
 select/input의 현재 값 확인은 elements 배열의 value 필드만으로 충분한 근거다 — pageText에 그 값이 별도로 또 나타나지 않아도 된다.
 accessibilityTree는 페이지의 실제 포함(부모-자식) 구조를 중첩된 형태로 담고 있다. "X가 Y의 자식으로 표시됨", "X가 Y 아래에 있음"처럼 계층/포함 관계를 묻는 기대는 pageText의 순서로 추측하지 말고, accessibilityTree에서 Y에 해당하는 노드의 children 안에 X가 있는지로 판정하라.
@@ -549,7 +551,10 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
       prog.phase = 'JUDGING';
       mark(idx, 'JUDGING');
       emit();
+      // 수행한 동작을 모르면 "스크롤 후" 기대에 "스크롤 전 화면인지 알 수 없다"며 INCONCLUSIVE (registry_v29, Job 29 T3411)
       const judged = await askJson(agent, JUDGE_SYSTEM, JSON.stringify({
+        action: step.action,
+        actionsTaken: history,
         expected: step.expected,
         url: where,
         elements: observed,
