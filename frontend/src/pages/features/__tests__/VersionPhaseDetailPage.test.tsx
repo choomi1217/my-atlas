@@ -34,6 +34,8 @@ vi.mock('@/api/features', () => ({
     createBatch: vi.fn(),
     getJob: vi.fn(),
     listResults: vi.fn(),
+    getFrame: vi.fn(),
+    getProgress: vi.fn().mockResolvedValue(null),
   },
 }));
 

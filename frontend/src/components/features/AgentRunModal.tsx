@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { agentExecutionApi } from '@/api/features';
+import AgentLiveView from './AgentLiveView';
 import {
   AgentExecutionJob,
   AgentExecutionResult,
@@ -144,6 +145,8 @@ export default function AgentRunModal({
               {error}
             </div>
           )}
+
+          {jobId != null && <AgentLiveView jobId={jobId} active={running} />}
 
           {/* 진행 상태 */}
           <div className="flex items-center gap-3 mb-4">

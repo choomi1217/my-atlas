@@ -1,6 +1,8 @@
 package com.myqaweb.feature;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -121,6 +123,50 @@ public final class AgentExecutionDto {
                     e.getSteps(), e.getExpectedResults(),
                     segmentNames == null ? List.of() : segmentNames);
         }
+    }
+
+    /**
+     * 워커가 보고하는 라이브 진행 상황 (registry_v27). Job당 최신 1건만 메모리에 보관.
+     *
+     * @param phase "PRECONDITION" | "ACTING" | "JUDGING"
+     * @param currentStep PRECONDITION 단계에서는 null
+     */
+    public record LiveProgress(
+            Long testCaseId,
+            @Size(max = 500) String testCaseTitle,
+            Integer tcIndex,
+            Integer tcTotal,
+            @Size(max = 5000) String phase,
+            @Valid LivePrecondition precondition,
+            Integer currentStep,
+            @Size(max = 200) List<@Valid LiveStep> steps
+    ) {
+    }
+
+    /**
+     * 라이브 진행 상황의 전제조건.
+     *
+     * @param status "RUNNING" | "DONE"
+     */
+    public record LivePrecondition(
+            @Size(max = 5000) String text,
+            @Size(max = 5000) String status
+    ) {
+    }
+
+    /**
+     * 라이브 진행 상황의 step 1건.
+     *
+     * @param status "PENDING" | "ACTING" | "JUDGING" | "PASS" | "FAIL" | "INCONCLUSIVE"
+     * @param judgment 판정 근거 (없으면 null)
+     */
+    public record LiveStep(
+            Integer order,
+            @Size(max = 5000) String action,
+            @Size(max = 5000) String expected,
+            @Size(max = 5000) String status,
+            @Size(max = 5000) String judgment
+    ) {
     }
 
     /**

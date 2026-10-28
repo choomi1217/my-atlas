@@ -14,13 +14,14 @@ export class BackendClient {
     this.password = null;
   }
 
-  async #request(method, path, body, retried = false) {
-    const headers = { 'Content-Type': 'application/json' };
+  /** @param {string} [rawType] 지정하면 body(Buffer)를 JSON 변환 없이 이 Content-Type으로 그대로 보낸다 */
+  async #request(method, path, body, retried = false, rawType) {
+    const headers = { 'Content-Type': rawType || 'application/json' };
     if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: rawType ? body : body ? JSON.stringify(body) : undefined,
     });
 
     // 토큰 만료·무효(401/403) → 재로그인 후 1회 재시도 (로그인 경로 자체는 제외해 무한루프 방지)
@@ -31,7 +32,7 @@ export class BackendClient {
       path !== '/api/auth/login'
     ) {
       await this.login(this.username, this.password);
-      return this.#request(method, path, body, true);
+      return this.#request(method, path, body, true, rawType);
     }
 
     const text = await res.text();
@@ -43,7 +44,7 @@ export class BackendClient {
     }
     if (!res.ok) {
       const msg = json?.message || text || res.statusText;
-      throw new Error(`${method} ${path} → ${res.status}: ${msg}`);
+      throw Object.assign(new Error(`${method} ${path} → ${res.status}: ${msg}`), { status: res.status });
     }
     // ApiResponse<T> = { success, message, data }
     return json?.data ?? json;
@@ -81,6 +82,24 @@ export class BackendClient {
   /** TC 1건 결과 보고 */
   recordResult(jobId, result) {
     return this.#request('POST', `/api/agent-executions/${jobId}/results`, result);
+  }
+
+  /** 라이브 뷰 프레임 전송. 409(Job이 RUNNING 아님)는 무시한다. */
+  async pushFrame(jobId, data, contentType) {
+    try {
+      await this.#request('PUT', `/api/agent-executions/${jobId}/frame`, data, false, contentType);
+    } catch (err) {
+      if (err.status !== 409) throw err;
+    }
+  }
+
+  /** 라이브 TC/step 진행 상황 전송. 409(Job이 RUNNING 아님)는 무시한다. */
+  async pushProgress(jobId, payload) {
+    try {
+      await this.#request('PUT', `/api/agent-executions/${jobId}/progress`, payload);
+    } catch (err) {
+      if (err.status !== 409) throw err;
+    }
   }
 
   /** Job 종료 (DONE | FAILED) */
