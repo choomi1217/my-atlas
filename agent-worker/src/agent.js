@@ -353,10 +353,11 @@ export async function agenticGoal(ops, agent, goalText, maxActions) {
       availableActions: ops.availableActions,
     }));
     console.log(`[worker] seed[${i}] url=${url} → ${action.type}${action.ref ? `(${action.ref})` : ''}${action.value ? `=${action.value}` : ''} :: ${action.thought || ''}`);
-    if (action.type === 'done') return;
+    if (action.type === 'done') return true;
     await ops.execute(action, locators);
   }
   console.log(`[worker] seed 목표 미완료 — maxActions(${maxActions}) 소진`);
+  return false;
 }
 
 /**
@@ -409,8 +410,9 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
   if (seedGoal) {
     prog.precondition = { text: clip(pathGoal || (target.seedNote || '').trim(), 300), status: 'RUNNING' };
     emit();
-    await agenticGoal(ops, agent, seedGoal, maxStepActions);
-    prog.precondition.status = 'DONE';
+    const reached = await agenticGoal(ops, agent, seedGoal, maxStepActions);
+    // 도달 못 했는데 '완료'로 보이면 거짓 초록이다 — 미도달을 그대로 드러낸다
+    prog.precondition.status = reached ? 'DONE' : 'INCOMPLETE';
     emit();
   }
 

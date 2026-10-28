@@ -70,6 +70,22 @@ describe('AgentLiveFlow', () => {
     expect(pre).toHaveAttribute('title', '경로: 로그인 > 이메일 로그인');
   });
 
+  it('renders INCOMPLETE precondition node as not reached (no false green)', () => {
+    render(
+      <AgentLiveFlow
+        progress={{
+          ...judgingProgress,
+          precondition: { text: '로그인 > 이메일 로그인', status: 'INCOMPLETE' },
+        }}
+      />
+    );
+
+    const pre = screen.getByTestId('agent-live-node-pre');
+    expect(pre).toHaveAttribute('data-status', 'INCOMPLETE');
+    expect(pre).toHaveTextContent('⚠ 미도달');
+    expect(pre).not.toHaveTextContent('✓ 완료');
+  });
+
   it('shows current step detail while judging', () => {
     render(<AgentLiveFlow progress={judgingProgress} />);
 

@@ -112,7 +112,7 @@ export interface AgentLiveStep {
 
 export interface AgentLivePrecondition {
   text: string;
-  status: 'RUNNING' | 'DONE';
+  status: 'RUNNING' | 'DONE' | 'INCOMPLETE';
 }
 
 /** AI 실행 중계 — 현재 TC/Step 진행 상황 */

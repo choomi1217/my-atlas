@@ -74,6 +74,8 @@ Agent-D 1차는 `VersionPhaseDetailPage.test.tsx` mock에 `getProgress` 누락(u
 
 검증 후 실기 캡처에서 확대 보기가 낮은 창(높이 ~760px 이하)에서 위쪽이 잘리는 것을 발견 → 이미지 `max-h-[78vh]` → `min-h-0 flex-1 object-contain`(남은 공간만 사용). 높이 720px 캡처로 확인, lint·`AgentLiveView.test.tsx`·에이전트 E2E 7건 재실행 통과 (Agent-D 전체 재실행은 생략 — 클래스 1줄 변경).
 
+PR 전 코드 리뷰 수정: 전제조건 이동이 maxActions 소진으로 끝나도 노드가 `✓ 완료`(초록)로 보이던 거짓 초록 → `agenticGoal`이 도달 여부를 반환, 미도달은 `INCOMPLETE`(`⚠ 미도달`, 노랑). Vitest 101 passed(+1), 에이전트 E2E 7 passed.
+
 ## 알려진 사항
 
 - step 증적의 요소 이름에 `&#10;` 같은 숫자 문자 참조가 그대로 보임 (v24 Android XML 파싱, 이번 변경과 무관).

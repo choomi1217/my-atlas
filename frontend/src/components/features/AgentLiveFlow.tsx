@@ -38,11 +38,15 @@ const STEP_STYLES: Record<AgentLiveStepStatus, NodeStyle> = {
   },
 };
 
-const PRECONDITION_STYLES: Record<'RUNNING' | 'DONE', NodeStyle> = {
+const PRECONDITION_STYLES: Record<'RUNNING' | 'DONE' | 'INCOMPLETE', NodeStyle> = {
   RUNNING: { className: ACTIVE_STYLE, label: '이동 중', spinner: true },
   DONE: {
     className: 'border-green-300 bg-green-50 text-green-700',
     label: '✓ 완료',
+  },
+  INCOMPLETE: {
+    className: 'border-yellow-300 bg-yellow-50 text-yellow-700',
+    label: '⚠ 미도달',
   },
 };
 
