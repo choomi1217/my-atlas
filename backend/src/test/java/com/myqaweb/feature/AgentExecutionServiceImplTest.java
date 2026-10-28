@@ -1,7 +1,10 @@
 package com.myqaweb.feature;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -25,6 +28,7 @@ class AgentExecutionServiceImplTest {
     @Mock private VersionPhaseRepository versionPhaseRepository;
     @Mock private TestResultRepository testResultRepository;
     @Mock private SegmentRepository segmentRepository;
+    @Mock private AgentLiveFrameStore frameStore;
 
     @InjectMocks private AgentExecutionServiceImpl service;
 
@@ -236,6 +240,66 @@ class AgentExecutionServiceImplTest {
 
         assertThat(res.status()).isEqualTo(AgentExecutionStatus.DONE);
         assertThat(res.completedAt()).isNotNull();
+        verify(frameStore).clear(1L);
+    }
+
+    // --- cancelJob ---
+
+    @Test
+    void cancelJob_running_cancelsAndClearsFrame() {
+        AgentExecutionJobEntity j = job(1L, AgentExecutionScope.SINGLE, AgentExecutionStatus.RUNNING, null);
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(j));
+        when(jobRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var res = service.cancelJob(1L);
+
+        assertThat(res.status()).isEqualTo(AgentExecutionStatus.CANCELLED);
+        verify(frameStore).clear(1L);
+    }
+
+    // --- storeFrame / getFrame (registry_v26) ---
+
+    @Test
+    void storeFrame_running_storesAndReturnsTrue() {
+        AgentExecutionJobEntity j = job(1L, AgentExecutionScope.SINGLE, AgentExecutionStatus.RUNNING, null);
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(j));
+        byte[] data = {1, 2, 3};
+
+        boolean stored = service.storeFrame(1L, data, "image/png");
+
+        assertThat(stored).isTrue();
+        verify(frameStore).put(1L, data, "image/png");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = AgentExecutionStatus.class, names = {"PENDING", "DONE", "FAILED", "CANCELLED"})
+    void storeFrame_notRunning_returnsFalseAndDoesNotStore(AgentExecutionStatus status) {
+        AgentExecutionJobEntity j = job(1L, AgentExecutionScope.SINGLE, status, null);
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(j));
+
+        boolean stored = service.storeFrame(1L, new byte[] {1}, "image/png");
+
+        assertThat(stored).isFalse();
+        verify(frameStore, never()).put(any(), any(), any());
+    }
+
+    @Test
+    void storeFrame_unknownJob_throwsNotFound() {
+        when(jobRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.storeFrame(404L, new byte[] {1}, "image/png"))
+                .isInstanceOf(EntityNotFoundException.class);
+        verify(frameStore, never()).put(any(), any(), any());
+    }
+
+    @Test
+    void getFrame_delegatesToStore() {
+        var frame = new AgentLiveFrameStore.Frame(new byte[] {9}, "image/jpeg");
+        when(frameStore.get(1L)).thenReturn(Optional.of(frame));
+        when(frameStore.get(2L)).thenReturn(Optional.empty());
+
+        assertThat(service.getFrame(1L)).containsSame(frame);
+        assertThat(service.getFrame(2L)).isEmpty();
     }
 
     // --- getExecutionContext ---

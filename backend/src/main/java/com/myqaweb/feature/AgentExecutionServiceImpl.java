@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * {@link AgentExecutionService} 구현.
@@ -30,6 +31,7 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
     private final VersionPhaseRepository versionPhaseRepository;
     private final TestResultRepository testResultRepository;
     private final SegmentRepository segmentRepository;
+    private final AgentLiveFrameStore frameStore;
 
     @Override
     @Transactional
@@ -86,6 +88,7 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
         }
         job.setStatus(AgentExecutionStatus.CANCELLED);
         job.setCompletedAt(LocalDateTime.now());
+        frameStore.clear(jobId);
         return AgentExecutionDto.JobResponse.from(jobRepository.save(job));
     }
 
@@ -168,7 +171,23 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
             job.setErrorMessage(request.errorMessage());
         }
         job.setCompletedAt(LocalDateTime.now());
+        frameStore.clear(jobId);
         return AgentExecutionDto.JobResponse.from(jobRepository.save(job));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean storeFrame(Long jobId, byte[] data, String contentType) {
+        if (findJob(jobId).getStatus() != AgentExecutionStatus.RUNNING) {
+            return false;
+        }
+        frameStore.put(jobId, data, contentType);
+        return true;
+    }
+
+    @Override
+    public Optional<AgentLiveFrameStore.Frame> getFrame(Long jobId) {
+        return frameStore.get(jobId);
     }
 
     @Override

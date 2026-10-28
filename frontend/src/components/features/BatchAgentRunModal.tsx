@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { agentExecutionApi } from '@/api/features';
+import AgentLiveView from './AgentLiveView';
 import {
   AgentExecutionJob,
   AgentExecutionResult,
@@ -52,6 +53,7 @@ export default function BatchAgentRunModal({
   const [job, setJob] = useState<AgentExecutionJob | null>(null);
   const [results, setResults] = useState<AgentExecutionResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<number | null>(null);
 
   const startedRef = useRef(false);
   const stoppedRef = useRef(false);
@@ -72,13 +74,14 @@ export default function BatchAgentRunModal({
     setStarted(true);
     stoppedRef.current = false;
     try {
-      const jobId = await agentExecutionApi.createBatch(productId, phaseId, scope);
+      const newJobId = await agentExecutionApi.createBatch(productId, phaseId, scope);
+      setJobId(newJobId);
       timerRef.current = setInterval(async () => {
         if (stoppedRef.current) return;
         try {
           const [j, rs] = await Promise.all([
-            agentExecutionApi.getJob(jobId),
-            agentExecutionApi.listResults(jobId),
+            agentExecutionApi.getJob(newJobId),
+            agentExecutionApi.listResults(newJobId),
           ]);
           if (stoppedRef.current) return;
           setJob(j);
@@ -182,6 +185,10 @@ export default function BatchAgentRunModal({
                   />
                 </div>
               </div>
+
+              {running && jobId != null && (
+                <AgentLiveView jobId={jobId} active />
+              )}
 
               {/* TC별 판정 */}
               <div className="border rounded-lg divide-y max-h-[45vh] overflow-auto">

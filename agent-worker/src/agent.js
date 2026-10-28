@@ -331,6 +331,10 @@ export function createWebOps(page) {
     tree: () => accessibilityTree(page),
     location: async () => page.url(),
     execute: (action) => executeAction(page, action),
+    /** 라이브 뷰용 현재 화면 캡처 */
+    async frame() {
+      return { data: await page.screenshot({ type: 'jpeg', quality: 60 }), contentType: 'image/jpeg' };
+    },
     async close() {
       /* 브라우저 수명은 호출부(index.js)가 관리한다 */
     },

@@ -55,6 +55,8 @@ function makeConfig() {
     pollIntervalMs: parseInt(env('POLL_INTERVAL_MS', '3000'), 10),
     // 중단 확인 캐시 TTL. step마다 백엔드를 때리지 않기 위한 값.
     cancelCheckMs: parseInt(env('CANCEL_CHECK_MS', '2500'), 10),
+    // 라이브 뷰 프레임 전송 주기. 0이면 끈다.
+    frameIntervalMs: parseInt(env('FRAME_INTERVAL_MS', '1000'), 10),
     targetKind,
     appium: {
       appiumUrl: env('APPIUM_URL', 'http://127.0.0.1:4723'),
@@ -87,6 +89,39 @@ function makeCancelChecker(backend, jobId, ttlMs) {
   };
 }
 
+/**
+ * 라이브 뷰 프레임 펌프. 주기마다 화면을 캡처해 백엔드로 보낸다.
+ * 이전 틱이 진행 중이면 건너뛰고, 실패는 삼킨다(Job당 1회만 로그) — 실행 결과에 영향을 주면 안 된다.
+ * @returns {() => Promise<void>} 정지 함수. 진행 중인 전송이 끝날 때까지 기다려 완료 후 전송을 막는다.
+ */
+function startFramePump(ops, backend, jobId, intervalMs) {
+  if (!(intervalMs > 0) || !ops.frame) return async () => {};
+  let inflight = null;
+  let stopped = false;
+  let warned = false;
+  const timer = setInterval(() => {
+    if (inflight || stopped) return;
+    inflight = (async () => {
+      try {
+        const f = await ops.frame();
+        if (!stopped) await backend.pushFrame(jobId, f.data, f.contentType);
+      } catch (e) {
+        if (!warned) {
+          warned = true;
+          console.error(`[worker] frame 전송 실패: ${e.message}`);
+        }
+      } finally {
+        inflight = null;
+      }
+    })();
+  }, intervalMs);
+  return async () => {
+    stopped = true;
+    clearInterval(timer);
+    await inflight;
+  };
+}
+
 /** 단일 Job 하나를 처음부터 끝까지 실행 */
 async function runJob(jobId, cfg, backend) {
   const agent = {
@@ -102,6 +137,7 @@ async function runJob(jobId, cfg, backend) {
   const isMobile = cfg.targetKind === 'ANDROID';
   let browser;
   let ops;
+  let stopFrames = async () => {};
   try {
     // 단건 모드에서 대상 종류가 안 맞으면 조용히 넘기지 않고 명확히 실패시킨다.
     // (웹 전용 제품을 에뮬레이터에서 돌리는 식의 오배치를 막는다 — v24 Step 8)
@@ -132,6 +168,8 @@ async function runJob(jobId, cfg, backend) {
       ops = createWebOps(page);
     }
 
+    stopFrames = startFramePump(ops, backend, jobId, cfg.frameIntervalMs);
+
     const target = { baseUrl: ctx.baseUrl, seedNote: ctx.seedNote };
     const shouldStop = makeCancelChecker(backend, jobId, cfg.cancelCheckMs);
 
@@ -150,9 +188,12 @@ async function runJob(jobId, cfg, backend) {
       });
     }
 
+    await stopFrames();
     await backend.complete(jobId, 'DONE', null);
     console.log(`[worker] job=${jobId} DONE`);
   } catch (err) {
+    // 어떤 종료 경로(중단·실패 보고)보다 먼저 프레임 전송을 멈춘다
+    await stopFrames();
     // 중단은 실패가 아니다. cancelJob이 이미 종료 상태로 만들었으므로 아무것도 보고하지 않는다.
     // complete(CANCELLED)는 허용되지 않아 예외가 나고, 그게 아래 complete(FAILED)로 흘러가
     // CANCELLED를 FAILED로 덮어쓴다.
@@ -185,6 +226,7 @@ async function runJob(jobId, cfg, backend) {
     }
     throw err;
   } finally {
+    await stopFrames();
     if (ops) await ops.close().catch(() => {});
     if (browser) await browser.close();
   }

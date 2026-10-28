@@ -816,6 +816,18 @@ export const agentExecutionApi = {
     return response.data.data;
   },
 
+  /** 실행 화면 최신 프레임. 204(프레임 없음/종료) 또는 빈 응답이면 null */
+  getFrame: async (jobId: number): Promise<Blob | null> => {
+    const response = await apiClient.get<Blob>(
+      `/api/agent-executions/${jobId}/frame`,
+      { responseType: 'blob' }
+    );
+    if (response.status === 204 || !response.data || response.data.size === 0) {
+      return null;
+    }
+    return response.data;
+  },
+
   getResult: async (
     jobId: number,
     testCaseId: number

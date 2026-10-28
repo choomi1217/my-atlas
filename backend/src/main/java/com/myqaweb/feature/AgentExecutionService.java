@@ -1,6 +1,7 @@
 package com.myqaweb.feature;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 에이전트 실행 Job 오케스트레이션.
@@ -47,4 +48,16 @@ public interface AgentExecutionService {
 
     /** 워커가 Job 종료 보고 (DONE 또는 FAILED). */
     AgentExecutionDto.JobResponse completeJob(Long jobId, AgentExecutionDto.CompleteJobRequest request);
+
+    // --- 라이브 뷰 (registry_v26) ---
+
+    /**
+     * 워커가 보낸 최신 화면 프레임 저장. RUNNING Job에만 저장한다.
+     *
+     * @return 저장했으면 true, Job이 RUNNING이 아니라 저장하지 않았으면 false (없는 Job은 EntityNotFoundException)
+     */
+    boolean storeFrame(Long jobId, byte[] data, String contentType);
+
+    /** 저장된 최신 프레임. 없으면 empty. */
+    Optional<AgentLiveFrameStore.Frame> getFrame(Long jobId);
 }

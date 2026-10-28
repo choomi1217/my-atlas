@@ -1,6 +1,6 @@
 # Feature Registry — QA 테스트 관리 플랫폼
 
-> 최종 업데이트: 2026-10-28 | 현재 버전: v25
+> 최종 업데이트: 2026-10-28 | 현재 버전: v26
 
 ---
 
@@ -649,3 +649,4 @@ frontend/src/
 | v17.1 | 2026-04-22 | 버그 수정 | TestCase 이미지 URL 하드코딩 수정 (`/api/feature-images/` → `/images/feature/`) | S3 전환 후 이미지 엑박 해결 |
 | v18 | 2026-04-29 | 기능 개선 | Test Suite UX 종합 개편 — 헤더 정리 + TC 카드 DL 패턴 + Final Expected 다중 항목 + Segment 다중 Root + 형제 정렬 + Promote to Root + 삼각형 통일 + Last-root 보호 | 정보 위계 강화로 카드 인지 속도↑, Segment 트리 자유도 대폭 확장 |
 | v25 | 2026-10-28 | 버그 수정 | AI 일괄 실행 완료 후 결과 모달 유지 (완료 재조회를 silent로) | 일괄 실행 결과 확인 가능 |
+| v26 | 2026-10-28 | 기능 추가 | AI 실행 화면 중계 — 워커 1초 캡처 → 최신 1장 인메모리 → 모달 폴링 표시 (웹·Android) | 실행 과정을 실시간으로 확인 |
