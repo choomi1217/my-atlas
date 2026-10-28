@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect } from 'vitest';
 import AgentLiveFlow from '../AgentLiveFlow';
 import type { AgentLiveProgress } from '@/types/features';
@@ -177,5 +178,158 @@ describe('AgentLiveFlow', () => {
     );
 
     expect(screen.queryByTestId('agent-live-detail')).not.toBeInTheDocument();
+  });
+
+  // --- registry_v28 #5: node summary + click-to-inspect ---
+
+  it('shows the step action and precondition path as node summaries', () => {
+    render(<AgentLiveFlow progress={judgingProgress} />);
+
+    expect(screen.getByTestId('agent-live-node-1-summary')).toHaveTextContent(
+      '이메일 입력'
+    );
+    expect(screen.getByTestId('agent-live-node-2-summary')).toHaveTextContent(
+      '비밀번호 입력'
+    );
+    expect(screen.getByTestId('agent-live-node-pre-summary')).toHaveTextContent(
+      '로그인 > 이메일 로그인'
+    );
+    expect(screen.getByTestId('agent-live-node-2')).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    expect(
+      screen.queryByTestId('agent-live-detail-follow')
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the clicked FAIL node in the detail card and toggles back on second click', async () => {
+    const user = userEvent.setup();
+    render(<AgentLiveFlow progress={judgingProgress} />);
+
+    const n2 = screen.getByTestId('agent-live-node-2');
+    await user.click(n2);
+
+    const detail = within(screen.getByTestId('agent-live-detail'));
+    expect(detail.getByText('Step 2/3 · ✕ FAIL')).toBeInTheDocument();
+    expect(detail.getByText('동작')).toBeInTheDocument();
+    expect(detail.getByText('비밀번호 입력')).toBeInTheDocument();
+    expect(detail.getByText('기대 결과')).toBeInTheDocument();
+    expect(detail.getByText('마스킹 표시')).toBeInTheDocument();
+    expect(detail.getByText('판정')).toBeInTheDocument();
+    expect(detail.getByText('평문으로 보인다')).toBeInTheDocument();
+    expect(n2).toHaveAttribute('aria-pressed', 'true');
+    expect(n2).toHaveClass('outline-gray-500');
+    expect(screen.getByTestId('agent-live-detail-follow')).toHaveTextContent(
+      '현재 Step 보기'
+    );
+
+    await user.click(n2);
+
+    const back = screen.getByTestId('agent-live-detail');
+    expect(back).toHaveTextContent('Step 3/3 · 기대 결과 판정 중');
+    expect(within(back).getByText('로그인 버튼 클릭')).toBeInTheDocument();
+    expect(within(back).queryByText('판정')).not.toBeInTheDocument();
+    expect(n2).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      screen.queryByTestId('agent-live-detail-follow')
+    ).not.toBeInTheDocument();
+  });
+
+  it('clears the selection with the 현재 Step 보기 button', async () => {
+    const user = userEvent.setup();
+    render(<AgentLiveFlow progress={judgingProgress} />);
+
+    await user.click(screen.getByTestId('agent-live-node-1'));
+    expect(screen.getByTestId('agent-live-detail')).toHaveTextContent(
+      'Step 1/3 · ✓ PASS'
+    );
+
+    await user.click(screen.getByTestId('agent-live-detail-follow'));
+
+    expect(screen.getByTestId('agent-live-detail')).toHaveTextContent(
+      'Step 3/3 · 기대 결과 판정 중'
+    );
+    expect(screen.getByTestId('agent-live-node-1')).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    expect(
+      screen.queryByTestId('agent-live-detail-follow')
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows precondition detail when the precondition node is clicked', async () => {
+    const user = userEvent.setup();
+    render(<AgentLiveFlow progress={judgingProgress} />);
+
+    const pre = screen.getByTestId('agent-live-node-pre');
+    await user.click(pre);
+
+    const detail = within(screen.getByTestId('agent-live-detail'));
+    expect(detail.getByText('전제조건 · ✓ 완료')).toBeInTheDocument();
+    expect(detail.getByText('경로')).toBeInTheDocument();
+    expect(detail.getByText('로그인 > 이메일 로그인')).toBeInTheDocument();
+    expect(detail.queryByText('동작')).not.toBeInTheDocument();
+    expect(pre).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('drops the selection when testCaseId changes', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<AgentLiveFlow progress={judgingProgress} />);
+
+    await user.click(screen.getByTestId('agent-live-node-2'));
+    expect(screen.getByTestId('agent-live-detail')).toHaveTextContent(
+      'Step 2/3 · ✕ FAIL'
+    );
+
+    rerender(
+      <AgentLiveFlow
+        progress={{
+          ...judgingProgress,
+          testCaseId: 43,
+          testCaseTitle: '로그아웃',
+          tcIndex: 2,
+          tcTotal: 2,
+          steps: [
+            judgingProgress.steps[0],
+            judgingProgress.steps[1],
+            {
+              ...judgingProgress.steps[2],
+              action: '로그아웃 버튼 클릭',
+              expected: '로그인 화면 이동',
+            },
+          ],
+        }}
+      />
+    );
+
+    const detail = screen.getByTestId('agent-live-detail');
+    expect(detail).toHaveTextContent('Step 3/3 · 기대 결과 판정 중');
+    expect(within(detail).getByText('로그아웃 버튼 클릭')).toBeInTheDocument();
+    expect(within(detail).getByText('로그인 화면 이동')).toBeInTheDocument();
+    expect(detail).not.toHaveTextContent('✕ FAIL');
+    expect(screen.getByTestId('agent-live-node-2')).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    expect(
+      screen.queryByTestId('agent-live-detail-follow')
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders the selected detail in the dark variant', async () => {
+    const user = userEvent.setup();
+    render(<AgentLiveFlow progress={judgingProgress} variant="dark" />);
+
+    const n2 = screen.getByTestId('agent-live-node-2');
+    await user.click(n2);
+
+    const detail = within(screen.getByTestId('agent-live-detail'));
+    expect(detail.getByText('Step 2/3 · ✕ FAIL')).toBeInTheDocument();
+    expect(detail.getByText('평문으로 보인다')).toBeInTheDocument();
+    expect(n2).toHaveAttribute('aria-pressed', 'true');
+    expect(n2).toHaveClass('outline-white/70');
+    expect(screen.getByTestId('agent-live-detail-follow')).toBeInTheDocument();
   });
 });

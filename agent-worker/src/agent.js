@@ -200,11 +200,37 @@ async function autoLogin(page, username, password) {
   return false;
 }
 
-/** Claude에 JSON 응답을 요청하고 파싱한다. usage를 누적한다. */
-async function askJson(agent, system, userContent) {
+/**
+ * 잘린 JSON 복구 — maxTokens를 낮추면 응답이 중간에 끊길 수 있다.
+ * 알려진 스칼라 필드만 정규식으로 건진다 (끊긴 문자열 값은 끊긴 지점까지).
+ * 판단에 필수인 type/verdict를 못 건지면 null.
+ */
+function recoverJson(text) {
+  const out = {};
+  for (const key of ['thought', 'type', 'ref', 'value', 'verdict', 'reasoning']) {
+    const m = new RegExp(`"${key}"\\s*:\\s*(?:null|"((?:[^"\\\\]|\\\\.)*))`).exec(text);
+    if (!m) continue;
+    if (m[1] === undefined) {
+      out[key] = null;
+      continue;
+    }
+    try {
+      out[key] = JSON.parse(`"${m[1]}"`);
+    } catch {
+      out[key] = m[1];
+    }
+  }
+  return out.verdict || out.type ? out : null;
+}
+
+/**
+ * Claude에 JSON 응답을 요청하고 파싱한다. usage를 누적한다.
+ * maxTokens는 호출별로 줄 수 있고(속도), 줄였을 때 잘림에 대비한 복구 파서가 항상 함께 간다.
+ */
+async function askJson(agent, system, userContent, { maxTokens = 1024 } = {}) {
   const msg = await agent.anthropic.messages.create({
     model: agent.model,
-    max_tokens: 1024,
+    max_tokens: maxTokens,
     system,
     messages: [{ role: 'user', content: userContent }],
   });
@@ -212,16 +238,29 @@ async function askJson(agent, system, userContent) {
   const text = (msg.content || []).map((b) => b.text || '').join('');
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
-  if (start === -1 || end === -1) {
+  if (start === -1) {
     throw new Error(`LLM 응답에서 JSON을 찾을 수 없음: ${text.slice(0, 200)}`);
   }
-  return JSON.parse(text.slice(start, end + 1));
+  if (end > start) {
+    try {
+      return JSON.parse(text.slice(start, end + 1));
+    } catch {
+      /* 잘렸을 수 있다 — 아래에서 복구 시도 */
+    }
+  }
+  const recovered = recoverJson(text.slice(start));
+  if (!recovered) throw new Error(`LLM 응답 JSON 파싱 실패(복구 불가): ${text.slice(0, 200)}`);
+  console.log(`[worker] LLM 응답이 잘려 필드만 복구 (stop_reason=${msg.stop_reason})`);
+  return recovered;
 }
+
+const ACTION_MAX_TOKENS = 300;
+const JUDGE_MAX_TOKENS = 700;
 
 const ACTION_SYSTEM = `너는 웹 QA 테스트를 실행하는 에이전트다.
 주어진 목표(action)를 달성하기 위해 페이지의 상호작용 요소 중 하나에 대해 다음 액션 하나를 결정한다.
 반드시 아래 JSON만 출력한다(설명 금지):
-{"thought": "간단한 근거", "type": "click|fill|select|navigate|key|back|scroll|done", "ref": "aN 또는 null", "value": "입력/선택/URL/키 값 또는 null"}
+{"thought": "한 문장 근거(60자 이내)", "type": "click|fill|select|navigate|key|back|scroll|done", "ref": "aN 또는 null", "value": "입력/선택/URL/키 값 또는 null"}
 - click: ref 요소 클릭
 - fill: ref 입력칸에 value 입력
 - select: ref 셀렉트에서 value 옵션 선택
@@ -250,7 +289,7 @@ accessibilityTree는 페이지의 실제 포함(부모-자식) 구조를 중첩�
 중요: url에 "(앱 응답 없음/크래시 다이얼로그)"가 붙어 있으면 앱이 멈췄거나 죽은 것이다.
 화면 이름이 목표와 같아도 기대가 충족된 것이 아니다 — 반드시 FAIL로 판정하고 앱이 응답하지 않았음을 근거에 적어라.
 반드시 아래 JSON만 출력한다(설명 금지):
-{"verdict": "PASS|FAIL|INCONCLUSIVE", "reasoning": "관측 근거"}
+{"verdict": "PASS|FAIL|INCONCLUSIVE", "reasoning": "핵심 관측 근거 2~3문장"}
 - PASS: 기대가 명확히 충족됨 (pageText/elements에 근거 있음)
 - FAIL: 기대가 명확히 불충족됨
 - INCONCLUSIVE: 기대가 모호하거나 판정 근거를 찾을 수 없음`;
@@ -343,6 +382,10 @@ export function createWebOps(page) {
 
 /** 자유 서술 목표를 향해 대상을 구동 (seed 네비게이션 등, 판정 없음) */
 export async function agenticGoal(ops, agent, goalText, maxActions) {
+  const t0 = agent.now();
+  let acted = 0;
+  const summary = (reached) =>
+    console.log(`[worker] precondition ${reached ? '도달' : '미도달'} — actions=${acted} total ${((agent.now() - t0) / 1000).toFixed(1)}s`);
   for (let i = 0; i < maxActions; i++) {
     const { elements, locators } = await ops.snapshot();
     const url = await ops.location();
@@ -351,12 +394,17 @@ export async function agenticGoal(ops, agent, goalText, maxActions) {
       url,
       elements,
       availableActions: ops.availableActions,
-    }));
+    }), { maxTokens: ACTION_MAX_TOKENS });
     console.log(`[worker] seed[${i}] url=${url} → ${action.type}${action.ref ? `(${action.ref})` : ''}${action.value ? `=${action.value}` : ''} :: ${action.thought || ''}`);
-    if (action.type === 'done') return true;
+    if (action.type === 'done') {
+      summary(true);
+      return true;
+    }
     await ops.execute(action, locators);
+    acted++;
   }
   console.log(`[worker] seed 목표 미완료 — maxActions(${maxActions}) 소진`);
+  summary(false);
   return false;
 }
 
@@ -429,18 +477,28 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
     mark(idx, 'ACTING');
     emit();
     const history = []; // step 내 이미 시도한 액션 (반복 방지). 성공/실패 모두 여기 남기고, 로그는 이걸 그대로 쓴다.
+    // 구간별 소요(ms) — 느린 구간을 로그로 특정하기 위함 (registry_v28 #4)
+    const tm = { snap: 0, llm: 0, exec: 0, judge: 0 };
+    const stepStart = agent.now();
+    let acted = 0;
+    let stepVerdict = 'ERROR';
     try {
       // 액션 결정·실행 (step당 최대 maxStepActions)
       for (let i = 0; i < maxStepActions; i++) {
+        let t = agent.now();
         const { elements, locators } = await ops.snapshot();
+        const url = await ops.location();
+        tm.snap += agent.now() - t;
+        t = agent.now();
         const action = await askJson(agent, ACTION_SYSTEM, JSON.stringify({
           action: step.action,
           expectedState: step.expected,
-          url: await ops.location(),
+          url,
           elements,
           previousActions: history,
           availableActions: ops.availableActions,
-        }));
+        }), { maxTokens: ACTION_MAX_TOKENS });
+        tm.llm += agent.now() - t;
         const targetEl = action.ref ? elements.find((e) => e.ref === action.ref) : null;
         const targetLabel = targetEl ? `"${targetEl.name}"${targetEl.href ? `→${targetEl.href}` : ''}` : null;
         const desc = `${action.type}${action.ref ? `(${action.ref}${targetLabel ? `=${targetLabel}` : ''})` : ''}${action.value ? `=${action.value}` : ''}`;
@@ -448,6 +506,8 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
           history.push(desc);
           break;
         }
+        const te = agent.now();
+        acted++;
         try {
           await ops.execute(action, locators);
           history.push(desc);
@@ -455,8 +515,13 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
           // 실패한 액션도 히스토리에 남겨 다음엔 다른 요소를 시도하게 한다
           history.push(`${desc} [실패:${e.message.slice(0, 40)}]`);
         }
+        tm.exec += agent.now() - te;
       }
       // expected 대조 판정 (상호작용 요소 + 보이는 텍스트 + 접근성 트리로 결과 확인)
+      const tj = agent.now(); // judge = 관측 + 판정 LLM
+      // 판정은 최신 화면으로: 마지막 settle 이후 액션 결정 LLM이 도는 동안 늦게 뜬 콘텐츠를 놓치면
+      // 낡은 화면으로 판정하게 된다. 1회만 새로 덤프하고 아래 text/location은 그 덤프를 재사용한다.
+      ops.refresh?.();
       const { elements: observed } = await ops.snapshot();
       const text = await ops.text();
       const axTree = await ops.tree();
@@ -470,7 +535,9 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
         elements: observed,
         pageText: text,
         accessibilityTree: axTree,
-      }));
+      }), { maxTokens: JUDGE_MAX_TOKENS });
+      tm.judge += agent.now() - tj;
+      stepVerdict = judged.verdict;
       stepLogs.push({
         order: step.order,
         actionTaken: history.join(' → '),
@@ -494,6 +561,8 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
       mark(idx, 'INCONCLUSIVE', err.message);
       emit();
     }
+    const sec = (ms) => `${(ms / 1000).toFixed(1)}s`;
+    console.log(`[worker] step ${step.order} ${stepVerdict} — actions=${acted} snap ${sec(tm.snap)} · llm ${sec(tm.llm)} · exec ${sec(tm.exec)} · judge ${sec(tm.judge)} · total ${sec(agent.now() - stepStart)}`);
   }
 
   return {
