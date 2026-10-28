@@ -1,5 +1,21 @@
 # Changelog
 
+## v2026.10.28 — 2026-10-28
+
+### ✨ Features
+- Registry v27 — 중계 화면에 TC·Step 진행 플로우 표시
+- Registry v26 — AI 실행 화면 중계
+
+### 🐛 Fixes
+- 중계 플로우 — 전제조건 미도달을 '완료'로 표시하던 거짓 초록 수정
+- Registry v25 — AI 일괄 실행 완료 후 결과 모달 유지
+
+### ✅ Tests
+- senior ?q= 네비게이션 E2E 2건 quarantine
+
+### 📝 Docs
+- changelog v2026.10.12.1251
+
 ## v2026.10.12.1251 — 2026-10-12
 
 ### 📝 Docs
