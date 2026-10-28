@@ -227,7 +227,7 @@ function recoverJson(text) {
  * Claude에 JSON 응답을 요청하고 파싱한다. usage를 누적한다.
  * maxTokens는 호출별로 줄 수 있고(속도), 줄였을 때 잘림에 대비한 복구 파서가 항상 함께 간다.
  */
-async function askJson(agent, system, userContent, { maxTokens = 1024 } = {}) {
+async function askJson(agent, system, userContent, { maxTokens = 1024, retried = false } = {}) {
   const msg = await agent.anthropic.messages.create({
     model: agent.model,
     max_tokens: maxTokens,
@@ -239,6 +239,9 @@ async function askJson(agent, system, userContent, { maxTokens = 1024 } = {}) {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   if (start === -1) {
+    // 간헐적으로 JSON 없이 서술만 온다("현재 화면을 분석하겠습니다.") — 1회 재요청 (registry_v29, Job 25).
+    // prefill("{")은 최신 모델에서 400이라 AGENT_MODEL을 바꾸는 순간 전 호출이 깨진다.
+    if (!retried) return askJson(agent, system, userContent, { maxTokens, retried: true });
     throw new Error(`LLM 응답에서 JSON을 찾을 수 없음: ${text.slice(0, 200)}`);
   }
   if (end > start) {
@@ -380,10 +383,19 @@ export function createWebOps(page) {
   };
 }
 
+/** previousActions에 남기는 액션 문구 — 대상 요소 이름을 넣어야 ref가 바뀌어도 반복 클릭을 알아본다 */
+function describeAction(action, elements) {
+  const el = action.ref ? elements.find((e) => e.ref === action.ref) : null;
+  const label = el ? `"${el.name}"${el.href ? `→${el.href}` : ''}` : null;
+  return `${action.type}${action.ref ? `(${action.ref}${label ? `=${label}` : ''})` : ''}${action.value ? `=${action.value}` : ''}`;
+}
+
 /** 자유 서술 목표를 향해 대상을 구동 (seed 네비게이션 등, 판정 없음) */
 export async function agenticGoal(ops, agent, goalText, maxActions) {
   const t0 = agent.now();
   let acted = 0;
+  // 이전 액션을 모르면 같은 검색창을 5번 연달아 누르다 시도를 소진한다 (registry_v29, Job 22 T3417)
+  const history = [];
   const summary = (reached) =>
     console.log(`[worker] precondition ${reached ? '도달' : '미도달'} — actions=${acted} total ${((agent.now() - t0) / 1000).toFixed(1)}s`);
   for (let i = 0; i < maxActions; i++) {
@@ -393,6 +405,7 @@ export async function agenticGoal(ops, agent, goalText, maxActions) {
       goal: goalText,
       url,
       elements,
+      previousActions: history,
       availableActions: ops.availableActions,
     }), { maxTokens: ACTION_MAX_TOKENS });
     console.log(`[worker] seed[${i}] url=${url} → ${action.type}${action.ref ? `(${action.ref})` : ''}${action.value ? `=${action.value}` : ''} :: ${action.thought || ''}`);
@@ -401,6 +414,7 @@ export async function agenticGoal(ops, agent, goalText, maxActions) {
       return true;
     }
     await ops.execute(action, locators);
+    history.push(describeAction(action, elements));
     acted++;
   }
   console.log(`[worker] seed 목표 미완료 — maxActions(${maxActions}) 소진`);
@@ -450,15 +464,32 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
   await ops.enter(target, agent);
 
   // 2) 전제조건 네비게이션.
-  //    TC의 Segment Path가 있으면 그것이 전제조건이다 (v24 §4) — Product 단위 seedNote보다 우선.
+  //    TC의 Segment Path·전제조건이 있으면 그것이 목표다 (v24 §4) — Product 단위 seedNote보다 우선.
+  //    TC는 매번 앱 재시작 직후 첫 화면에서 출발한다(registry_v28 #3). "이미 그 화면이면 done"만 주면
+  //    첫 화면(홈)에 비슷한 목록이 보이는 것만으로 경로 중간 단계(검색창 등)를 건너뛴다 (registry_v29).
   const pathGoal = (tc.segmentPath || []).filter(Boolean).join(' > ');
-  const seedGoal = pathGoal
-    ? `아래 경로가 가리키는 화면까지 이동한다: ${pathGoal}. 이미 그 화면이면 done 하라.`
-    : (target.seedNote || '').trim();
+  const preText = (tc.preconditions || '').trim();
+  const seedGoal =
+    pathGoal || preText
+      ? [
+          pathGoal && `아래 경로가 가리키는 화면까지 이동한다: ${pathGoal}.`,
+          preText && `전제조건: ${preText}`,
+          'TC는 앱을 막 시작한 첫 화면에서 출발한다. 첫 화면에 비슷한 요소가 보여도 경로의 다음 단계(예: 검색창을 눌러 여는 화면)를 실제로 거쳐, 마지막 단계 화면에 도착했을 때만 done 하라.',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : (target.seedNote || '').trim();
   if (seedGoal) {
-    prog.precondition = { text: clip(pathGoal || (target.seedNote || '').trim(), 300), status: 'RUNNING' };
+    const preLabel = [pathGoal, preText].filter(Boolean).join(' · ') || (target.seedNote || '').trim();
+    prog.precondition = { text: clip(preLabel, 300), status: 'RUNNING' };
     emit();
-    const reached = await agenticGoal(ops, agent, seedGoal, maxStepActions);
+    let reached = false;
+    try {
+      reached = await agenticGoal(ops, agent, seedGoal, maxStepActions);
+    } catch (e) {
+      // 전제조건 오류가 Job 전체를 FAILED로 만들면 남은 TC도 못 돈다 — 미도달로 두고 Step으로 진행 (registry_v29)
+      console.log(`[worker] precondition 오류 — ${e.message.slice(0, 120)}`);
+    }
     // 도달 못 했는데 '완료'로 보이면 거짓 초록이다 — 미도달을 그대로 드러낸다
     prog.precondition.status = reached ? 'DONE' : 'INCOMPLETE';
     emit();
@@ -499,9 +530,7 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
           availableActions: ops.availableActions,
         }), { maxTokens: ACTION_MAX_TOKENS });
         tm.llm += agent.now() - t;
-        const targetEl = action.ref ? elements.find((e) => e.ref === action.ref) : null;
-        const targetLabel = targetEl ? `"${targetEl.name}"${targetEl.href ? `→${targetEl.href}` : ''}` : null;
-        const desc = `${action.type}${action.ref ? `(${action.ref}${targetLabel ? `=${targetLabel}` : ''})` : ''}${action.value ? `=${action.value}` : ''}`;
+        const desc = describeAction(action, elements);
         if (action.type === 'done') {
           history.push(desc);
           break;
