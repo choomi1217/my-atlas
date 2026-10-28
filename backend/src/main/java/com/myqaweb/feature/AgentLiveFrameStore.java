@@ -18,6 +18,7 @@ public class AgentLiveFrameStore {
     public record Frame(byte[] data, String contentType) {}
 
     private final Map<Long, Frame> frames = new ConcurrentHashMap<>();
+    private final Map<Long, AgentExecutionDto.LiveProgress> progresses = new ConcurrentHashMap<>();
 
     /** 해당 Job의 최신 프레임으로 덮어쓴다. */
     public void put(Long jobId, byte[] data, String contentType) {
@@ -29,8 +30,19 @@ public class AgentLiveFrameStore {
         return Optional.ofNullable(frames.get(jobId));
     }
 
-    /** 해당 Job의 프레임 제거 (Job 종료/취소 시). */
+    /** 해당 Job의 최신 진행 상황으로 덮어쓴다 (registry_v27). */
+    public void putProgress(Long jobId, AgentExecutionDto.LiveProgress progress) {
+        progresses.put(jobId, progress);
+    }
+
+    /** 해당 Job의 최신 진행 상황. 없으면 empty. */
+    public Optional<AgentExecutionDto.LiveProgress> getProgress(Long jobId) {
+        return Optional.ofNullable(progresses.get(jobId));
+    }
+
+    /** 해당 Job의 프레임과 진행 상황 제거 (Job 종료/취소 시). */
     public void clear(Long jobId) {
         frames.remove(jobId);
+        progresses.remove(jobId);
     }
 }

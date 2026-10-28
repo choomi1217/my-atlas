@@ -27,6 +27,7 @@ import {
   Dashboard,
   AgentExecutionJob,
   AgentExecutionResult,
+  AgentLiveProgress,
 } from '@/types/features';
 // ProgressStats is used indirectly via Version/VersionPhase types
 
@@ -826,6 +827,14 @@ export const agentExecutionApi = {
       return null;
     }
     return response.data;
+  },
+
+  /** 현재 TC/Step 진행 상황. 진행 정보가 없으면(종료 등) null */
+  getProgress: async (jobId: number): Promise<AgentLiveProgress | null> => {
+    const response = await apiClient.get<ApiResponse<AgentLiveProgress | null>>(
+      `/api/agent-executions/${jobId}/progress`
+    );
+    return response.data.data ?? null;
   },
 
   getResult: async (

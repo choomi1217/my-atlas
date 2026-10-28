@@ -15,6 +15,25 @@ const PNG_1X1 = Buffer.from(
 );
 const NON_EXISTENT_JOB_ID = 999999999;
 
+/** registry_v27 — 3 step 진행 상황 (PASS / FAIL / JUDGING, 현재 step 3). testCaseId는 런타임에 채운다. */
+function buildProgress(tcId: number, title = 'E2E Agent Frame Test Case') {
+  return {
+    testCaseId: tcId,
+    testCaseTitle: title,
+    tcIndex: 1,
+    tcTotal: 1,
+    phase: 'JUDGING',
+    precondition: { text: '홈 > 검색', status: 'DONE' },
+    currentStep: 3,
+    steps: [
+      { order: 1, action: '검색창 클릭', expected: '검색창 포커스', status: 'PASS', judgment: 'PASS: 포커스됨' },
+      { order: 2, action: '검색어 입력', expected: '자동완성 표시', status: 'FAIL', judgment: 'FAIL: 자동완성 없음' },
+      // judgment 생략 — 판정 중이라 근거가 아직 없다
+      { order: 3, action: '검색 버튼 클릭', expected: '결과 목록 표시', status: 'JUDGING' },
+    ],
+  };
+}
+
 let request: APIRequestContext;
 let companyId: number;
 let productId: number;
@@ -121,6 +140,61 @@ test.describe('Agent Execution Frame API', () => {
     const resp = await request.put(`/api/agent-executions/${NON_EXISTENT_JOB_ID}/frame`, {
       headers: { 'Content-Type': 'image/png' },
       data: PNG_1X1,
+    });
+    expect(resp.status()).toBe(404);
+  });
+
+  test('PUT/GET /api/agent-executions/{id}/progress - stored while RUNNING, 400 on invalid, cleared on DONE, 409 afterwards', async () => {
+    const createResp = await request.post('/api/agent-executions', {
+      data: { scope: 'SINGLE', productId, targetTestCaseId: testCaseId },
+    });
+    expect(createResp.status()).toBe(201);
+    const jobId = ((await createResp.json()) as { data: { jobId: number } }).data.jobId;
+
+    const claimResp = await request.post(`/api/agent-executions/${jobId}/claim`);
+    expect(claimResp.status()).toBe(200);
+    expect(((await claimResp.json()) as { data: { status: string } }).data.status).toBe('RUNNING');
+
+    const progress = buildProgress(testCaseId);
+
+    // 진행 상황 업로드 → 204
+    const putResp = await request.put(`/api/agent-executions/${jobId}/progress`, { data: progress });
+    expect(putResp.status()).toBe(204);
+
+    // 조회 → 200, 동일 데이터
+    const getResp = await request.get(`/api/agent-executions/${jobId}/progress`);
+    expect(getResp.status()).toBe(200);
+    const body = (await getResp.json()) as { success: boolean; data: Record<string, unknown> | null };
+    expect(body.success).toBe(true);
+    expect(body.data).toMatchObject(progress);
+
+    // 검증 실패 (testCaseTitle 501자) → 400, 기존 진행 상황은 유지
+    const invalidResp = await request.put(`/api/agent-executions/${jobId}/progress`, {
+      data: buildProgress(testCaseId, 'E'.repeat(501)),
+    });
+    expect(invalidResp.status()).toBe(400);
+    const keptResp = await request.get(`/api/agent-executions/${jobId}/progress`);
+    expect(((await keptResp.json()) as { data: unknown }).data).toMatchObject(progress);
+
+    // complete → DONE (진행 상황 정리)
+    const completeResp = await request.post(`/api/agent-executions/${jobId}/complete`, {
+      data: { status: 'DONE' },
+    });
+    expect(completeResp.status()).toBe(200);
+
+    // 종료 후 조회 → 200, data null
+    const afterDoneResp = await request.get(`/api/agent-executions/${jobId}/progress`);
+    expect(afterDoneResp.status()).toBe(200);
+    expect(((await afterDoneResp.json()) as { data: unknown }).data).toBeNull();
+
+    // 종료 후 업로드 → 409
+    const putAfterDoneResp = await request.put(`/api/agent-executions/${jobId}/progress`, { data: progress });
+    expect(putAfterDoneResp.status()).toBe(409);
+  });
+
+  test('PUT /api/agent-executions/{id}/progress - 404 for unknown job', async () => {
+    const resp = await request.put(`/api/agent-executions/${NON_EXISTENT_JOB_ID}/progress`, {
+      data: buildProgress(testCaseId),
     });
     expect(resp.status()).toBe(404);
   });

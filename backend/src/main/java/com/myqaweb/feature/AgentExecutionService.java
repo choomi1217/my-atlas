@@ -60,4 +60,16 @@ public interface AgentExecutionService {
 
     /** 저장된 최신 프레임. 없으면 empty. */
     Optional<AgentLiveFrameStore.Frame> getFrame(Long jobId);
+
+    // --- 라이브 진행 상황 (registry_v27) ---
+
+    /**
+     * 워커가 보낸 최신 TC/step 진행 상황 저장. RUNNING Job에만 저장한다.
+     *
+     * @return 저장했으면 true, Job이 RUNNING이 아니라 저장하지 않았으면 false (없는 Job은 EntityNotFoundException)
+     */
+    boolean storeProgress(Long jobId, AgentExecutionDto.LiveProgress progress);
+
+    /** 저장된 최신 진행 상황. 없으면 empty. */
+    Optional<AgentExecutionDto.LiveProgress> getProgress(Long jobId);
 }

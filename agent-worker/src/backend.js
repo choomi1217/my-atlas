@@ -93,6 +93,15 @@ export class BackendClient {
     }
   }
 
+  /** 라이브 TC/step 진행 상황 전송. 409(Job이 RUNNING 아님)는 무시한다. */
+  async pushProgress(jobId, payload) {
+    try {
+      await this.#request('PUT', `/api/agent-executions/${jobId}/progress`, payload);
+    } catch (err) {
+      if (err.status !== 409) throw err;
+    }
+  }
+
   /** Job 종료 (DONE | FAILED) */
   complete(jobId, status, errorMessage) {
     return this.#request('POST', `/api/agent-executions/${jobId}/complete`, { status, errorMessage });

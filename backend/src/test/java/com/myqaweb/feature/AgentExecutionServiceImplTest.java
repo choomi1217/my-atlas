@@ -302,6 +302,53 @@ class AgentExecutionServiceImplTest {
         assertThat(service.getFrame(2L)).isEmpty();
     }
 
+    // --- storeProgress / getProgress (registry_v27) ---
+
+    private static final AgentExecutionDto.LiveProgress PROGRESS = new AgentExecutionDto.LiveProgress(
+            10L, "로그인", 1, 1, "ACTING", null, 1,
+            List.of(new AgentExecutionDto.LiveStep(1, "클릭", "이동", "ACTING", null)));
+
+    @Test
+    void storeProgress_running_storesAndReturnsTrue() {
+        AgentExecutionJobEntity j = job(1L, AgentExecutionScope.SINGLE, AgentExecutionStatus.RUNNING, null);
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(j));
+
+        boolean stored = service.storeProgress(1L, PROGRESS);
+
+        assertThat(stored).isTrue();
+        verify(frameStore).putProgress(1L, PROGRESS);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = AgentExecutionStatus.class, names = {"PENDING", "DONE", "FAILED", "CANCELLED"})
+    void storeProgress_notRunning_returnsFalseAndDoesNotStore(AgentExecutionStatus status) {
+        AgentExecutionJobEntity j = job(1L, AgentExecutionScope.SINGLE, status, null);
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(j));
+
+        boolean stored = service.storeProgress(1L, PROGRESS);
+
+        assertThat(stored).isFalse();
+        verify(frameStore, never()).putProgress(any(), any());
+    }
+
+    @Test
+    void storeProgress_unknownJob_throwsNotFound() {
+        when(jobRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.storeProgress(404L, PROGRESS))
+                .isInstanceOf(EntityNotFoundException.class);
+        verify(frameStore, never()).putProgress(any(), any());
+    }
+
+    @Test
+    void getProgress_delegatesToStore() {
+        when(frameStore.getProgress(1L)).thenReturn(Optional.of(PROGRESS));
+        when(frameStore.getProgress(2L)).thenReturn(Optional.empty());
+
+        assertThat(service.getProgress(1L)).containsSame(PROGRESS);
+        assertThat(service.getProgress(2L)).isEmpty();
+    }
+
     // --- getExecutionContext ---
 
     @Test

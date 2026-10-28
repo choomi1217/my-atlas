@@ -2,6 +2,8 @@ package com.myqaweb.feature;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AgentLiveFrameStoreTest {
@@ -61,5 +63,54 @@ class AgentLiveFrameStoreTest {
         store.clear(42L);
 
         assertThat(store.get(42L)).isEmpty();
+    }
+
+    // --- progress (registry_v27) ---
+
+    private AgentExecutionDto.LiveProgress progress(String title, Integer currentStep) {
+        return new AgentExecutionDto.LiveProgress(
+                10L, title, 1, 1, "ACTING",
+                new AgentExecutionDto.LivePrecondition("로그인 화면", "DONE"),
+                currentStep,
+                List.of(new AgentExecutionDto.LiveStep(1, "클릭", "이동", "ACTING", null)));
+    }
+
+    @Test
+    void putProgress_thenGet_returnsSameProgress() {
+        var p = progress("로그인", 1);
+
+        store.putProgress(1L, p);
+
+        assertThat(store.getProgress(1L)).containsSame(p);
+    }
+
+    @Test
+    void putProgress_twice_keepsLatestOnly() {
+        store.putProgress(1L, progress("first", 1));
+        var latest = progress("second", 2);
+        store.putProgress(1L, latest);
+
+        assertThat(store.getProgress(1L)).hasValueSatisfying(p -> {
+            assertThat(p.testCaseTitle()).isEqualTo("second");
+            assertThat(p.currentStep()).isEqualTo(2);
+        });
+    }
+
+    @Test
+    void clear_removesFrameAndProgress() {
+        store.put(1L, new byte[] {1}, "image/png");
+        store.putProgress(1L, progress("t", 1));
+        store.putProgress(2L, progress("other", 1));
+
+        store.clear(1L);
+
+        assertThat(store.get(1L)).isEmpty();
+        assertThat(store.getProgress(1L)).isEmpty();
+        assertThat(store.getProgress(2L)).isPresent();
+    }
+
+    @Test
+    void getProgress_unknownJob_returnsEmpty() {
+        assertThat(store.getProgress(42L)).isEmpty();
     }
 }

@@ -122,6 +122,48 @@ function startFramePump(ops, backend, jobId, intervalMs) {
   };
 }
 
+/**
+ * 진행 상황(TC/step) 리포터. 최신 payload만 남기고(coalesce) 동시에 PUT은 1건만 보낸다.
+ * 끝나면 대기 중인 최신본을 순서대로 이어 보낸다. 실패는 삼킨다(Job당 1회만 로그).
+ * stop()은 진행 중인 전송을 기다리고 대기분은 버린다 — complete 이후 전송을 막는다.
+ */
+function makeProgressReporter(backend, jobId) {
+  let pending = null;
+  let inflight = null;
+  let stopped = false;
+  let warned = false;
+  const pump = () => {
+    if (inflight || !pending || stopped) return;
+    const payload = pending;
+    pending = null;
+    inflight = (async () => {
+      try {
+        await backend.pushProgress(jobId, payload);
+      } catch (e) {
+        if (!warned) {
+          warned = true;
+          console.error(`[worker] progress 전송 실패: ${e.message}`);
+        }
+      } finally {
+        inflight = null;
+        pump();
+      }
+    })();
+  };
+  return {
+    report(payload) {
+      if (stopped) return;
+      pending = payload;
+      pump();
+    },
+    async stop() {
+      stopped = true;
+      pending = null;
+      await inflight;
+    },
+  };
+}
+
 /** 단일 Job 하나를 처음부터 끝까지 실행 */
 async function runJob(jobId, cfg, backend) {
   const agent = {
@@ -138,6 +180,7 @@ async function runJob(jobId, cfg, backend) {
   let browser;
   let ops;
   let stopFrames = async () => {};
+  let stopProgress = async () => {};
   try {
     // 단건 모드에서 대상 종류가 안 맞으면 조용히 넘기지 않고 명확히 실패시킨다.
     // (웹 전용 제품을 에뮬레이터에서 돌리는 식의 오배치를 막는다 — v24 Step 8)
@@ -173,10 +216,21 @@ async function runJob(jobId, cfg, backend) {
     const target = { baseUrl: ctx.baseUrl, seedNote: ctx.seedNote };
     const shouldStop = makeCancelChecker(backend, jobId, cfg.cancelCheckMs);
 
-    for (const tc of ctx.testCases) {
+    const progress = makeProgressReporter(backend, jobId);
+    stopProgress = progress.stop;
+
+    for (const [i, tc] of ctx.testCases.entries()) {
       if (await shouldStop()) throw new CancelledError();
       console.log(`[worker] TC ${tc.id} "${tc.title}" 실행 시작`);
-      const result = await runTestCase(ops, agent, tc, target, cfg.maxStepActions, shouldStop);
+      const onProgress = (snap) =>
+        progress.report({
+          testCaseId: tc.id,
+          testCaseTitle: String(tc.title ?? '').slice(0, 500),
+          tcIndex: i + 1,
+          tcTotal: ctx.testCases.length,
+          ...snap,
+        });
+      const result = await runTestCase(ops, agent, tc, target, cfg.maxStepActions, shouldStop, onProgress);
       console.log(`[worker] TC ${tc.id} → ${result.verdict} (${result.durationMs}ms, ${result.tokenCost} tokens)`);
       await backend.recordResult(jobId, {
         testCaseId: tc.id,
@@ -189,11 +243,13 @@ async function runJob(jobId, cfg, backend) {
     }
 
     await stopFrames();
+    await stopProgress();
     await backend.complete(jobId, 'DONE', null);
     console.log(`[worker] job=${jobId} DONE`);
   } catch (err) {
     // 어떤 종료 경로(중단·실패 보고)보다 먼저 프레임 전송을 멈춘다
     await stopFrames();
+    await stopProgress();
     // 중단은 실패가 아니다. cancelJob이 이미 종료 상태로 만들었으므로 아무것도 보고하지 않는다.
     // complete(CANCELLED)는 허용되지 않아 예외가 나고, 그게 아래 complete(FAILED)로 흘러가
     // CANCELLED를 FAILED로 덮어쓴다.
@@ -227,6 +283,7 @@ async function runJob(jobId, cfg, backend) {
     throw err;
   } finally {
     await stopFrames();
+    await stopProgress();
     if (ops) await ops.close().catch(() => {});
     if (browser) await browser.close();
   }

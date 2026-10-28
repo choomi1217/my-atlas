@@ -138,4 +138,23 @@ public class AgentExecutionController {
                         .body(f.data()))
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
+
+    // --- 라이브 진행 상황 (registry_v27) ---
+
+    /** 워커가 최신 TC/step 진행 상황 업로드. RUNNING이 아니면 409. */
+    @PutMapping(value = "/{id}/progress", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> putProgress(
+            @PathVariable Long id, @Valid @RequestBody AgentExecutionDto.LiveProgress progress) {
+        return agentExecutionService.storeProgress(id, progress)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.status(HttpStatus.CONFLICT).build();
+    }
+
+    /** 프론트가 폴링하는 최신 진행 상황. 없으면 data=null. */
+    @GetMapping("/{id}/progress")
+    public ResponseEntity<ApiResponse<AgentExecutionDto.LiveProgress>> getProgress(@PathVariable Long id) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(ApiResponse.ok(agentExecutionService.getProgress(id).orElse(null)));
+    }
 }

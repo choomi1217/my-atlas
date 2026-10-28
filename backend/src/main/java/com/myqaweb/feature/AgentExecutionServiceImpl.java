@@ -192,6 +192,21 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean storeProgress(Long jobId, AgentExecutionDto.LiveProgress progress) {
+        if (findJob(jobId).getStatus() != AgentExecutionStatus.RUNNING) {
+            return false;
+        }
+        frameStore.putProgress(jobId, progress);
+        return true;
+    }
+
+    @Override
+    public Optional<AgentExecutionDto.LiveProgress> getProgress(Long jobId) {
+        return frameStore.getProgress(jobId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public AgentExecutionDto.WorkerContextResponse getExecutionContext(Long jobId) {
         AgentExecutionJobEntity job = findJob(jobId);
         ProductEntity product = productRepository.findById(job.getProductId())
