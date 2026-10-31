@@ -224,6 +224,15 @@ function recoverJson(text) {
 }
 
 /**
+ * 5.x 모델은 thinking이 기본으로 켜져 짧은 max_tokens(300/700)를 thinking이 먹는다.
+ * Haiku 4.5와 같은 조건(thinking 없음)으로 비교하려고 끈다 (registry_v30). 끄는 값이 모델마다 다르다.
+ */
+const THINKING_OFF = {
+  'claude-haiku-5-5': { type: 'disabled' },
+  'claude-sonnet-5-5': { type: 'between_tools' },
+};
+
+/**
  * Claude에 JSON 응답을 요청하고 파싱한다. usage를 누적한다.
  * maxTokens는 호출별로 줄 수 있고(속도), 줄였을 때 잘림에 대비한 복구 파서가 항상 함께 간다.
  */
@@ -233,6 +242,7 @@ async function askJson(agent, system, userContent, { maxTokens = 1024, retried =
     max_tokens: maxTokens,
     system,
     messages: [{ role: 'user', content: userContent }],
+    ...(THINKING_OFF[agent.model] ? { thinking: THINKING_OFF[agent.model] } : {}),
   });
   agent.tokenCost += (msg.usage?.input_tokens || 0) + (msg.usage?.output_tokens || 0);
   const text = (msg.content || []).map((b) => b.text || '').join('');
@@ -270,7 +280,9 @@ const ACTION_SYSTEM = `너는 웹 QA 테스트를 실행하는 에이전트다.
 - navigate: value(URL 또는 경로)로 이동
 - key: value 키를 누른다 (enter|search|back|tab|escape). **입력칸에 값을 넣는 것만으로 검색·제출이 실행되지 않는 화면에서는 fill 다음에 반드시 key=enter 를 해야 한다.**
 - back: 뒤로 가기
-- scroll: 화면을 value(down|up) 방향으로 스크롤. 찾는 요소가 화면 밖에 있을 때 쓴다
+- scroll: 화면을 value(down|up|left|right) 방향으로 스크롤. ref를 주면 그 요소(목록·캐러셀·지도) 영역에서 스크롤한다. 찾는 요소가 화면 밖에 있을 때 쓴다
+- restart: 앱을 종료했다가 다시 실행한다. 목표가 앱 종료·재실행을 요구할 때만 쓴다
+- impossible: 목표 동작을 할 수 없을 때만 — 필요한 요소가 화면에 없고 scroll로도 못 찾을 때, 또는 목표가 요구하는 상태(앱 신규 설치·권한 거부·다른 OS 등)를 앱 조작으로 만들 수 없을 때. value에 이유
 - done: 목표 동작을 이미 수행 완료했을 때만
 요소 목록에 없는 것은 조작할 수 없다.
 입력의 availableActions 배열에 없는 type은 이 플랫폼에서 쓸 수 없으니 절대 쓰지 마라.
@@ -281,7 +293,8 @@ const ACTION_SYSTEM = `너는 웹 QA 테스트를 실행하는 에이전트다.
 "버튼 클릭" 목표면 그 버튼 ref를 click, "입력" 목표면 fill 하라.
 중요: 목표가 "~ 확인"처럼 보는 것만 요구하고 터치·클릭·입력을 명시하지 않으면, 화면 상태를 바꾸는 동작(체크박스·토글·필터·드롭다운 클릭, 창 열기)을 하지 말고 done 하라 — 확인하려고 상태를 바꾸면 검증 대상이 바뀐다. 확인할 대상이 화면 밖에 있을 때의 scroll만 허용한다.
 previousActions는 이 step에서 이미 시도한 액션이다. 같은 액션을 반복하지 말고, [실패] 표시가 있으면 다른 요소를 시도하라. 목표 동작을 완료했으면 done 하라.
-중요: 입력에 expectedState(이 액션 완료 후 도달해야 할 상태)가 있으면, 그 상태에 이미 도달했는지를 기준으로 done 여부를 판단하라. 목표(action) 문구에 없는 추가 동작(예: 한 단계 더 들어가서 다른 걸 또 클릭하는 것)은 expectedState 달성에 필요하지 않으면 하지 마라 — 목표를 넘어서 더 진행하지 마라.`;
+중요: 목표(action/goal)에 적힌 동작을 모두 수행했으면 바로 done 하라. 결과가 화면에 보이는지 확인하는 것은 판정기의 일이다 — 확인하려고 scroll·클릭을 더 하지 마라. 목표에 없는 동작(다음 단계 진행, 삭제·초기화 버튼 등)은 하지 마라 — 목표를 넘어서 더 진행하지 마라.
+목표에 적힌 요소가 화면에 없으면 다른 요소로 비슷한 화면을 찾아가지 말고 impossible 하라.`;
 
 const JUDGE_SYSTEM = `너는 웹 QA 판정자다.
 직전 액션 수행 후의 페이지 상태가 기대(expected)를 충족하는지 판정한다.
@@ -293,8 +306,11 @@ accessibilityTree는 페이지의 실제 포함(부모-자식) 구조를 중첩�
 그 화면에 기대와 비슷한 요소가 있어도 절대 PASS 하지 마라 — INCONCLUSIVE로 판정하고 앱을 벗어났음을 근거에 적어라.
 중요: url에 "(앱 응답 없음/크래시 다이얼로그)"가 붙어 있으면 앱이 멈췄거나 죽은 것이다.
 화면 이름이 목표와 같아도 기대가 충족된 것이 아니다 — 반드시 FAIL로 판정하고 앱이 응답하지 않았음을 근거에 적어라.
-반드시 아래 JSON만 출력한다(설명 금지):
-{"verdict": "PASS|FAIL|INCONCLUSIVE", "reasoning": "핵심 관측 근거 2~3문장"}
+중요: action이 터치·입력·선택·스크롤 같은 조작을 요구하는데 actionsTaken에 그 조작이 없으면, 화면이 그 결과처럼 보여도 PASS 하지 말고 INCONCLUSIVE로 판정하라 — 동작을 하지 못한 것이다.
+중요: actionsTaken이 action에 적힌 요소가 아닌 다른 요소를 눌러 기대 화면에 도달했다면 PASS 하지 마라(INCONCLUSIVE) — 다른 경로로 도달한 것은 검증이 아니다.
+중요: 기대가 "닫힘·사라짐·삭제됨"처럼 상태 변화를 말할 때, 대상이 안 보인다는 것만으로 PASS 하지 마라 — actionsTaken에 그 변화를 일으킨 동작(닫기·삭제 등)이 있어야 한다.
+반드시 아래 JSON만 출력한다(설명 금지). reasoning을 먼저 쓰고 그 결론을 verdict에 옮겨라:
+{"reasoning": "핵심 관측 근거 2~3문장", "verdict": "PASS|FAIL|INCONCLUSIVE"}
 - PASS: 기대가 명확히 충족됨 (pageText/elements에 근거 있음)
 - FAIL: 기대가 명확히 불충족됨
 - INCONCLUSIVE: 기대가 모호하거나 판정 근거를 찾을 수 없음`;
@@ -385,6 +401,12 @@ export function createWebOps(page) {
   };
 }
 
+/**
+ * 판정기에 넘기는 동작 목록 — ref 번호는 스냅샷마다 다시 매겨져 판정 시점 elements의 같은 번호와 다른 요소다.
+ * 번호를 주면 "a4는 다른 요소라 잘못 눌렀다"며 보류했다 (registry_v30, Job 36 T3500). 이름만 남긴다.
+ */
+const forJudge = (history) => history.map((h) => h.replace(/\(a\d+=/g, '(').replace(/\(a\d+\)/g, '(이름 없는 요소)'));
+
 /** previousActions에 남기는 액션 문구 — 대상 요소 이름을 넣어야 ref가 바뀌어도 반복 클릭을 알아본다 */
 function describeAction(action, elements) {
   const el = action.ref ? elements.find((e) => e.ref === action.ref) : null;
@@ -392,7 +414,36 @@ function describeAction(action, elements) {
   return `${action.type}${action.ref ? `(${action.ref}${label ? `=${label}` : ''})` : ''}${action.value ? `=${action.value}` : ''}`;
 }
 
-/** 자유 서술 목표를 향해 대상을 구동 (seed 네비게이션 등, 판정 없음) */
+/**
+ * "입력 후 검색"인데 마지막 동작이 입력(fill)이면 제출(enter)까지 한다. 행동 LLM이 자동완성 목록을 검색 결과로 보고
+ * 엔터 없이 done 했고, 전제조건 확인 판정도 이를 통과시켰다 (registry_v30, Job 33 T3500·T3502·T3503, Job 34).
+ * ponytail: 문구 휴리스틱 — "입력 후 검색" 표현만 잡는다. 다른 표현이 나오면 패턴에 추가.
+ */
+const SUBMIT_AFTER_FILL = /입력\s*후\s*,?\s*검색/;
+async function submitIfNeeded(ops, goalText, history) {
+  const last = history[history.length - 1] || '';
+  if (!ops.availableActions.includes('key') || !SUBMIT_AFTER_FILL.test(goalText)) return;
+  if (!last.startsWith('fill') || last.includes('[실패')) return;
+  await ops.execute({ type: 'key', value: 'enter' }, {});
+  history.push('key=enter [자동 제출]');
+}
+
+/**
+ * 대상이 하나뿐인 터치 step(예: "`인기도 순` 터치", "검색 결과의 `삼성역 2호선` 터치")의 대상 이름.
+ * 그 이름이 든 요소를 한 번 눌렀으면 step은 끝난 것이다 — 행동 LLM은 같은 글자의 다른 요소(옵션 바)를
+ * 또 눌러 닫힌 정렬 창을 다시 열었다 (registry_v30, Job 33 T3501, Job 35 T3500).
+ */
+function singleTapTarget(action = '') {
+  const text = String(action).trim();
+  const targets = text.match(/`[^`]+`/g) || [];
+  if (targets.length !== 1 || !/`\s*(을|를)?\s*(터치|클릭)$/.test(text)) return null;
+  return targets[0].slice(1, -1);
+}
+
+/**
+ * 자유 서술 목표를 향해 대상을 구동 (seed 네비게이션 등, 판정 없음)
+ * @returns {Promise<{reached:boolean, history:string[], reason?:string}>}
+ */
 export async function agenticGoal(ops, agent, goalText, maxActions) {
   const t0 = agent.now();
   let acted = 0;
@@ -408,20 +459,60 @@ export async function agenticGoal(ops, agent, goalText, maxActions) {
       url,
       elements,
       previousActions: history,
-      availableActions: ops.availableActions,
+      availableActions: [...ops.availableActions, 'impossible'],
     }), { maxTokens: ACTION_MAX_TOKENS });
     console.log(`[worker] seed[${i}] url=${url} → ${action.type}${action.ref ? `(${action.ref})` : ''}${action.value ? `=${action.value}` : ''} :: ${action.thought || ''}`);
     if (action.type === 'done') {
+      await submitIfNeeded(ops, goalText, history);
       summary(true);
-      return true;
+      return { reached: true, history };
     }
-    await ops.execute(action, locators);
-    history.push(describeAction(action, elements));
+    if (action.type === 'impossible') {
+      summary(false);
+      return { reached: false, history, reason: `이동 불가 — ${action.value || action.thought || ''}` };
+    }
+    const desc = describeAction(action, elements);
     acted++;
+    try {
+      await ops.execute(action, locators);
+      history.push(desc);
+    } catch (e) {
+      // Step 루프처럼 실패를 남기고 다른 요소를 시도하게 한다 — 예외로 전제조건 전체를 끊지 않는다 (registry_v30, Job 33 T3485)
+      history.push(`${desc} [실패:${e.message.slice(0, 40)}]`);
+    }
   }
   console.log(`[worker] seed 목표 미완료 — maxActions(${maxActions}) 소진`);
   summary(false);
-  return false;
+  return { reached: false, history, reason: `동작 ${maxActions}회 안에 도달 못 함` };
+}
+
+/**
+ * 전제조건 도달을 판정기로 확인한다. 행동 LLM의 done은 자기 선언이라
+ * 자동완성 목록을 검색 결과로, 홈을 온보딩으로 착각한 채 "도달"했다 (registry_v30, Job 33 T3500·T3514).
+ */
+async function verifyPrecondition(ops, agent, preText, history) {
+  ops.refresh?.();
+  const { elements } = await ops.snapshot();
+  return askJson(agent, JUDGE_SYSTEM, JSON.stringify({
+    action: `전제조건으로 이동: ${preText}`,
+    actionsTaken: forJudge(history),
+    expected: `전제조건 상태에 도착해 있다: ${preText}`,
+    url: await ops.location(),
+    elements,
+    pageText: await ops.text(),
+    accessibilityTree: await ops.tree(),
+  }), { maxTokens: JUDGE_MAX_TOKENS });
+}
+
+/**
+ * "~ 확인"처럼 보기만 하는 step인지. 따옴표 안 문구(요소 이름)는 빼고 조작 동사를 찾는다 — `주소 검색` 화면 확인.
+ * 애매하면 조작 step으로 본다 (관찰로 잘못 보면 필요한 동작이 막힌다).
+ * ponytail: 동사 목록 휴리스틱. 놓치는 표현이 나오면 목록에 추가.
+ */
+const ACTION_VERB = /터치|클릭|입력|검색|스크롤|내림|내려|올림|올려|선택|누르|눌러|삭제|지우|닫기|닫고|닫아|열기|열고|열어|스와이프|뒤로|실행|이동/;
+export function isObserveOnly(action = '') {
+  const bare = String(action).replace(/`[^`]*`|'[^']*'|"[^"]*"/g, '').trim();
+  return /확인$/.test(bare) && !ACTION_VERB.test(bare);
 }
 
 /**
@@ -434,6 +525,16 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
   const stepLogs = [];
 
   const steps = (tc.steps || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  // Step이 없으면 판정할 것이 없다 — PASS로 두면 0 토큰 PASS가 기록된다 (registry_v30, Job 32 T3416)
+  if (steps.length === 0) {
+    return {
+      verdict: 'INCONCLUSIVE',
+      stepLogs: [{ order: 0, actionTaken: '', observed: '', judgment: 'INCONCLUSIVE: Step이 없어 판정할 수 없음', screenshotKey: null }],
+      durationMs: agent.now() - started,
+      tokenCost: 0,
+    };
+  }
 
   // 라이브 진행 상태 (UI 스텝 플로우용). 보고 실패가 실행을 깨면 안 되므로 emit은 예외를 삼킨다.
   const clip = (s, n) => String(s ?? '').slice(0, n);
@@ -470,22 +571,54 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
   //    TC는 매번 앱 재시작 직후 첫 화면에서 출발한다(registry_v28 #3). "이미 그 화면이면 done"만 주면
   //    첫 화면(홈)에 비슷한 목록이 보이는 것만으로 중간 단계(검색창 등)를 건너뛴다.
   const preText = (tc.preconditions || '').trim();
+  //    예시 문구("예: 검색창 터치")를 넣으면 그 예시를 전제조건으로 오인한다 (registry_v30, Job 33 T3511).
   const seedGoal = preText
-    ? `전제조건 상태까지 이동한다: ${preText}. TC는 앱을 막 시작한 첫 화면에서 출발한다. 첫 화면에 비슷한 요소가 보여도 전제조건에 적힌 단계(예: 검색창 터치)를 실제로 거쳐, 그 상태에 도착했을 때만 done 하라.`
+    ? `전제조건 상태까지 이동한다: ${preText}. TC는 앱을 막 시작한 첫 화면에서 출발한다. 첫 화면에 비슷한 요소가 보여도 전제조건에 적힌 단계를 실제로 모두 거쳐, 그 상태에 도착했을 때만 done 하라.`
     : (target.seedNote || '').trim();
+  let blocked = null; // TC 전제조건 미도달 사유 — 있으면 Step을 실행하지 않는다
   if (seedGoal) {
     prog.precondition = { text: clip(preText || (target.seedNote || '').trim(), 300), status: 'RUNNING' };
     emit();
-    let reached = false;
+    let goal = { reached: false, history: [], reason: '' };
     try {
-      reached = await agenticGoal(ops, agent, seedGoal, maxStepActions);
+      goal = await agenticGoal(ops, agent, seedGoal, maxStepActions);
+      if (goal.reached && preText) {
+        const v = await verifyPrecondition(ops, agent, preText, goal.history);
+        console.log(`[worker] precondition 확인 ${v.verdict} — ${clip(v.reasoning, 120)}`);
+        if (v.verdict !== 'PASS') goal = { ...goal, reached: false, reason: `확인 ${v.verdict}: ${v.reasoning}` };
+      }
     } catch (e) {
-      // 전제조건 오류가 Job 전체를 FAILED로 만들면 남은 TC도 못 돈다 — 미도달로 두고 Step으로 진행 (registry_v29)
+      // 전제조건 오류가 Job 전체를 FAILED로 만들면 남은 TC도 못 돈다 — 미도달로 처리 (registry_v29)
       console.log(`[worker] precondition 오류 — ${e.message.slice(0, 120)}`);
+      goal = { ...goal, reached: false, reason: `오류: ${e.message}` };
     }
     // 도달 못 했는데 '완료'로 보이면 거짓 초록이다 — 미도달을 그대로 드러낸다
-    prog.precondition.status = reached ? 'DONE' : 'INCOMPLETE';
+    prog.precondition.status = goal.reached ? 'DONE' : 'INCOMPLETE';
     emit();
+    // Product seedNote는 힌트라 미도달이어도 진행한다
+    if (!goal.reached && preText) blocked = goal.reason || '전제조건 미도달';
+  }
+
+  // 미실행 step도 이유를 남긴다. 판정 문구에 FAIL/INCONCLUSIVE를 넣지 않는다 — 실패 분석 필터(index.js)가 집어 간다
+  const skipFrom = (from, why) => {
+    for (const s of steps.slice(from)) {
+      stepLogs.push({ order: s.order, actionTaken: '', observed: '', judgment: `SKIPPED: ${why}`, screenshotKey: null });
+    }
+  };
+
+  // 전제조건 미도달이면 Step을 돌리지 않는다 — 엉뚱한 화면의 비슷한 UI로 거짓 PASS가 났다 (registry_v30, Job 33 T3516)
+  if (blocked) {
+    stepLogs.push({
+      order: steps[0].order,
+      actionTaken: '',
+      observed: await ops.location().catch(() => ''),
+      judgment: `INCONCLUSIVE: 전제조건 미도달로 실행하지 않음 — ${clip(blocked, 500)}`,
+      screenshotKey: null,
+    });
+    mark(0, 'INCONCLUSIVE', `전제조건 미도달 — ${blocked}`);
+    skipFrom(1, '전제조건 미도달');
+    emit();
+    return { verdict: 'INCONCLUSIVE', stepLogs, durationMs: agent.now() - started, tokenCost: agent.tokenCost - startTokens };
   }
 
   // 3) TC step 순차 실행·판정
@@ -506,6 +639,11 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
     const stepStart = agent.now();
     let acted = 0;
     let stepVerdict = 'ERROR';
+    // 관찰 step은 상태를 바꾸는 동작을 코드로 막는다 — 프롬프트 규칙만으로는 정렬 창을 열어 다음 step을 가렸다 (registry_v30, Job 33 T3499)
+    const observeOnly = isObserveOnly(step.action);
+    const allowed = observeOnly ? ['scroll', 'done'] : [...ops.availableActions, 'impossible'];
+    const tapTarget = singleTapTarget(step.action);
+    let impossible = null;
     try {
       // 액션 결정·실행 (step당 최대 maxStepActions)
       for (let i = 0; i < maxStepActions; i++) {
@@ -514,66 +652,95 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
         const url = await ops.location();
         tm.snap += agent.now() - t;
         t = agent.now();
+        // expected는 주지 않는다 — 주면 동작을 끝낸 뒤에도 기대 화면을 찾아 scroll·클릭을 더 한다 (registry_v30, Job 33 T3471·T3487)
         const action = await askJson(agent, ACTION_SYSTEM, JSON.stringify({
           action: step.action,
-          expectedState: step.expected,
           url,
           elements,
           previousActions: history,
-          availableActions: ops.availableActions,
+          availableActions: allowed,
         }), { maxTokens: ACTION_MAX_TOKENS });
         tm.llm += agent.now() - t;
         const desc = describeAction(action, elements);
         if (action.type === 'done') {
+          await submitIfNeeded(ops, step.action, history);
           history.push(desc);
+          break;
+        }
+        if (observeOnly && !allowed.includes(action.type)) {
+          history.push(`${desc} [관찰 step — 실행 안 함]`);
+          break;
+        }
+        if (action.type === 'impossible') {
+          history.push(desc);
+          impossible = action.value || action.thought || '동작 불가';
           break;
         }
         const te = agent.now();
         acted++;
+        let tapped = false;
         try {
           await ops.execute(action, locators);
           history.push(desc);
+          const el = elements.find((e) => e.ref === action.ref);
+          tapped = !!(tapTarget && action.type === 'click' && el && `${el.name} ${el.testId ?? ''}`.includes(tapTarget));
         } catch (e) {
           // 실패한 액션도 히스토리에 남겨 다음엔 다른 요소를 시도하게 한다
           history.push(`${desc} [실패:${e.message.slice(0, 40)}]`);
         }
         tm.exec += agent.now() - te;
+        if (tapped) break;
       }
-      // expected 대조 판정 (상호작용 요소 + 보이는 텍스트 + 접근성 트리로 결과 확인)
-      const tj = agent.now(); // judge = 관측 + 판정 LLM
-      // 판정은 최신 화면으로: 마지막 settle 이후 액션 결정 LLM이 도는 동안 늦게 뜬 콘텐츠를 놓치면
-      // 낡은 화면으로 판정하게 된다. 1회만 새로 덤프하고 아래 text/location은 그 덤프를 재사용한다.
-      ops.refresh?.();
-      const { elements: observed } = await ops.snapshot();
-      const text = await ops.text();
-      const axTree = await ops.tree();
-      const where = await ops.location();
-      prog.phase = 'JUDGING';
-      mark(idx, 'JUDGING');
-      emit();
-      // 수행한 동작을 모르면 "스크롤 후" 기대에 "스크롤 전 화면인지 알 수 없다"며 INCONCLUSIVE (registry_v29, Job 29 T3411)
-      const judged = await askJson(agent, JUDGE_SYSTEM, JSON.stringify({
-        action: step.action,
-        actionsTaken: history,
-        expected: step.expected,
-        url: where,
-        elements: observed,
-        pageText: text,
-        accessibilityTree: axTree,
-      }), { maxTokens: JUDGE_MAX_TOKENS });
-      tm.judge += agent.now() - tj;
-      stepVerdict = judged.verdict;
-      stepLogs.push({
-        order: step.order,
-        actionTaken: history.join(' → '),
-        observed: where,
-        judgment: `${judged.verdict}: ${judged.reasoning}`,
-        screenshotKey: null,
-      });
-      if (judged.verdict === 'FAIL') verdict = 'FAIL';
-      else if (judged.verdict === 'INCONCLUSIVE' && verdict !== 'FAIL') verdict = 'INCONCLUSIVE';
-      mark(idx, ['PASS', 'FAIL', 'INCONCLUSIVE'].includes(judged.verdict) ? judged.verdict : 'INCONCLUSIVE', judged.reasoning);
-      emit();
+      if (impossible) {
+        // 동작을 못 했으니 판정할 결과가 없다 — 판정 LLM을 부르지 않는다
+        stepVerdict = 'INCONCLUSIVE';
+        stepLogs.push({
+          order: step.order,
+          actionTaken: history.join(' → '),
+          observed: await ops.location().catch(() => ''),
+          judgment: `INCONCLUSIVE: 동작 불가 — ${clip(impossible, 500)}`,
+          screenshotKey: null,
+        });
+        if (verdict !== 'FAIL') verdict = 'INCONCLUSIVE';
+        mark(idx, 'INCONCLUSIVE', `동작 불가 — ${impossible}`);
+        emit();
+      } else {
+        // expected 대조 판정 (상호작용 요소 + 보이는 텍스트 + 접근성 트리로 결과 확인)
+        const tj = agent.now(); // judge = 관측 + 판정 LLM
+        // 판정은 최신 화면으로: 마지막 settle 이후 액션 결정 LLM이 도는 동안 늦게 뜬 콘텐츠를 놓치면
+        // 낡은 화면으로 판정하게 된다. 1회만 새로 덤프하고 아래 text/location은 그 덤프를 재사용한다.
+        ops.refresh?.();
+        const { elements: observed } = await ops.snapshot();
+        const text = await ops.text();
+        const axTree = await ops.tree();
+        const where = await ops.location();
+        prog.phase = 'JUDGING';
+        mark(idx, 'JUDGING');
+        emit();
+        // 수행한 동작을 모르면 "스크롤 후" 기대에 "스크롤 전 화면인지 알 수 없다"며 INCONCLUSIVE (registry_v29, Job 29 T3411)
+        const judged = await askJson(agent, JUDGE_SYSTEM, JSON.stringify({
+          action: step.action,
+          actionsTaken: forJudge(history),
+          expected: step.expected,
+          url: where,
+          elements: observed,
+          pageText: text,
+          accessibilityTree: axTree,
+        }), { maxTokens: JUDGE_MAX_TOKENS });
+        tm.judge += agent.now() - tj;
+        stepVerdict = judged.verdict;
+        stepLogs.push({
+          order: step.order,
+          actionTaken: history.join(' → '),
+          observed: where,
+          judgment: `${judged.verdict}: ${judged.reasoning}`,
+          screenshotKey: null,
+        });
+        if (judged.verdict === 'FAIL') verdict = 'FAIL';
+        else if (judged.verdict === 'INCONCLUSIVE' && verdict !== 'FAIL') verdict = 'INCONCLUSIVE';
+        mark(idx, ['PASS', 'FAIL', 'INCONCLUSIVE'].includes(judged.verdict) ? judged.verdict : 'INCONCLUSIVE', judged.reasoning);
+        emit();
+      }
     } catch (err) {
       stepLogs.push({
         order: step.order,
@@ -587,7 +754,12 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
       emit();
     }
     const sec = (ms) => `${(ms / 1000).toFixed(1)}s`;
-    console.log(`[worker] step ${step.order} ${stepVerdict} — actions=${acted} snap ${sec(tm.snap)} · llm ${sec(tm.llm)} · exec ${sec(tm.exec)} · judge ${sec(tm.judge)} · total ${sec(agent.now() - stepStart)}`);
+    console.log(`[worker] step ${step.order} ${stepVerdict}${observeOnly ? '(관찰)' : ''} — actions=${acted} snap ${sec(tm.snap)} · llm ${sec(tm.llm)} · exec ${sec(tm.exec)} · judge ${sec(tm.judge)} · total ${sec(agent.now() - stepStart)}`);
+    // 실패·동작 불가 뒤 step은 엉뚱한 화면에서 돈다 — 시간만 쓰고 거짓 PASS까지 났다 (registry_v30, Job 33 T3471)
+    if (stepVerdict === 'FAIL' || impossible) {
+      skipFrom(idx + 1, impossible ? '앞 step 동작 불가' : '앞 step 실패');
+      break;
+    }
   }
 
   return {
