@@ -101,7 +101,7 @@ select/input의 현재 값은 `elements[].value`에 이미 정확히 담겨있�
 
 ## 4. TC 작성 가이드라인 (검증된 규칙)
 
-1. **진입 경로를 `preconditions` 텍스트에만 의존하지 않는다.** `agent-worker`가 그 필드를 읽지 않으므로, 필요하면 `steps`에 직접 포함시킨다.
+1. ~~진입 경로를 `preconditions` 텍스트에만 의존하지 않는다.~~ → registry v29부터 워커가 `preconditions`를 읽고 그 상태까지 이동한다. 최신 규칙은 [testcase_guideline_for_AI.md](./testcase_guideline_for_AI.md).
 2. **화면 진입에 쓰는 텍스트가 앱 내 다른 곳과 겹치는지 작성 전 `grep`으로 확인한다.** 겹치면 (a) 코드 라벨을 구분되게 바꾸거나 (b) `href`/`data-testid`로 구분 가능한지 확인한다 (2026-07-30부터 agent-worker가 이 두 값을 캡처함).
 3. **"예: X"처럼 예시로 값을 제시하지 않는다.** action과 expected 모두 실제로 사용할 확정값을 그대로 적는다. 예시 표기는 에이전트가 임의의 값을 지어내는 원인이 된다.
 4. **`expected`를 빈 값으로 두지 않는다.** 빈 문자열은 판정 불가(INCONCLUSIVE)로 직결된다. 모든 스텝에 "무엇이 보이면 통과인지"를 구체적으로 적는다.
@@ -144,7 +144,7 @@ select/input의 현재 값은 `elements[].value`에 이미 정확히 담겨있�
 
 ## 7. 후속 조치 후보 (미착수)
 
-- `agent-worker`가 `tc.preconditions`를 실제로 소비하도록 확장 (지금은 `steps`에 진입 경로를 직접 넣는 방식으로 우회 중)
+- ~~`agent-worker`가 `tc.preconditions`를 실제로 소비하도록 확장~~ → registry v29에서 반영
 - TC995/997 삭제 반영 (User 작업)
 - `agenticGoal`이 목적지 도착 후에도 `done`을 선언하지 못하고 액션을 낭비하는 현상 — 결과에 영향은 없었으나 완전히 해결되진 않음(재발 시 조사)
 - cursor 휴리스틱은 시각적 신호(커서 스타일) 자체가 없는 클릭 요소는 여전히 못 잡음 — 100% 커버 아님
