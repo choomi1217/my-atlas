@@ -63,6 +63,8 @@ function makeConfig() {
       deviceName: env('ANDROID_DEVICE', 'emulator-5554'),
       appPackage: env('ANDROID_APP_PACKAGE'),
       snapshotMaxDepth: parseInt(env('SNAPSHOT_MAX_DEPTH', '25'), 10),
+      // 화면 덤프 전 idle 대기 상한(UiAutomator2 기본 10000). 계속 그리는 화면(지도)에서 매 덤프가 이만큼 걸린다
+      waitForIdleMs: parseInt(env('WAIT_FOR_IDLE_MS', '1000'), 10),
     },
   };
 }

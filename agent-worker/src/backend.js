@@ -22,6 +22,8 @@ export class BackendClient {
       method,
       headers,
       body: rawType ? body : body ? JSON.stringify(body) : undefined,
+      // 네트워크가 바뀌면 끊긴 keep-alive 연결에서 응답을 기본 5분까지 기다려 폴링이 멈춘다 (Job 40)
+      signal: AbortSignal.timeout(30_000),
     });
 
     // 토큰 만료·무효(401/403) → 재로그인 후 1회 재시도 (로그인 경로 자체는 제외해 무한루프 방지)

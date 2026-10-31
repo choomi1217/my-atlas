@@ -159,6 +159,8 @@ export function mapSource(xml, maxDepth = 25) {
         xpath: path,
         // 최후 폴백. 네이티브에서는 좌표 탭이 신뢰할 만하다.
         center: box ? { x: Math.round((box.x1 + box.x2) / 2), y: Math.round((box.y1 + box.y2) / 2) } : null,
+        // 좌우 스크롤을 이 요소 영역에서 한다 (캐러셀) — registry_v30
+        bounds: box,
         name,
       };
 
@@ -232,6 +234,13 @@ export async function createMobileOps(cfg) {
       'appium:autoGrantPermissions': false,
     },
   });
+  // 화면 덤프는 앱이 idle이 될 때까지 기다린다(기본 10s). 지도처럼 계속 그리는 화면은 매번 10s를 다 채워
+  // 첫 관측이 12~13s, 앱 재시작 대기는 매 TC 시간 초과였다 (registry_v30, Job 33)
+  try {
+    await driver.updateSettings({ waitForIdleTimeout: cfg.waitForIdleMs ?? 1000 });
+  } catch (e) {
+    console.log(`[worker] waitForIdleTimeout 설정 실패 — 기본값으로 진행 (${e.message.slice(0, 80)})`);
+  }
 
   /**
    * 화면 덤프 캐시 (registry_v28). 액션 직후 안정화에서 얻은 XML을 판정 단계의
@@ -311,10 +320,41 @@ export async function createMobileOps(cfg) {
     return null;
   }
 
+  /**
+   * 앱 재시작 — 화면 상태만 초기화한다. terminate는 데이터를 지우지 않으므로 로그인은 유지된다.
+   * 고정 sleep 대신 앱이 전면에 오고 상호작용 요소가 보일 때까지 대기.
+   * 스플래시에도 요소가 있어 "준비됨"으로 보고 스플래시에서 Step을 시작했다 (registry_v30, Job 33 T3485·T3498)
+   * 상한 20s: 패스오더 홈은 재시작 후 요소가 잡히기까지 실측 ~15s (10s 상한은 매 TC 초과)
+   */
+  async function restartApp() {
+    cache.xml = null;
+    await driver.terminateApp(cfg.appPackage).catch(() => {});
+    await driver.activateApp(cfg.appPackage).catch(() => {});
+    const deadline = Date.now() + 20000;
+    while (Date.now() < deadline) {
+      try {
+        if (
+          (await driver.getCurrentPackage()) === cfg.appPackage &&
+          !/splash/i.test(await driver.getCurrentActivity())
+        ) {
+          const xml = await driver.getPageSource();
+          if (mapSource(xml, cfg.snapshotMaxDepth ?? 25).elements.length > 0) {
+            cache.xml = xml;
+            return;
+          }
+        }
+      } catch {
+        /* 앱 기동 중 일시 오류 — 재시도 */
+      }
+      await sleep(500);
+    }
+    console.log('[worker] 앱 재시작 후 20초 내 화면 준비 확인 실패 — 계속 진행');
+  }
+
   return {
     kind: 'ANDROID',
-    // 네이티브에는 URL 이동(navigate)과 셀렉트(select)가 없다. 대신 키·뒤로·스크롤이 있다.
-    availableActions: ['click', 'fill', 'key', 'back', 'scroll', 'done'],
+    // 네이티브에는 URL 이동(navigate)과 셀렉트(select)가 없다. 대신 키·뒤로·스크롤·앱 재시작이 있다.
+    availableActions: ['click', 'fill', 'key', 'back', 'scroll', 'restart', 'done'],
 
     /** 다음 관측이 새로 덤프하도록 캐시를 버린다 (판정 직전 최신 화면 확보용) */
     refresh() {
@@ -329,28 +369,8 @@ export async function createMobileOps(cfg) {
      * 에이전트가 재로그인을 시도하면 액션 예산만 소진된다 (v20 B2-1).
      */
     async enter() {
-      // TC 독립성 — 화면 상태만 초기화한다. terminate는 데이터를 지우지 않으므로 로그인은 유지된다.
-      // 이전 TC의 마지막 화면에서 시작하면 실행마다 결과가 달라진다 (registry_v28 #3).
-      cache.xml = null;
-      await driver.terminateApp(cfg.appPackage).catch(() => {});
-      await driver.activateApp(cfg.appPackage).catch(() => {});
-      // 고정 sleep 대신 앱이 전면에 오고 상호작용 요소가 보일 때까지 대기 (최대 ~10s)
-      const deadline = Date.now() + 10000;
-      while (Date.now() < deadline) {
-        try {
-          if ((await driver.getCurrentPackage()) === cfg.appPackage) {
-            const xml = await driver.getPageSource();
-            if (mapSource(xml, cfg.snapshotMaxDepth ?? 25).elements.length > 0) {
-              cache.xml = xml;
-              return;
-            }
-          }
-        } catch {
-          /* 앱 기동 중 일시 오류 — 재시도 */
-        }
-        await sleep(500);
-      }
-      console.log('[worker] 앱 재시작 후 10초 내 화면 준비 확인 실패 — 계속 진행');
+      // TC 독립성 — 이전 TC의 마지막 화면에서 시작하면 실행마다 결과가 달라진다 (registry_v28 #3).
+      await restartApp();
     },
 
     async snapshot(tries = 3) {
@@ -460,15 +480,22 @@ export async function createMobileOps(cfg) {
           if (await driver.isKeyboardShown().catch(() => false)) {
             await driver.hideKeyboard().catch(() => {});
           }
-          await driver.execute('mobile: scrollGesture', {
-            left: 100,
-            top: 400,
-            width: 880,
-            height: 1400,
-            direction: String(action.value || 'down'),
-            percent: 0.8,
-          });
+          {
+            const direction = String(action.value || 'down').toLowerCase();
+            // 좌우는 ref 요소(캐러셀) 영역에서 민다 — 고정 영역은 캐러셀이 아니라 아래 목록을 밀었다 (registry_v30, Job 33 T3512).
+            // 상하는 고정 영역 유지: LLM이 ref로 작은 배너를 줘도 페이지 목록은 내려가야 한다.
+            const b = loc?.bounds;
+            const area =
+              (direction === 'left' || direction === 'right') && b && b.x2 - b.x1 > 200 && b.y2 - b.y1 > 100
+                ? { left: b.x1, top: b.y1, width: b.x2 - b.x1, height: b.y2 - b.y1 }
+                : { left: 100, top: 400, width: 880, height: 1400 };
+            await driver.execute('mobile: scrollGesture', { ...area, direction, percent: 0.8 });
+          }
           await settle();
+          return;
+        case 'restart':
+          // "앱 종료 후 다시 실행" step용 (registry_v30, Job 33 T3476·T3479)
+          await restartApp();
           return;
         case 'select':
           throw new Error('이 플랫폼에는 select가 없다. 목록을 클릭으로 열고 항목을 클릭하라');
