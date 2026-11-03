@@ -328,10 +328,10 @@ export default function VersionPhaseDetailPage() {
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
 
-  const loadData = useCallback(async (silent = false) => {
+  const loadData = useCallback(async () => {
     if (!versionId || !phaseId || !productId) return;
     try {
-      if (!silent) setIsLoading(true);
+      setIsLoading(true);
       setError(null);
 
       const [v, r, tc, seg] = await Promise.all([
@@ -629,7 +629,6 @@ export default function VersionPhaseDetailPage() {
           phaseId={Number(phaseId)}
           phaseName={`${version.name} > ${phase.phaseName}`}
           onClose={() => setShowBatchModal(false)}
-          onDone={() => loadData(true)}
         />
       )}
 

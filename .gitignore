@@ -69,3 +69,6 @@ docs/qa/portfolio/
 .mcp.json
 # graphify
 graphify-out/
+
+# IDE(VS Code Java) 빌드 산출물
+backend/bin/

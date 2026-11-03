@@ -1,6 +1,7 @@
 package com.myqaweb.feature;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -18,14 +19,22 @@ public final class AgentExecutionDto {
     /**
      * Job 생성 요청.
      * SINGLE이면 targetTestCaseId 필수, PHASE_* 이면 phaseId 필수.
+     * PHASE_SELECTED면 phaseId와 testCaseIds(해당 Phase 소속 TC) 필수.
      */
     public record CreateJobRequest(
             @NotNull AgentExecutionScope scope,
             @NotNull Long productId,
             Long phaseId,
             Long targetTestCaseId,
-            String requestedBy
+            String requestedBy,
+            List<Long> testCaseIds
     ) {
+    }
+
+    /**
+     * 워커가 claim 시 보내는 본문. 본문이 없는 구버전 워커도 허용한다.
+     */
+    public record ClaimJobRequest(@Size(max = 100) String workerId) {
     }
 
     /**
@@ -48,7 +57,9 @@ public final class AgentExecutionDto {
             Integer inconclusiveCount,
             String errorMessage,
             LocalDateTime createdAt,
-            LocalDateTime completedAt
+            LocalDateTime completedAt,
+            LocalDateTime startedAt,
+            String workerId
     ) {
         public static JobResponse from(AgentExecutionJobEntity e) {
             return from(e, null);
@@ -61,8 +72,62 @@ public final class AgentExecutionDto {
                     e.getScope(), e.getStatus(), execTargetKind, e.getRequestedBy(),
                     e.getTotalCount(), e.getDoneCount(), e.getPassCount(),
                     e.getFailCount(), e.getInconclusiveCount(),
-                    e.getErrorMessage(), e.getCreatedAt(), e.getCompletedAt());
+                    e.getErrorMessage(), e.getCreatedAt(), e.getCompletedAt(),
+                    e.getStartedAt(), e.getWorkerId());
         }
+    }
+
+    /**
+     * 전체 Job 목록(/queue)의 1행. 이름·링크용 ID는 해당 없으면 null.
+     * (Phase 없는 SINGLE이면 phaseName/versionId/versionName이 null, SINGLE 외에는 testCaseTitle이 null)
+     */
+    public record JobListItem(
+            JobResponse job,
+            String productName,
+            Long companyId,
+            String phaseName,
+            Long versionId,
+            String versionName,
+            String testCaseTitle
+    ) {
+    }
+
+    /**
+     * /queue 페이지 응답.
+     */
+    public record JobPageResponse(
+            List<JobListItem> items,
+            long totalElements,
+            int page,
+            int totalPages
+    ) {
+    }
+
+    /**
+     * 워커 heartbeat 본문 (10초 주기).
+     *
+     * @param currentJobId 처리 중인 Job (유휴면 null)
+     */
+    public record WorkerHeartbeatRequest(
+            @NotBlank @Size(max = 100) String workerId,
+            ExecTargetKind targetKind,
+            Long productId,
+            @Size(max = 100) String deviceName,
+            Long currentJobId
+    ) {
+    }
+
+    /**
+     * 연결된 워커 1건 (마지막 heartbeat 기준).
+     */
+    public record WorkerStatus(
+            String workerId,
+            ExecTargetKind targetKind,
+            Long productId,
+            String deviceName,
+            Long currentJobId,
+            LocalDateTime lastSeenAt
+    ) {
     }
 
     /**

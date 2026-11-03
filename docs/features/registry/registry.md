@@ -499,6 +499,12 @@ statistics:
 | 7 | `/features/.../products/:pid/versions/:versionId` | VersionDetailPage |
 | 8 | `/features/.../versions/:versionId/phases/:phaseId` | VersionPhaseDetailPage |
 
+| 단계 | URL | 페이지 |
+|------|-----|--------|
+| 1 | `/automation` | AutomationPage (대기·실행 중·완료 Job, 연결된 워커) |
+| 2 | `/automation/jobs/:jobId` | AutomationJobPage (진행률, 화면 중계, TC 목록) |
+| 3 | `/automation/jobs/:jobId/tc/:tcId` | AutomationTestCasePage (Step, 스크린샷, 재실행) |
+
 ---
 
 ## Backend 파�� 구조
@@ -654,3 +660,4 @@ frontend/src/
 | v28 | 2026-10-29 | 버그 수정 | AI 실행 안정화 — 스크롤 키보드 쓰레기 입력 제거, TC별 앱 재시작(독립성), 대기·덤프 최적화, 노드 클릭 상세 | 실행 결과 재현성·속도 |
 | v29 | 2026-10-29 | 버그 수정 | AI 전제조건 네비게이션 — TC 전제조건 반영, 첫 화면 착각 방지, 이전 액션 전달, JSON 누락 재요청·Job 전체 실패 방지 | 전제조건 오판 FAIL 제거 |
 | v30 | 2026-10-29 | 기능 개선 | AI 실행 신뢰도·속도 — 전제조건 검증, 과잉 동작 억제, 거짓 PASS 차단, 첫 실패 중단, 앱 시작 대기 (Job 33 관찰). 모델 비교 4·5단계 진행 중 | PASS 14→19, 거짓 PASS 1→0, 시간 −29% |
+| v31 | 2026-11-01 | 기능 추가 | Test Automation 실행 페이지(모달 → 페이지)·Step 스크린샷·재실행·웹 네트워크·시나리오 로그·병렬. 진행 중 | |

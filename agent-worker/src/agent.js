@@ -562,6 +562,14 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
     prog.steps[idx].status = status;
     if (judgment !== undefined) prog.steps[idx].judgment = clip(judgment, 5000);
   };
+  // 증적 스크린샷. agent.capture가 없으면(테스트 등) 아무것도 하지 않는다.
+  const capture = async (order) => {
+    try {
+      await agent.capture?.(tc.id, order);
+    } catch {
+      /* 증적 실패는 판정과 무관 */
+    }
+  };
 
   // 1) 대상 진입 (웹: goto + 결정적 로그인 / 모바일: 앱은 세션이 이미 띄웠다)
   await ops.enter(target, agent);
@@ -608,6 +616,7 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
 
   // 전제조건 미도달이면 Step을 돌리지 않는다 — 엉뚱한 화면의 비슷한 UI로 거짓 PASS가 났다 (registry_v30, Job 33 T3516)
   if (blocked) {
+    await capture(steps[0].order);
     stepLogs.push({
       order: steps[0].order,
       actionTaken: '',
@@ -693,6 +702,7 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
       }
       if (impossible) {
         // 동작을 못 했으니 판정할 결과가 없다 — 판정 LLM을 부르지 않는다
+        await capture(step.order);
         stepVerdict = 'INCONCLUSIVE';
         stepLogs.push({
           order: step.order,
@@ -717,6 +727,7 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
         prog.phase = 'JUDGING';
         mark(idx, 'JUDGING');
         emit();
+        await capture(step.order); // 판정이 보는 화면
         // 수행한 동작을 모르면 "스크롤 후" 기대에 "스크롤 전 화면인지 알 수 없다"며 INCONCLUSIVE (registry_v29, Job 29 T3411)
         const judged = await askJson(agent, JUDGE_SYSTEM, JSON.stringify({
           action: step.action,
@@ -742,6 +753,7 @@ export async function runTestCase(ops, agent, tc, target, maxStepActions, should
         emit();
       }
     } catch (err) {
+      await capture(step.order);
       stepLogs.push({
         order: step.order,
         actionTaken: history.join(' → '),

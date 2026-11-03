@@ -1,55 +1,42 @@
-import { test, expect } from '@playwright/test';
-import axios from 'axios';
+import { test, expect, Page } from '@playwright/test';
 import {
-  cleanupAllTestData,
+  claimAgentJob,
+  completeAgentJob,
+  createAgentJob,
   createTestCompany,
-  activateCompany,
+  createTestPhase,
   createTestProduct,
   createTestSegment,
   createTestTestCase,
   createTestVersion,
   deleteCompany,
-  loginAsAdmin,
   loginAsAdminInBrowser,
+  recordAgentResult,
 } from '../helpers/api-helpers';
-
-const API_URL = process.env.API_URL || 'http://localhost:8080';
+import { AutomationPage } from '../pages/automation-page';
 
 /**
- * registry_v25 — [AI 일괄 실행] 완료 후 결과 모달이 사라지던 버그 회귀 테스트 (워커 stub 모드).
- * 완료 시 부모가 loadData(true)로 silent 재로딩해야 모달이 언마운트되지 않고 결과를 유지한다.
+ * registry_v25 → v31 — [AI 일괄 실행] UI E2E (워커는 API로 흉내).
+ * v31: 모달은 범위 선택만 하고, 실행하면 Job을 만든 뒤 /automation으로 이동한다.
+ * 진행·결과는 목록(대기 → 완료)과 Job 페이지에서 본다. 같은 Phase에서 TC가 겹치면 모달에 409 메시지.
  */
-test.describe('Agent Batch Execution UI (worker stubbed)', () => {
+
+const POLL = { timeout: 10_000 };
+
+test.describe('Agent Batch Execution UI (worker simulated via API)', () => {
   let companyId: number;
   let productId: number;
   let versionId: number;
   let phaseId: number;
   let testCaseId: number;
+  let phaseSeq = 0;
 
   test.beforeAll(async () => {
-    await cleanupAllTestData();
-    const company = await createTestCompany('E2E Agent Batch Co');
-    companyId = company.id;
-    await activateCompany(companyId);
+    companyId = (await createTestCompany()).id;
     productId = (await createTestProduct(companyId, 'E2E Agent Batch Product')).id;
     const segment = await createTestSegment(productId, 'E2E Agent Batch Segment');
     testCaseId = (await createTestTestCase(productId, 'E2E Agent Batch TC', [segment.id])).id;
     versionId = (await createTestVersion(productId, 'E2E Agent Batch Version')).id;
-
-    const token = await loginAsAdmin();
-    const auth = { headers: { Authorization: `Bearer ${token}` } };
-
-    const run = await axios.post(
-      `${API_URL}/api/products/${productId}/test-runs`,
-      { name: 'E2E Agent Batch Run', description: 'batch run', testCaseIds: [testCaseId] },
-      auth,
-    );
-    const phase = await axios.post(
-      `${API_URL}/api/versions/${versionId}/phases`,
-      { phaseName: 'E2E Batch Phase', testRunIds: [run.data.data.id], testCaseIds: [] },
-      auth,
-    );
-    phaseId = phase.data.data.id;
   });
 
   test.afterAll(async () => {
@@ -57,80 +44,15 @@ test.describe('Agent Batch Execution UI (worker stubbed)', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    // 테스트마다 새 Phase — 앞 테스트의 활성 Job이 409로 막지 않게 한다
+    phaseId = await createTestPhase(productId, versionId, `E2E Batch Phase ${++phaseSeq}`, [testCaseId]);
     await loginAsAdminInBrowser(page);
-
-    // --- 워커 stub: agent-execution API 모킹 ---
-    const jobId = 987655;
-    let polls = 0;
-
-    await page.route('**/api/agent-executions', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 201,
-          contentType: 'application/json',
-          body: JSON.stringify({ success: true, message: 'ok', data: { jobId } }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    await page.route(`**/api/agent-executions/${jobId}`, async (route) => {
-      polls += 1;
-      const status = polls >= 2 ? 'DONE' : 'RUNNING';
-      const finished = status === 'DONE';
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          message: 'ok',
-          data: {
-            id: jobId,
-            productId,
-            scope: 'PHASE_ALL',
-            status,
-            totalCount: 1,
-            doneCount: finished ? 1 : 0,
-            passCount: finished ? 1 : 0,
-            failCount: 0,
-            inconclusiveCount: 0,
-            createdAt: new Date(0).toISOString(),
-          },
-        }),
-      });
-    });
-
-    await page.route(`**/api/agent-executions/${jobId}/results`, async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          message: 'ok',
-          data: [
-            {
-              id: 1,
-              jobId,
-              testCaseId,
-              verdict: 'PASS',
-              stepLogs: [],
-              aiFailureAnalysis: null,
-              durationMs: 1234,
-              tokenCost: 100,
-              createdAt: new Date(0).toISOString(),
-            },
-          ],
-        }),
-      });
-    });
   });
 
-  test('AI 일괄 실행 완료 후 silent 재로딩에도 결과 모달 유지', async ({ page }) => {
+  async function openModal(page: Page) {
     await page.goto(
       `/features/companies/${companyId}/products/${productId}/versions/${versionId}/phases/${phaseId}`,
     );
-
     const headerButton = page.getByRole('button', { name: 'AI 일괄 실행', exact: true });
     await expect(headerButton).toBeVisible();
     await headerButton.click();
@@ -139,27 +61,53 @@ test.describe('Agent Batch Execution UI (worker stubbed)', () => {
       .locator('div.fixed.inset-0')
       .filter({ has: page.getByRole('heading', { name: 'AI 일괄 실행' }) });
     await expect(modal.getByText('실행 범위를 선택하세요:')).toBeVisible();
+    return modal;
+  }
 
-    // 완료(DONE) 시 부모가 GET /api/versions/{id}로 재로딩한다 — 클릭 전에 대기 등록
-    const reload = page.waitForResponse(
+  test('AI 일괄 실행 - 범위 선택 → 실행 → /automation 이동, 완료 후 결과 표시', async ({ page }) => {
+    const automation = new AutomationPage(page);
+    const modal = await openModal(page);
+    await modal.getByLabel(/Untested만/).check();
+
+    const created = page.waitForResponse(
       (res) =>
-        res.request().method() === 'GET' &&
-        new URL(res.url()).pathname === `/api/versions/${versionId}`,
-      { timeout: 15000 },
+        res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/agent-executions',
     );
     await modal.getByRole('button', { name: '실행', exact: true }).click();
+    const res = await created;
+    expect(res.status()).toBe(201);
+    expect(res.request().postDataJSON()).toMatchObject({ scope: 'PHASE_UNTESTED', productId, phaseId });
+    const jobId = ((await res.json()) as { data: { jobId: number } }).data.jobId;
 
-    await expect(modal.getByText('완료 1/1')).toBeVisible({ timeout: 10000 });
-    await reload;
-
-    // 재로딩 이후에도 모달이 결과 화면을 유지해야 한다 (scope 선택 화면으로 리셋 금지)
-    await expect(page.getByText('Loading...')).toHaveCount(0);
-    await expect(modal.getByText('완료 1/1')).toBeVisible();
-    await expect(modal.getByText(`T${testCaseId}`, { exact: true })).toBeVisible();
-    await expect(modal.getByText('PASS', { exact: true })).toBeVisible();
-    await expect(modal.getByText('실행 범위를 선택하세요:')).toHaveCount(0);
-
-    await modal.getByRole('button', { name: '닫기' }).click();
+    await expect(page).toHaveURL(/\/automation$/);
     await expect(modal).toHaveCount(0);
+    const row = automation.queueRow(jobId);
+    await expect(row).toBeVisible(POLL);
+    await expect(row).toContainText('0/1');
+
+    // 워커 역할: claim → PASS → complete. 목록이 폴링으로 완료 섹션에 옮긴다
+    await claimAgentJob(jobId, `e2e-web-${Date.now()}`);
+    await recordAgentResult(jobId, testCaseId, 'PASS');
+    await completeAgentJob(jobId);
+
+    const done = automation.doneRow(jobId);
+    await expect(done).toBeVisible(POLL);
+    await expect(row).toHaveCount(0);
+    await expect(done).toContainText('PASS 1');
+    await expect(done).toContainText('완료');
+
+    await done.click();
+    await expect(automation.tcRow(jobId, testCaseId).getByText('PASS', { exact: true })).toBeVisible(POLL);
+  });
+
+  test('AI 일괄 실행 - 같은 Phase의 대기 Job과 TC가 겹치면 batch-agent-error, 페이지 유지', async ({ page }) => {
+    const blocking = await createAgentJob({ scope: 'PHASE_ALL', productId, phaseId });
+
+    const modal = await openModal(page);
+    await modal.getByRole('button', { name: '실행', exact: true }).click();
+
+    await expect(modal.getByTestId('batch-agent-error')).toContainText(`Job(#${blocking})`);
+    await expect(page).toHaveURL(new RegExp(`/phases/${phaseId}$`));
+    await expect(modal.getByRole('button', { name: '실행', exact: true })).toBeEnabled();
   });
 });

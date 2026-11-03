@@ -3,6 +3,7 @@ package com.myqaweb.feature;
 import com.myqaweb.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -64,6 +65,24 @@ public class AgentExecutionController {
         return ResponseEntity.ok(ApiResponse.ok(jobs));
     }
 
+    /** 전체 Job 목록 (페이지). status 반복 지정 가능, 없으면 전체. */
+    @GetMapping("/queue")
+    public ResponseEntity<ApiResponse<AgentExecutionDto.JobPageResponse>> listQueue(
+            @RequestParam(value = "status", required = false) List<AgentExecutionStatus> status,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "30") int size,
+            @RequestParam(value = "direction", defaultValue = "DESC") Sort.Direction direction) {
+        return ResponseEntity.ok(ApiResponse.ok(agentExecutionService.listQueue(status, page, size, direction)));
+    }
+
+    /** 연결된 워커 목록 (마지막 heartbeat 15초 이내). */
+    @GetMapping("/workers")
+    public ResponseEntity<ApiResponse<List<AgentExecutionDto.WorkerStatus>>> listWorkers() {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(ApiResponse.ok(agentExecutionService.listWorkers()));
+    }
+
     /** Job 취소. */
     @PostMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<AgentExecutionDto.JobResponse>> cancelJob(@PathVariable Long id) {
@@ -85,10 +104,20 @@ public class AgentExecutionController {
 
     // --- 워커 대상 (폴링 통신 경로) ---
 
-    /** 워커가 Job 점유: PENDING → RUNNING. */
+    /** 워커가 Job 점유: PENDING → RUNNING. body({workerId})는 선택 — 구버전 워커는 보내지 않는다. */
     @PostMapping("/{id}/claim")
-    public ResponseEntity<ApiResponse<AgentExecutionDto.JobResponse>> claimJob(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(agentExecutionService.claimJob(id)));
+    public ResponseEntity<ApiResponse<AgentExecutionDto.JobResponse>> claimJob(
+            @PathVariable Long id,
+            @Valid @RequestBody(required = false) AgentExecutionDto.ClaimJobRequest request) {
+        String workerId = request == null ? null : request.workerId();
+        return ResponseEntity.ok(ApiResponse.ok(agentExecutionService.claimJob(id, workerId)));
+    }
+
+    /** 워커 heartbeat (10초 주기). */
+    @PutMapping(value = "/workers", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> putWorker(@Valid @RequestBody AgentExecutionDto.WorkerHeartbeatRequest request) {
+        agentExecutionService.heartbeat(request);
+        return ResponseEntity.noContent().build();
     }
 
     /** 워커가 실행 컨텍스트(대상 TC + Product 실행 프로파일) 조회. */
@@ -136,6 +165,37 @@ public class AgentExecutionController {
                         .contentType(MediaType.parseMediaType(f.contentType()))
                         .cacheControl(CacheControl.noStore())
                         .body(f.data()))
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    // --- Step 스크린샷 (registry_v31) ---
+
+    /** 워커가 Step 스크린샷 업로드 (Job 상태 무관). 10MB 초과면 413. */
+    @PutMapping(value = "/{id}/screenshots", consumes = {MediaType.IMAGE_PNG_VALUE, MediaType.IMAGE_JPEG_VALUE})
+    public ResponseEntity<Void> putScreenshot(
+            @PathVariable Long id,
+            @RequestParam("testCaseId") Long testCaseId,
+            @RequestParam("stepOrder") Integer stepOrder,
+            @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType,
+            @RequestBody byte[] data) {
+        if (data.length > MAX_FRAME_BYTES) {
+            return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).build();
+        }
+        agentExecutionService.storeScreenshot(id, testCaseId, stepOrder, data, contentType);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 저장된 Step 스크린샷. 없으면 204. */
+    @GetMapping("/{id}/screenshots")
+    public ResponseEntity<byte[]> getScreenshot(
+            @PathVariable Long id,
+            @RequestParam("testCaseId") Long testCaseId,
+            @RequestParam("stepOrder") Integer stepOrder) {
+        return agentExecutionService.getScreenshot(id, testCaseId, stepOrder)
+                .map(s -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(s.getContentType()))
+                        .cacheControl(CacheControl.noStore())
+                        .body(s.getData()))
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
