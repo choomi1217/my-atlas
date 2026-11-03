@@ -65,7 +65,9 @@ public class ApiAccessLogFilter extends OncePerRequestFilter {
                 || uri.startsWith("/actuator/")
                 || uri.equals("/api/senior/chat")
                 // v36: agent-worker polls this every 3s and no consumer reads it (docs/ops/ops_v36.md).
-                || ("GET".equalsIgnoreCase(request.getMethod()) && uri.startsWith("/api/agent-executions"));
+                || ("GET".equalsIgnoreCase(request.getMethod()) && uri.startsWith("/api/agent-executions"))
+                // registry_v31: heartbeat가 워커당 10초마다 들어온다
+                || uri.equals("/api/agent-executions/workers");
     }
 
     private void logAccessAsync(HttpServletRequest request, HttpServletResponse response, long durationMs) {

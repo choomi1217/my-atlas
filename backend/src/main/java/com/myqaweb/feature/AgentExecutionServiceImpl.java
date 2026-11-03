@@ -1,17 +1,30 @@
 package com.myqaweb.feature;
 
+import com.myqaweb.common.ConflictException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * {@link AgentExecutionService} 구현.
@@ -31,12 +44,34 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
     private final VersionPhaseRepository versionPhaseRepository;
     private final TestResultRepository testResultRepository;
     private final SegmentRepository segmentRepository;
+    private final VersionRepository versionRepository;
     private final AgentLiveFrameStore frameStore;
+    private final AgentWorkerRegistry workerRegistry;
+    private final AgentStepScreenshotRepository screenshotRepository;
+
+    /** /queue 한 페이지 최대 행 수. */
+    public static final int MAX_QUEUE_PAGE_SIZE = 100;
+
+    /** 같은 Phase에서 TC 중복을 막을 대상 상태 (대기·실행 중). */
+    private static final List<AgentExecutionStatus> ACTIVE_STATUSES =
+            List.of(AgentExecutionStatus.PENDING, AgentExecutionStatus.RUNNING);
 
     @Override
     @Transactional
     public Long submitJob(AgentExecutionDto.CreateJobRequest request) {
         validateTarget(request);
+
+        // 실행 대상 TC를 제출 시점에 고정한다 (이후 Phase 구성이 바뀌어도 이 Job은 영향받지 않음)
+        List<Long> testCaseIds = switch (request.scope()) {
+            case SINGLE -> List.of(request.targetTestCaseId());
+            case PHASE_SELECTED -> request.testCaseIds().stream().distinct().toList();
+            default -> resolvePhaseTestCaseIds(request.phaseId(), request.scope());
+        };
+        // 0건 Job은 워커가 바로 DONE 처리해 "실행했다"는 착각만 남긴다
+        if (testCaseIds.isEmpty()) {
+            throw new IllegalArgumentException("실행할 TC가 없습니다: " + request.scope());
+        }
+        rejectOverlap(request.phaseId(), testCaseIds);
 
         AgentExecutionJobEntity job = new AgentExecutionJobEntity();
         job.setProductId(request.productId());
@@ -45,14 +80,88 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
         job.setTargetTestCaseId(request.targetTestCaseId());
         job.setRequestedBy(request.requestedBy());
         job.setStatus(AgentExecutionStatus.PENDING);
-        // SINGLE은 대상 1건, PHASE_* 는 scope에 맞는 TC 수를 미리 계산
-        job.setTotalCount(request.scope() == AgentExecutionScope.SINGLE
-                ? 1
-                : resolvePhaseTestCaseIds(request.phaseId(), request.scope()).size());
+        job.setTestCaseIds(testCaseIds.toArray(Long[]::new));
+        job.setTotalCount(testCaseIds.size());
 
         Long id = jobRepository.save(job).getId();
         log.info("AgentExecution job created: id={}, scope={}, productId={}", id, request.scope(), request.productId());
         return id;
+    }
+
+    /**
+     * 같은 Phase의 대기·실행 중 Job과 TC가 겹치면 409.
+     * test_case_ids가 null인 Job(컬럼 도입 전)은 대상을 알 수 없으므로 겹치는 것으로 본다.
+     */
+    // ponytail: 조회 후 저장이라 동시 요청 2건은 함께 통과한다. 사용자가 늘면 phase_id 행 잠금으로 직렬화할 것.
+    private void rejectOverlap(Long phaseId, List<Long> testCaseIds) {
+        if (phaseId == null) {
+            return;
+        }
+        Set<Long> requested = new HashSet<>(testCaseIds);
+        for (AgentExecutionJobEntity active : jobRepository.findAllByPhaseIdAndStatusIn(phaseId, ACTIVE_STATUSES)) {
+            Long[] existing = active.getTestCaseIds();
+            if (existing == null || Arrays.stream(existing).anyMatch(requested::contains)) {
+                throw new ConflictException(
+                        "같은 Phase에서 대기·실행 중인 Job(#" + active.getId() + ")과 TC가 겹칩니다");
+            }
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AgentExecutionDto.JobPageResponse listQueue(
+            List<AgentExecutionStatus> statuses, int page, int size, Sort.Direction direction) {
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.min(Math.max(size, 1), MAX_QUEUE_PAGE_SIZE),
+                Sort.by(direction, "createdAt", "id"));
+        Page<AgentExecutionJobEntity> result = (statuses == null || statuses.isEmpty())
+                ? jobRepository.findAll(pageable)
+                : jobRepository.findAllByStatusIn(statuses, pageable);
+        List<AgentExecutionJobEntity> jobs = result.getContent();
+
+        // 이름은 건별 조회 없이 한 번에 읽는다 (페이지당 쿼리 수 고정)
+        Map<Long, ProductEntity> products = byId(productRepository.findAllById(
+                jobs.stream().map(AgentExecutionJobEntity::getProductId).collect(Collectors.toSet())),
+                ProductEntity::getId);
+        Map<Long, VersionPhaseEntity> phases = byId(versionPhaseRepository.findAllById(
+                jobs.stream().map(AgentExecutionJobEntity::getPhaseId).filter(Objects::nonNull).collect(Collectors.toSet())),
+                VersionPhaseEntity::getId);
+        Map<Long, VersionEntity> versions = byId(versionRepository.findAllById(
+                phases.values().stream().map(p -> p.getVersion().getId()).collect(Collectors.toSet())),
+                VersionEntity::getId);
+        Map<Long, TestCaseEntity> testCases = byId(testCaseRepository.findAllById(
+                jobs.stream()
+                        .filter(j -> j.getScope() == AgentExecutionScope.SINGLE)
+                        .map(AgentExecutionJobEntity::getTargetTestCaseId)
+                        .filter(Objects::nonNull).collect(Collectors.toSet())),
+                TestCaseEntity::getId);
+
+        List<AgentExecutionDto.JobListItem> items = jobs.stream().map(j -> {
+            ProductEntity product = products.get(j.getProductId());
+            VersionPhaseEntity phase = j.getPhaseId() == null ? null : phases.get(j.getPhaseId());
+            VersionEntity version = phase == null ? null : versions.get(phase.getVersion().getId());
+            TestCaseEntity tc = j.getScope() == AgentExecutionScope.SINGLE && j.getTargetTestCaseId() != null
+                    ? testCases.get(j.getTargetTestCaseId()) : null;
+            ExecTargetKind kind = product == null ? ExecTargetKind.WEB : product.getExecTargetKind();
+            return new AgentExecutionDto.JobListItem(
+                    AgentExecutionDto.JobResponse.from(j, kind),
+                    product == null ? null : product.getName(),
+                    product == null || product.getCompany() == null ? null : product.getCompany().getId(),
+                    phase == null ? null : phase.getPhaseName(),
+                    version == null ? null : version.getId(),
+                    version == null ? null : version.getName(),
+                    tc == null ? null : tc.getTitle());
+        }).toList();
+
+        return new AgentExecutionDto.JobPageResponse(
+                items, result.getTotalElements(), result.getNumber(), result.getTotalPages());
+    }
+
+    private static <T> Map<Long, T> byId(Iterable<T> entities, Function<T, Long> idOf) {
+        Map<Long, T> map = new HashMap<>();
+        entities.forEach(e -> map.put(idOf.apply(e), e));
+        return map;
     }
 
     @Override
@@ -89,7 +198,7 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
         job.setStatus(AgentExecutionStatus.CANCELLED);
         job.setCompletedAt(LocalDateTime.now());
         frameStore.clear(jobId);
-        return AgentExecutionDto.JobResponse.from(jobRepository.save(job));
+        return AgentExecutionDto.JobResponse.from(jobRepository.save(job), execTargetKindOf(job.getProductId()));
     }
 
     @Override
@@ -111,18 +220,30 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
 
     @Override
     @Transactional
-    public AgentExecutionDto.JobResponse claimJob(Long jobId) {
+    public AgentExecutionDto.JobResponse claimJob(Long jobId, String workerId) {
         AgentExecutionJobEntity job = findJob(jobId);
         switch (job.getStatus()) {
             case PENDING -> {
                 job.setStatus(AgentExecutionStatus.RUNNING);
+                job.setStartedAt(LocalDateTime.now());
+                job.setWorkerId(workerId);
                 jobRepository.save(job);
-                log.info("AgentExecution job claimed: id={}", jobId);
+                log.info("AgentExecution job claimed: id={}, workerId={}", jobId, workerId);
             }
             case RUNNING -> { /* 이미 점유됨 — 현재 상태 그대로 반환 (idempotent) */ }
             default -> throw new IllegalArgumentException("점유할 수 없는 상태입니다: " + job.getStatus());
         }
         return AgentExecutionDto.JobResponse.from(job);
+    }
+
+    @Override
+    public void heartbeat(AgentExecutionDto.WorkerHeartbeatRequest request) {
+        workerRegistry.put(request);
+    }
+
+    @Override
+    public List<AgentExecutionDto.WorkerStatus> listWorkers() {
+        return workerRegistry.listActive();
     }
 
     @Override
@@ -206,6 +327,50 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
     }
 
     @Override
+    @Transactional
+    public void storeScreenshot(Long jobId, Long testCaseId, Integer stepOrder, byte[] data, String contentType) {
+        Long[] jobTestCaseIds = findJob(jobId).getTestCaseIds();
+        if (jobTestCaseIds != null && !Arrays.asList(jobTestCaseIds).contains(testCaseId)) {
+            throw new IllegalArgumentException("이 Job의 TC가 아닙니다: testCaseId=" + testCaseId);
+        }
+
+        // 긴 변 1280px JPEG로 줄여 저장. 변환이 안 되면 원본을 그대로 둔다 (증적 누락보다 용량이 낫다)
+        byte[] stored = data;
+        String storedType = contentType;
+        try {
+            Optional<byte[]> jpeg = AgentScreenshotConverter.toJpeg(data);
+            if (jpeg.isPresent()) {
+                stored = jpeg.get();
+                storedType = MediaType.IMAGE_JPEG_VALUE;
+            } else {
+                log.warn("Screenshot not decodable, storing original: jobId={}, testCaseId={}, step={}",
+                        jobId, testCaseId, stepOrder);
+            }
+        } catch (IOException | RuntimeException | LinkageError e) {
+            log.warn("Screenshot conversion failed, storing original: jobId={}, testCaseId={}, step={}: {}",
+                    jobId, testCaseId, stepOrder, e.toString());
+        }
+
+        AgentStepScreenshotEntity shot = screenshotRepository
+                .findByJobIdAndTestCaseIdAndStepOrder(jobId, testCaseId, stepOrder)
+                .orElseGet(AgentStepScreenshotEntity::new);
+        shot.setJobId(jobId);
+        shot.setTestCaseId(testCaseId);
+        shot.setStepOrder(stepOrder);
+        shot.setContentType(storedType);
+        shot.setData(stored);
+        shot.setCreatedAt(LocalDateTime.now()); // 덮어쓰면 보존 기간도 새로 시작
+        screenshotRepository.save(shot);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<AgentStepScreenshotEntity> getScreenshot(Long jobId, Long testCaseId, Integer stepOrder) {
+        findJob(jobId);
+        return screenshotRepository.findByJobIdAndTestCaseIdAndStepOrder(jobId, testCaseId, stepOrder);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public AgentExecutionDto.WorkerContextResponse getExecutionContext(Long jobId) {
         AgentExecutionJobEntity job = findJob(jobId);
@@ -213,7 +378,14 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + job.getProductId()));
 
         List<AgentExecutionDto.TestCaseContext> testCases;
-        if (job.getScope() == AgentExecutionScope.SINGLE) {
+        if (job.getTestCaseIds() != null) {
+            // 제출 시점에 고정된 TC 목록을 순서대로 (삭제된 TC는 건너뜀)
+            testCases = Arrays.stream(job.getTestCaseIds())
+                    .map(id -> testCaseRepository.findById(id).orElse(null))
+                    .filter(Objects::nonNull)
+                    .map(tc -> AgentExecutionDto.TestCaseContext.from(tc, resolveSegmentNames(tc)))
+                    .toList();
+        } else if (job.getScope() == AgentExecutionScope.SINGLE) {
             TestCaseEntity tc = testCaseRepository.findById(job.getTargetTestCaseId())
                     .orElseThrow(() -> new EntityNotFoundException("TestCase not found: " + job.getTargetTestCaseId()));
             testCases = List.of(AgentExecutionDto.TestCaseContext.from(tc, resolveSegmentNames(tc)));
@@ -323,6 +495,14 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
             }
         } else if (request.phaseId() == null) {
             throw new IllegalArgumentException(request.scope() + " scope는 phaseId가 필요합니다");
+        } else if (request.scope() == AgentExecutionScope.PHASE_SELECTED) {
+            if (request.testCaseIds() == null || request.testCaseIds().isEmpty()) {
+                throw new IllegalArgumentException("PHASE_SELECTED scope는 testCaseIds가 필요합니다");
+            }
+            Set<Long> members = new HashSet<>(resolvePhaseTestCaseIds(request.phaseId(), AgentExecutionScope.PHASE_ALL));
+            if (!members.containsAll(request.testCaseIds())) {
+                throw new IllegalArgumentException("testCaseIds에 해당 Phase에 속하지 않는 TC가 있습니다");
+            }
         }
     }
 }

@@ -71,9 +71,14 @@ export class BackendClient {
     return this.#request('GET', `/api/agent-executions/${jobId}`);
   }
 
-  /** Job 점유: PENDING → RUNNING */
-  claim(jobId) {
-    return this.#request('POST', `/api/agent-executions/${jobId}/claim`);
+  /** Job 점유: PENDING → RUNNING. workerId는 Job 목록에서 "어느 워커가 집었는지" 표시에 쓰인다. */
+  claim(jobId, workerId) {
+    return this.#request('POST', `/api/agent-executions/${jobId}/claim`, { workerId });
+  }
+
+  /** 워커 heartbeat. 백엔드는 마지막 수신 15초 이내인 워커만 "연결됨"으로 본다. */
+  heartbeat(payload) {
+    return this.#request('PUT', '/api/agent-executions/workers', payload);
   }
 
   /** 실행 컨텍스트(대상 TC + Product 실행 프로파일) */
@@ -93,6 +98,17 @@ export class BackendClient {
     } catch (err) {
       if (err.status !== 409) throw err;
     }
+  }
+
+  /** Step 스크린샷 증적 업로드 (Job 상태 무관, 같은 (TC, step)은 덮어쓴다). */
+  uploadScreenshot(jobId, testCaseId, stepOrder, data, contentType) {
+    return this.#request(
+      'PUT',
+      `/api/agent-executions/${jobId}/screenshots?testCaseId=${testCaseId}&stepOrder=${stepOrder}`,
+      data,
+      false,
+      contentType
+    );
   }
 
   /** 라이브 TC/step 진행 상황 전송. 409(Job이 RUNNING 아님)는 무시한다. */

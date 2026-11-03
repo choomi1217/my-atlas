@@ -1,5 +1,7 @@
 package com.myqaweb.feature;
 
+import org.springframework.data.domain.Sort;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -14,8 +16,23 @@ public interface AgentExecutionService {
 
     // --- 사용자(프론트) 대상 ---
 
-    /** Job 생성 (PENDING). SINGLE이면 targetTestCaseId, PHASE_*면 phaseId 필요. */
+    /**
+     * Job 생성 (PENDING). SINGLE이면 targetTestCaseId, PHASE_*면 phaseId 필요.
+     * 실행 대상 TC ID는 이 시점에 고정해 저장한다. PHASE_SELECTED는 testCaseIds가 해당 Phase 소속이어야 한다.
+     *
+     * @throws com.myqaweb.common.ConflictException 같은 Phase의 대기·실행 중 Job과 TC가 겹칠 때
+     */
     Long submitJob(AgentExecutionDto.CreateJobRequest request);
+
+    /**
+     * 전체 Job 목록 (페이지). 제품·Phase·TC 이름은 일괄 조회로 채운다.
+     *
+     * @param statuses 조회할 상태. null/empty면 전체
+     * @param size 최대 100으로 제한
+     * @param direction createdAt 정렬 방향
+     */
+    AgentExecutionDto.JobPageResponse listQueue(
+            List<AgentExecutionStatus> statuses, int page, int size, Sort.Direction direction);
 
     /** 단건 Job 상태 조회 (폴링). */
     AgentExecutionDto.JobResponse getJob(Long jobId);
@@ -40,8 +57,18 @@ public interface AgentExecutionService {
 
     // --- 워커 대상 (폴링 통신 경로) ---
 
-    /** 워커가 Job을 점유: PENDING → RUNNING. 이미 RUNNING이면 현재 상태 반환. */
-    AgentExecutionDto.JobResponse claimJob(Long jobId);
+    /**
+     * 워커가 Job을 점유: PENDING → RUNNING (startedAt, workerId 기록). 이미 RUNNING이면 현재 상태 반환.
+     *
+     * @param workerId 점유한 워커 ID (구버전 워커는 null)
+     */
+    AgentExecutionDto.JobResponse claimJob(Long jobId, String workerId);
+
+    /** 워커 heartbeat 기록 (메모리). */
+    void heartbeat(AgentExecutionDto.WorkerHeartbeatRequest request);
+
+    /** 연결된 워커 목록 (마지막 heartbeat 15초 이내). */
+    List<AgentExecutionDto.WorkerStatus> listWorkers();
 
     /** 워커가 TC 1건 실행 결과 보고 → 결과 저장 + 진행 카운터 갱신. */
     AgentExecutionDto.ResultResponse recordResult(Long jobId, AgentExecutionDto.RecordResultRequest request);
@@ -72,4 +99,16 @@ public interface AgentExecutionService {
 
     /** 저장된 최신 진행 상황. 없으면 empty. */
     Optional<AgentExecutionDto.LiveProgress> getProgress(Long jobId);
+
+    // --- Step 스크린샷 (registry_v31) ---
+
+    /**
+     * Step 스크린샷 저장 (Job 상태 무관). (jobId, testCaseId, stepOrder)가 같으면 덮어쓴다.
+     * 긴 변 1280px JPEG로 변환해 저장하며, 변환에 실패하면 원본을 그대로 저장한다.
+     * 없는 Job은 EntityNotFoundException.
+     */
+    void storeScreenshot(Long jobId, Long testCaseId, Integer stepOrder, byte[] data, String contentType);
+
+    /** 저장된 Step 스크린샷. 없으면 empty. */
+    Optional<AgentStepScreenshotEntity> getScreenshot(Long jobId, Long testCaseId, Integer stepOrder);
 }

@@ -9,6 +9,7 @@
  * 흐름: login → claim → context → (TC별 runTestCase → recordResult) → complete.
  * 워커는 수동 트리거 전용이다 (비용 보호). 폴링 모드도 사용자 클릭으로 생긴 Job만 실행한다.
  */
+import os from 'node:os';
 import Anthropic from '@anthropic-ai/sdk';
 import { chromium } from 'playwright';
 import { BackendClient } from './backend.js';
@@ -42,7 +43,10 @@ function makeConfig() {
   }
   // 대상 종류. 실행 프로파일 마이그레이션 전까지는 env로 지정한다 (v24 §8 이연 항목).
   const targetKind = env('TARGET_KIND', 'WEB').toUpperCase();
+  const deviceName = env('ANDROID_DEVICE', 'emulator-5554');
   return {
+    // Job 목록·워커 표시에 쓰는 식별자. 같은 PC의 워커 여러 개는 대상(기기/web)으로 구분한다.
+    workerId: env('WORKER_ID', `${os.hostname()}:${targetKind === 'ANDROID' ? deviceName : 'web'}`),
     // 8085는 worktree 슬롯 시절 포트였다. worktree 폐기(ops_v34) 후 개발 스택은 8080이다.
     backendUrl: env('BACKEND_URL', 'http://localhost:8080'),
     username: env('AGENT_WORKER_USERNAME', 'admin'),
@@ -57,10 +61,12 @@ function makeConfig() {
     cancelCheckMs: parseInt(env('CANCEL_CHECK_MS', '2500'), 10),
     // 라이브 뷰 프레임 전송 주기. 0이면 끈다.
     frameIntervalMs: parseInt(env('FRAME_INTERVAL_MS', '1000'), 10),
+    // heartbeat 주기. 백엔드는 15초 이내 수신분만 "연결됨"으로 본다. 0이면 끈다 (heartbeat API가 없는 백엔드용)
+    heartbeatIntervalMs: parseInt(env('HEARTBEAT_INTERVAL_MS', '10000'), 10),
     targetKind,
     appium: {
       appiumUrl: env('APPIUM_URL', 'http://127.0.0.1:4723'),
-      deviceName: env('ANDROID_DEVICE', 'emulator-5554'),
+      deviceName,
       appPackage: env('ANDROID_APP_PACKAGE'),
       snapshotMaxDepth: parseInt(env('SNAPSHOT_MAX_DEPTH', '25'), 10),
       // 화면 덤프 전 idle 대기 상한(UiAutomator2 기본 10000). 계속 그리는 화면(지도)에서 매 덤프가 이만큼 걸린다
@@ -166,8 +172,39 @@ function makeProgressReporter(backend, jobId) {
   };
 }
 
+/** heartbeat가 보고하는 워커 상태. runJob이 갱신한다. */
+const workerState = { currentJobId: null };
+
+/**
+ * 워커 heartbeat. runJob이 폴링 루프를 막으므로 별도 타이머로 보낸다.
+ * unref()라 단건 모드에서 Job이 끝나면 프로세스가 정상 종료한다. 실패는 삼킨다(1회만 로그).
+ */
+function startHeartbeat(cfg, backend) {
+  if (!(cfg.heartbeatIntervalMs > 0)) return;
+  let warned = false;
+  const beat = async () => {
+    try {
+      await backend.heartbeat({
+        workerId: cfg.workerId,
+        targetKind: cfg.targetKind,
+        productId: env('POLL_PRODUCT_ID') ? Number(env('POLL_PRODUCT_ID')) : null,
+        deviceName: cfg.targetKind === 'ANDROID' ? cfg.appium.deviceName : null,
+        currentJobId: workerState.currentJobId ? Number(workerState.currentJobId) : null,
+      });
+    } catch (e) {
+      if (!warned) {
+        warned = true;
+        console.error(`[worker] heartbeat 전송 실패: ${e.message}`);
+      }
+    }
+  };
+  beat();
+  setInterval(beat, cfg.heartbeatIntervalMs).unref();
+}
+
 /** 단일 Job 하나를 처음부터 끝까지 실행 */
 async function runJob(jobId, cfg, backend) {
+  workerState.currentJobId = jobId;
   const agent = {
     anthropic: new Anthropic({ apiKey: cfg.apiKey }),
     model: cfg.model,
@@ -194,7 +231,7 @@ async function runJob(jobId, cfg, backend) {
       );
     }
 
-    await backend.claim(jobId);
+    await backend.claim(jobId, cfg.workerId);
     const ctx = await backend.getContext(jobId);
     console.log(`[worker] job=${jobId} scope=${ctx.scope} target=${ctx.execTargetKind || cfg.targetKind} testCases=${ctx.testCases.length}`);
 
@@ -212,6 +249,12 @@ async function runJob(jobId, cfg, backend) {
       const page = await browser.newContext().then((c) => c.newPage());
       ops = createWebOps(page);
     }
+
+    // Step 증적 스크린샷. 실패는 agent.js의 capture 헬퍼가 삼킨다.
+    agent.capture = async (testCaseId, order) => {
+      const f = await ops.frame();
+      await backend.uploadScreenshot(jobId, testCaseId, order, f.data, f.contentType);
+    };
 
     stopFrames = startFramePump(ops, backend, jobId, cfg.frameIntervalMs);
 
@@ -284,6 +327,7 @@ async function runJob(jobId, cfg, backend) {
     }
     throw err;
   } finally {
+    workerState.currentJobId = null;
     await stopFrames();
     await stopProgress();
     if (ops) await ops.close().catch(() => {});
@@ -337,6 +381,7 @@ async function main() {
   const cfg = makeConfig();
   const backend = new BackendClient(cfg.backendUrl);
   await backend.login(cfg.username, cfg.password);
+  startHeartbeat(cfg, backend);
 
   const arg = process.argv[2];
   if (arg === '--poll') {

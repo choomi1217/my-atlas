@@ -27,7 +27,11 @@ import {
   Dashboard,
   AgentExecutionJob,
   AgentExecutionResult,
+  AgentExecutionStatus,
+  AgentJobContext,
+  AgentJobPage,
   AgentLiveProgress,
+  AgentWorkerStatus,
 } from '@/types/features';
 // ProgressStats is used indirectly via Version/VersionPhase types
 
@@ -801,6 +805,75 @@ export const agentExecutionApi = {
       { scope, productId, phaseId }
     );
     return response.data.data.jobId;
+  },
+
+  /** 선택한 TC만 Phase 결과에 반영하며 실행. 같은 Phase의 대기·실행 중 Job과 TC가 겹치면 409 */
+  createSelected: async (
+    productId: number,
+    phaseId: number,
+    testCaseIds: number[]
+  ): Promise<number> => {
+    const response = await apiClient.post<ApiResponse<{ jobId: number }>>(
+      '/api/agent-executions',
+      { scope: 'PHASE_SELECTED', productId, phaseId, testCaseIds }
+    );
+    return response.data.data.jobId;
+  },
+
+  /** 전체 Job 목록(제품·Phase 이름 포함). status는 여러 개 지정 가능 */
+  listQueue: async (params: {
+    status: AgentExecutionStatus[];
+    page: number;
+    size: number;
+    direction: 'ASC' | 'DESC';
+  }): Promise<AgentJobPage> => {
+    const response = await apiClient.get<ApiResponse<AgentJobPage>>(
+      '/api/agent-executions/queue',
+      // status=A&status=B 형태로 직렬화 (기본값은 status[]=A)
+      { params, paramsSerializer: { indexes: null } }
+    );
+    const data = response.data.data;
+    if (!data || !Array.isArray(data.items)) {
+      throw new Error('잘못된 큐 응답');
+    }
+    return data;
+  },
+
+  /** 연결된 워커 (마지막 heartbeat 15초 이내) */
+  listWorkers: async (): Promise<AgentWorkerStatus[]> => {
+    const response = await apiClient.get<ApiResponse<AgentWorkerStatus[]>>(
+      '/api/agent-executions/workers'
+    );
+    const data = response.data.data;
+    return Array.isArray(data) ? data : [];
+  },
+
+  /** Job이 실행하는 TC 내용(Step·기대 결과). 결과가 나오기 전에도 TC 목록을 그리는 데 쓴다 */
+  getContext: async (jobId: number): Promise<AgentJobContext> => {
+    const response = await apiClient.get<ApiResponse<AgentJobContext>>(
+      `/api/agent-executions/${jobId}/context`
+    );
+    const data = response.data.data;
+    if (!data || !Array.isArray(data.testCases)) {
+      throw new Error('잘못된 컨텍스트 응답');
+    }
+    return data;
+  },
+
+  /** Step 스크린샷. 204(없음) 또는 빈 응답이면 null */
+  getScreenshot: async (
+    jobId: number,
+    testCaseId: number,
+    stepOrder: number
+  ): Promise<Blob | null> => {
+    const response = await apiClient.get<Blob>(
+      `/api/agent-executions/${jobId}/screenshots`,
+      { params: { testCaseId, stepOrder }, responseType: 'blob' }
+    );
+    if (response.status === 204 || !response.data || response.data.size === 0) {
+      return null;
+    }
+    return response.data;
   },
 
   listResults: async (jobId: number): Promise<AgentExecutionResult[]> => {

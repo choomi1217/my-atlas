@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { deflateSync } from 'node:zlib';
 
 const apiBaseUrl = process.env.API_URL || 'http://localhost:8080';
 const client: AxiosInstance = axios.create({
@@ -234,6 +235,12 @@ export async function createTestSegment(
   }
 }
 
+export interface TestStepData {
+  order: number;
+  action: string;
+  expected: string;
+}
+
 /**
  * Create a test test case
  */
@@ -242,6 +249,7 @@ export async function createTestTestCase(
   title = 'E2E Test Case',
   path: number[] = [],
   priority: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM',
+  steps?: TestStepData[],
 ): Promise<TestCaseData> {
   try {
     await ensureAuthenticated();
@@ -253,6 +261,7 @@ export async function createTestTestCase(
       priority,
       testType: 'FUNCTIONAL',
       status: 'DRAFT',
+      steps,
     });
     return response.data.data as TestCaseData;
   } catch (error) {
@@ -316,6 +325,181 @@ export async function getVersionsByProductId(productId: number): Promise<Version
     console.error(`Failed to fetch versions for product ${productId}:`, error);
     return [];
   }
+}
+
+/**
+ * Create a TestRun with the given TCs and a Version Phase on top of it.
+ * Phase creation materializes one UNTESTED test_result per TC.
+ * @returns phaseId
+ */
+export async function createTestPhase(
+  productId: number,
+  versionId: number,
+  phaseName: string,
+  testCaseIds: number[],
+): Promise<number> {
+  await ensureAuthenticated();
+  const run = await client.post(`/api/products/${productId}/test-runs`, {
+    name: `${phaseName} Run`,
+    description: 'E2E test run',
+    testCaseIds,
+  });
+  const phase = await client.post(`/api/versions/${versionId}/phases`, {
+    phaseName,
+    testRunIds: [run.data.data.id],
+    testCaseIds: [],
+  });
+  return phase.data.data.id as number;
+}
+
+// --- Agent execution: 워커 역할을 API로 대신한다 (E2E에는 실제 워커/LLM이 없다) ---
+
+export type AgentScope = 'SINGLE' | 'PHASE_ALL' | 'PHASE_UNTESTED' | 'PHASE_PREV_FAIL' | 'PHASE_SELECTED';
+export type AgentVerdict = 'PASS' | 'FAIL' | 'INCONCLUSIVE';
+
+export interface AgentStepLogData {
+  order: number;
+  actionTaken: string;
+  observed: string;
+  judgment: string;
+}
+
+const AGENT_API = '/api/agent-executions';
+
+/** Job 생성 (PENDING). @returns jobId */
+export async function createAgentJob(body: {
+  scope: AgentScope;
+  productId: number;
+  phaseId?: number;
+  targetTestCaseId?: number;
+  testCaseIds?: number[];
+}): Promise<number> {
+  await ensureAuthenticated();
+  const response = await client.post(AGENT_API, body);
+  return response.data.data.jobId as number;
+}
+
+/** 워커 claim: PENDING → RUNNING, workerId·startedAt 기록 */
+export async function claimAgentJob(jobId: number, workerId: string): Promise<void> {
+  await ensureAuthenticated();
+  await client.post(`${AGENT_API}/${jobId}/claim`, { workerId });
+}
+
+/** TC 1건 결과 보고. Phase Job이면 Phase 결과에도 반영된다. @returns 결과 id */
+export async function recordAgentResult(
+  jobId: number,
+  testCaseId: number,
+  verdict: AgentVerdict,
+  stepLogs: AgentStepLogData[] = [],
+): Promise<number> {
+  await ensureAuthenticated();
+  const response = await client.post(`${AGENT_API}/${jobId}/results`, {
+    testCaseId,
+    verdict,
+    stepLogs,
+    durationMs: 1000,
+    tokenCost: 10,
+  });
+  return response.data.data.id as number;
+}
+
+export async function completeAgentJob(jobId: number, status: 'DONE' | 'FAILED' = 'DONE'): Promise<void> {
+  await ensureAuthenticated();
+  await client.post(`${AGENT_API}/${jobId}/complete`, { status });
+}
+
+export async function cancelAgentJob(jobId: number): Promise<void> {
+  await ensureAuthenticated();
+  await client.post(`${AGENT_API}/${jobId}/cancel`);
+}
+
+/** 라이브 진행 상황 업로드 (RUNNING Job만) */
+export async function putAgentProgress(jobId: number, progress: unknown): Promise<void> {
+  await ensureAuthenticated();
+  await client.put(`${AGENT_API}/${jobId}/progress`, progress);
+}
+
+/** 라이브 프레임 업로드 (RUNNING Job만) */
+export async function putAgentFrame(jobId: number, png: Buffer): Promise<void> {
+  await ensureAuthenticated();
+  await client.put(`${AGENT_API}/${jobId}/frame`, png, { headers: { 'Content-Type': 'image/png' } });
+}
+
+/** Step 스크린샷 업로드 (Job 상태 무관) */
+export async function putAgentScreenshot(
+  jobId: number,
+  testCaseId: number,
+  stepOrder: number,
+  png: Buffer,
+): Promise<void> {
+  await ensureAuthenticated();
+  await client.put(`${AGENT_API}/${jobId}/screenshots`, png, {
+    params: { testCaseId, stepOrder },
+    headers: { 'Content-Type': 'image/png' },
+  });
+}
+
+/**
+ * 워커 heartbeat. 백엔드 메모리에 15초간 남는다 —
+ * 다른 테스트에 영향이 없도록 항상 그 테스트가 만든 productId로 보낸다 (productId null은 모든 제품에 매칭된다).
+ */
+export async function sendWorkerHeartbeat(
+  workerId: string,
+  productId: number,
+  targetKind: 'WEB' | 'ANDROID' = 'WEB',
+): Promise<void> {
+  await ensureAuthenticated();
+  await client.put(`${AGENT_API}/workers`, {
+    workerId,
+    targetKind,
+    productId,
+    deviceName: null,
+    currentJobId: null,
+  });
+}
+
+function crc32(buf: Buffer): number {
+  let c = 0xffffffff;
+  for (const byte of buf) {
+    c ^= byte;
+    for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xedb88320 : c >>> 1;
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const typed = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+  const out = Buffer.alloc(12 + data.length);
+  out.writeUInt32BE(data.length, 0);
+  typed.copy(out, 4);
+  out.writeUInt32BE(crc32(typed), 8 + data.length);
+  return out;
+}
+
+/**
+ * 알파 채널이 있는 RGBA PNG를 의존성 없이 만든다 (node:zlib).
+ * 가로 그라데이션, 왼쪽 절반은 반투명.
+ */
+export function buildRgbaPng(width: number, height: number): Buffer {
+  const row = Buffer.alloc(1 + width * 4); // 첫 바이트 0 = 필터 없음
+  for (let x = 0; x < width; x++) {
+    const p = 1 + x * 4;
+    row[p] = Math.floor((x * 255) / width);
+    row[p + 1] = 120;
+    row[p + 2] = 200;
+    row[p + 3] = x < width / 2 ? 128 : 255;
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 6; // color type RGBA
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', deflateSync(Buffer.concat(new Array<Buffer>(height).fill(row)))),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
 }
 
 /**

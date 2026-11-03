@@ -7,6 +7,7 @@ const navItems = [
   { to: '/kb',          label: 'Knowledge Base'     },
   { to: '/conventions', label: 'Word Conventions'   },
   { to: '/features',    label: 'Product Test Suite' },
+  { to: '/automation',  label: 'Test Automation'    },
   { to: '/test-studio', label: 'Test Studio'        },
   { to: '/resume',      label: 'Resume'             },
 ]

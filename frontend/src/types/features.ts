@@ -45,7 +45,8 @@ export type AgentExecutionScope =
   | 'SINGLE'
   | 'PHASE_ALL'
   | 'PHASE_UNTESTED'
-  | 'PHASE_PREV_FAIL';
+  | 'PHASE_PREV_FAIL'
+  | 'PHASE_SELECTED';
 export type AgentExecutionStatus =
   | 'PENDING'
   | 'RUNNING'
@@ -69,6 +70,7 @@ export interface AgentExecutionJob {
   targetTestCaseId?: number | null;
   scope: AgentExecutionScope;
   status: AgentExecutionStatus;
+  execTargetKind?: ExecTargetKind | null;
   requestedBy?: string | null;
   totalCount: number;
   doneCount: number;
@@ -77,7 +79,54 @@ export interface AgentExecutionJob {
   inconclusiveCount: number;
   errorMessage?: string | null;
   createdAt: string;
+  startedAt?: string | null;
   completedAt?: string | null;
+  workerId?: string | null;
+}
+
+/** 대기·실행 중/완료 목록의 한 행. Job + 표시용 제품·Phase·TC 이름 */
+export interface AgentJobListItem {
+  job: AgentExecutionJob;
+  productName: string | null;
+  companyId: number | null;
+  phaseName: string | null;
+  versionId: number | null;
+  versionName: string | null;
+  testCaseTitle: string | null;
+}
+
+export interface AgentJobPage {
+  items: AgentJobListItem[];
+  totalElements: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface AgentWorkerStatus {
+  workerId: string;
+  targetKind: ExecTargetKind;
+  productId: number | null;
+  deviceName: string | null;
+  currentJobId: number | null;
+  lastSeenAt: string;
+}
+
+export interface AgentContextTestCase {
+  id: number;
+  title: string;
+  preconditions: string | null;
+  steps: TestStep[];
+  expectedResults: string[] | null;
+  segmentPath: string[] | null;
+}
+
+export interface AgentJobContext {
+  jobId: number;
+  scope: AgentExecutionScope;
+  execTargetKind: ExecTargetKind | null;
+  baseUrl: string | null;
+  seedNote: string | null;
+  testCases: AgentContextTestCase[];
 }
 
 export interface AgentExecutionResult {

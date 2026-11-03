@@ -1,5 +1,17 @@
 # Changelog
 
+## v2026.10.31 — 2026-10-31
+
+### 🐛 Fixes
+- Registry v30 — AI 실행 신뢰도 개선 (Job 33 관찰)
+- Registry v29 — 판정에 수행 동작 전달, 확인 step은 관찰만
+- Registry v29 — 전제조건 필드가 있을 때만 시작 위치로 이동
+- Registry v29 — AI 전제조건 네비게이션 수정
+
+### 📝 Docs
+- AI 실행용 TC 작성 가이드 추가 (testcase_guideline_for_AI.md)
+- changelog v2026.10.28.1602
+
 ## v2026.10.28.1602 — 2026-10-28
 
 ### 🐛 Fixes

@@ -174,6 +174,14 @@ class ApiAccessLogFilterTest {
     }
 
     @Test
+    @DisplayName("PUT /api/agent-executions/workers → heartbeat라 기록 제외 (registry_v31)")
+    void shouldNotFilter_putAgentWorkers_isExcluded() {
+        MockHttpServletRequest request = new MockHttpServletRequest("PUT", "/api/agent-executions/workers");
+
+        assertTrue(filter.shouldNotFilter(request));
+    }
+
+    @Test
     @DisplayName("POST /api/agent-executions/{id}/claim → 실행 이력이므로 반드시 기록")
     void shouldNotFilter_postAgentExecutionsClaim_isLogged() {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/agent-executions/123/claim");
