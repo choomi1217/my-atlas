@@ -22,12 +22,12 @@
 |---|------|------|
 | 1 | 결과 Priority | 5단계(HIGHEST~LOWEST) + **Unknown**. AI가 쓴 결과는 항상 Unknown이고, 사람이 Priority를 골라야 확정된다. 사람이 FAIL로 바꾸면 TC Priority로 자동 입력(HIGH→HIGH, MEDIUM→MEDIUM, LOW→LOW), 수정 가능 |
 | 2 | 그래프 범위 | x축 = Phase 시작일 ~ 릴리즈 예정일 (릴리즈일이 없으면 오늘). 범위 밖 점은 그리지 않는다. 릴리즈일 뒤 변경은 그래프에 안 나온다 (771: 릴리즈 10-31, 결과 변경 11-03) |
-| 3 | Notion 발행 위치 | 추천: 새 DB `Bug Tickets` (MyAtlas 아래). PRD DB는 my-atlas 개발 항목이라 섞지 않는다 |
-| 4 | Jira | 추천: 새 티켓은 Notion만. Jira 코드는 기존 Jira 티켓 상태 갱신용으로 남긴다 |
-| 5 | Release Readiness | 추천: 티켓 기준 유지. 지금은 티켓이 없으면 Fail이 있어도 GO (771 Fail 3, 772 Fail 7). Fail 결과 기준으로 바꾸려면 재테스트 Phase 처리 규칙이 먼저 필요하다 |
+| 3 | Notion 발행 위치 | [PRD DB](https://app.notion.com/p/7ad107b270e8820e90c401aac14ec805?v=3ba107b270e880a8aab8000c94d0c55a)(Bug List 뷰)에 `Scope=Bug`로 발행. 본문은 [🐞 버그 리포트 양식](https://app.notion.com/p/3ba107b270e8805a8e14dceaf8bba0b1) |
+| 4 | Jira | 새 티켓은 Notion만. Jira 코드는 기존 Jira 티켓 상태 갱신용으로 남긴다 |
+| 5 | 릴리즈 판정 (버전 화면 맨 위 초록 박스) | "Highest/High 미해결 버그"는 FAIL 결과가 아니라 **발행된 티켓**만 센다. 지금은 티켓이 0건이라 Fail이 있어도 GO (771 Fail 3, 772 Fail 7). 추천: 그대로 둔다 — Step 3 뒤 Notion 티켓을 발행하면 그 티켓부터 집계되고, Done·Close가 되면 빠진다. FAIL 결과를 직접 세려면 "1차 FAIL → 재테스트 PASS"를 해결로 보는 규칙이 같이 필요하다 |
 | 6 | 기존 통계 방식 반영 | 추천: Bug 추이 탭에 "테스트 기간 50% 시점까지 등록된 버그 비율(전체 · High 이상)" 1줄과 50% 기준선만 추가 (프론트만). 초기:통합 테스트 발견 비율, TC로 찾은 버그 비율은 다음 버전 |
 
-1·2는 확정 (2026-11-04). 3~6은 확인 대기.
+1~4는 확정 (2026-11-04). 5·6은 확인 대기.
 
 ## Step 1 — Trend 그래프
 
@@ -113,19 +113,28 @@ ALTER TABLE test_result ADD COLUMN priority VARCHAR(20);
 
 ### User 준비
 
-1. Notion DB 생성 (Claude가 Notion MCP로 생성 가능)
-2. 통합 토큰 발급(기존 notion-sync 통합 재사용 가능) → DB를 통합에 공유 → 로컬·EC2 `.env`에 `NOTION_API_KEY`, `NOTION_BUG_DATABASE_ID` → `docker compose up -d --force-recreate`
+- 로컬·EC2 `.env`에 `NOTION_API_KEY`(PRD DB를 이미 쓰는 notion-sync 통합 토큰 재사용), `NOTION_BUG_DATABASE_ID`(PRD DB id) → `docker compose up -d --force-recreate`
 
-### Notion DB
+### Notion 속성 (PRD DB)
 
-| 속성 | 타입 |
+| 속성 | 값 |
+|------|-----|
+| 무엇을 개발할 것인가 (제목) | 티켓 summary |
+| Scope | `Bug` |
+| Status | 생성 시 `Waiting...`. `Done`·`Close`면 종료 |
+| 우선순위 | HIGHEST→Highest, HIGH→High, MEDIUM→Mid, LOW·LOWEST→Low |
+| 아이콘 | 🐞 |
+
+### 본문 (🐞 버그 리포트 양식)
+
+| 섹션 | 내용 |
 |------|------|
-| 이름 | 제목 (티켓 summary) |
-| Priority | 선택: Highest / High / Medium / Low / Lowest |
-| Status | 상태: 시작 전 / 진행 중 / 완료 |
-| Product · Version · Phase · TC | 텍스트 |
-
-본문: PreCondition / Steps / Expected Result / Actual Result(결과 comment = AI 사유). 기존 버그 티켓 양식과 같다.
+| PreCondition | TC Preconditions |
+| Test Data | Phase 페이지 링크(프론트가 현재 URL을 요청에 담음), Company · Product · Version · Phase |
+| Steps | TC Steps |
+| Expected Result | TC Expected Result |
+| Actual Result | 결과 comment (AI 사유) |
+| Memo | 티켓 생성 창에 입력한 설명 |
 
 ### DB
 
@@ -140,7 +149,7 @@ ALTER TABLE ticket ADD COLUMN tracker VARCHAR(20) NOT NULL DEFAULT 'JIRA';
 ### Backend
 
 - `NotionService` + `NotionServiceImpl` (`POST /v1/pages`, `GET /v1/pages/{id}`), `NotionConfig` (`notion.api-key`, `notion.bug-database-id`)
-- `TicketServiceImpl`(`:42-66` Jira 전용): 생성은 Notion(`tracker=NOTION`), 상태 갱신은 tracker별. `isDoneStatus`에 `완료` 추가
+- `TicketServiceImpl`(`:42-66` Jira 전용): 생성은 Notion(`tracker=NOTION`), 상태 갱신은 tracker별. `isDoneStatus`에 `CLOSE`(Notion)·`완료`(Jira 한글 상태) 추가
 - Notion 호출 실패 → 502 + `Notion 연동 실패: …` (500 `Unexpected error`로 묻히지 않게)
 - `.env.example`에 `NOTION_*` 추가
 
@@ -151,5 +160,5 @@ ALTER TABLE ticket ADD COLUMN tracker VARCHAR(20) NOT NULL DEFAULT 'JIRA';
 
 ### 테스트
 
-- Unit: Notion 요청 본문(속성·Priority 매핑), 미설정 오류, tracker별 상태 갱신, `완료` 종료 감지
+- Unit: Notion 요청 본문(속성·우선순위 매핑·양식 섹션), 미설정 오류, tracker별 상태 갱신, `Done`·`Close` 종료 감지
 - E2E: `qa/api/ticket.spec.ts`의 `[400,500]` 허용 제거 → 미설정 응답을 정확히 검증 (CI에는 Notion 토큰 없음)
