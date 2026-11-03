@@ -1,0 +1,145 @@
+# Registry v32 — Test Result 통계 버그 수정 + Fail 결과 개선
+
+> 변경 유형: 버그 수정, 기능 개선  
+> 작성일: 2026-11-04  
+> 버전: v32  
+> 상태: 진행 중
+
+---
+
+| Step | 내용 | Notion 항목 | 브랜치 | 상태 |
+|------|------|-------------|--------|------|
+| 1 | Trend 그래프에 오늘 결과 반영 | [🐞 통계 / Phase 속, Test Result 통계가 실제 결과와 상이함](https://app.notion.com/p/3ba107b270e8809abf65df78d24ac4aa) | `bugfix/trend-today` | |
+| 2 | Fail 결과 Priority · AI 사유 표시 · Failed 목록 | [Test Result 통계 개선](https://app.notion.com/p/40d107b270e880788e36c29e5d5b0043) | `feature/registry-fail-ticket` | |
+| 3 | 버그 티켓 Notion 발행 | 〃 | 〃 | |
+
+- Step마다 4-Agent Pipeline. Step 2·3은 같은 Notion 항목이라 한 PR로 올린다 (먼저 머지하면 notion-sync가 항목을 Done 처리).
+- 작업 트리에 v31 Step 1 미커밋 변경이 있다. Step 2·3은 같은 파일(`AgentExecutionServiceImpl`, `VersionPhaseDetailPage`, `types/features.ts`, `api/features.ts`)을 고치고 v31의 `utils/apiError.ts`를 쓰므로 **v31 Step 1 머지 후** 시작한다. Step 1은 겹치는 파일이 없어 develop 기준 임시 worktree에서 바로 진행할 수 있다.
+
+## 결정 필요
+
+| # | 항목 | 추천 |
+|---|------|------|
+| 1 | 결과 Priority 값 | 티켓과 같은 5단계(HIGHEST~LOWEST). FAIL이 되면 TC Priority로 자동 입력(HIGH→HIGH, MEDIUM→MEDIUM, LOW→LOW), 이후 수정 가능 |
+| 2 | Notion 발행 위치 | 새 DB `Bug Tickets` (MyAtlas 아래). PRD DB는 my-atlas 개발 항목이라 섞지 않는다 |
+| 3 | Jira | 새 티켓은 Notion만. Jira 코드는 기존 Jira 티켓 상태 갱신용으로 남긴다 |
+| 4 | Release Readiness | 티켓 기준 유지. 지금은 티켓이 없으면 Fail이 있어도 GO (771 Fail 3, 772 Fail 7 모두 GO). Fail 결과 기준으로 바꾸려면 재테스트 Phase 처리 규칙이 먼저 필요해 이번 범위에서 뺀다 |
+
+## Step 1 — Trend 그래프에 오늘 결과 반영
+
+### 원인
+
+그래프는 `daily_test_snapshot`만 그린다. 스냅샷은 매일 00:00(KST) 한 번 저장되므로 그날 바뀐 결과는 다음 날 00:00까지 안 보인다.
+
+| 관찰 | 실제 데이터 (운영 API) |
+|------|------------------------|
+| 772 그래프 없음 | 11-03 14:53 생성 → 11-04 00:00 전까지 스냅샷 0건 → "선택한 Phase에 스냅샷 데이터가 없습니다" |
+| 771 그래프 ≠ 실제 | Phase 788 스냅샷(11-03) P20/F17/R9 = 43.48%, 실제 P45/F1 = 97.83% |
+| 버그 티켓 (버전 764) | Phase 769 스냅샷(08-12) Untested 6 = 0%. 00:53 AI 실행으로 6/6 끝난 뒤에도 그래프는 0% |
+
+같은 구조에서 나오는 문제:
+
+- `SnapshotScheduler.java:26` — 00:00에 `오늘` 날짜로 저장. 어제 마감 상태가 오늘 날짜로 찍혀 하루 밀린다
+- `SnapshotServiceImpl.java:64-77` — 신규·종료 버그를 `오늘 00:00~24:00` 구간으로 세는데 00:00에 실행되어 항상 0
+- `StatisticsServiceImpl.java:146-172` `computeRealtimeReport` — 스냅샷 계산 복사본, 버그 수 0 고정
+- `VersionDetailPage.tsx:296,309` — 기본으로 첫 Phase를 그리는데 탭에는 선택 표시가 없다
+
+### 수정
+
+1. `SnapshotScheduler`: 00:00에 **어제** 날짜로 저장 (`LocalDate.now().minusDays(1)`)
+2. `SnapshotService`에 `compute(phaseId, date)` 분리 → `createSnapshot` = compute + upsert. `computeRealtimeReport` 삭제
+3. `StatisticsServiceImpl`: Trend = 어제까지 스냅샷 + 오늘 `compute` 값. `getTrend`·`getPhaseTrends` 둘 다 이 경로를 쓴다. `getDailyReport`는 오늘이면 `compute`
+4. `VersionDetailPage`: 그래프가 그리는 Phase 탭을 선택 표시 (`selectedPhaseFilter ?? phases[0].id`)
+
+- 기존 스냅샷은 하루 밀린 채로 둔다 (보정 안 함)
+
+### 테스트
+
+- Unit: 오늘 포인트 = 실시간 값, 스케줄러가 어제 날짜로 호출, 전날 생성 티켓이 신규 버그로 집계
+- E2E: 결과 변경 직후 대시보드 그래프에 오늘 포인트 표시
+
+## Step 2 — Fail 결과 Priority · AI 사유 · Failed 목록
+
+### 현재
+
+| 항목 | 현재 |
+|------|------|
+| 결과 Priority | `test_result`에 없음. TC Priority(3단계)와 티켓 Priority(5단계)만 있다 |
+| Fail 노출 | 버전 대시보드에 Aging Bugs·Blocked TCs만 있고 Failed 목록이 없다. Fail은 진행률의 "Fail 3" 글자뿐 |
+| AI 사유 | 워커가 `test_result.comment`에 `[AI FAIL] #2 FAIL: …`로 저장 중 (`AgentExecutionServiceImpl.java:472-474`). **프론트가 `result.comment`를 어디에도 그리지 않는다** |
+| AI 사유 소실 | 수동 상태 변경(`TestResultServiceImpl.java:126`)이 comment를 null로 덮고 `executedBy`는 AGENT로 남긴다. 771 결과 2216은 FAIL·AGENT인데 사유가 비어 있다. AI 재실행 PASS는 이전 FAIL 사유를 지우지 않는다 |
+
+워커 수정은 없다.
+
+### DB
+
+`V{구현시각}__add_test_result_priority.sql`
+
+```sql
+ALTER TABLE test_result ADD COLUMN priority VARCHAR(20);
+```
+
+### Backend
+
+- `TestResultEntity.priority` (`TicketPriority`, null 허용). 결과 응답·PATCH에 `priority` 추가
+- FAIL이 되면 priority가 null일 때 TC Priority로 채운다 — 수동(`updateResult`)·AI(`upsertAgentTestResult`) 둘 다
+- `updateResult`: comment는 요청에 있을 때만 바꾸고, `executedBy=HUMAN`
+- `upsertAgentTestResult`: comment를 항상 덮어쓴다 (PASS면 null)
+- 대시보드에 `failedTcs` 추가 — `getBlockedTcs`(`StatisticsServiceImpl.java:246`)를 상태 인자로 일반화, 항목에 phaseId·priority·comment. Priority 높은 순
+
+### Frontend
+
+- `VersionDetailPage`: Readiness 카드 바로 아래 전체 폭 **Failed TCs** — Priority 배지, TC, Phase, AI 사유 1줄. 클릭하면 해당 Phase로 이동
+- `BlockedTcList`를 Blocked·Failed 공용으로 일반화
+- `VersionPhaseDetailPage` 결과 행: FAIL이면 Priority 선택. comment는 펼친 화면에 전체, 접힌 행에 1줄
+- 티켓 생성 기본 Priority = 결과 Priority (`VersionPhaseDetailPage.tsx:325` MEDIUM 고정)
+
+### 테스트
+
+- Unit: FAIL 시 Priority 자동 입력, 수동 변경이 comment 유지·HUMAN 전환, AI PASS가 comment 비움, failedTcs 정렬
+- E2E: FAIL 처리 → 대시보드 Failed 목록에 Priority·사유 표시, Priority 변경 반영
+
+## Step 3 — 버그 티켓 Notion 발행
+
+### User 준비
+
+1. Notion DB 생성 (Claude가 Notion MCP로 생성 가능)
+2. 통합 토큰 발급(기존 notion-sync 통합 재사용 가능) → DB를 통합에 공유 → 로컬·EC2 `.env`에 `NOTION_API_KEY`, `NOTION_BUG_DATABASE_ID` → `docker compose up -d --force-recreate`
+
+### Notion DB
+
+| 속성 | 타입 |
+|------|------|
+| 이름 | 제목 (티켓 summary) |
+| Priority | 선택: Highest / High / Medium / Low / Lowest |
+| Status | 상태: 시작 전 / 진행 중 / 완료 |
+| Product · Version · Phase · TC | 텍스트 |
+
+본문: PreCondition / Steps / Expected Result / Actual Result(결과 comment = AI 사유). 기존 버그 티켓 양식과 같다.
+
+### DB
+
+`V{구현시각}__generalize_ticket_tracker.sql` — 기존 행 보존
+
+```sql
+ALTER TABLE ticket RENAME COLUMN jira_key TO issue_key;
+ALTER TABLE ticket RENAME COLUMN jira_url TO issue_url;
+ALTER TABLE ticket ADD COLUMN tracker VARCHAR(20) NOT NULL DEFAULT 'JIRA';
+```
+
+### Backend
+
+- `NotionService` + `NotionServiceImpl` (`POST /v1/pages`, `GET /v1/pages/{id}`), `NotionConfig` (`notion.api-key`, `notion.bug-database-id`)
+- `TicketServiceImpl`(`:42-66` Jira 전용): 생성은 Notion(`tracker=NOTION`), 상태 갱신은 tracker별. `isDoneStatus`에 `완료` 추가
+- Notion 호출 실패 → 502 + `Notion 연동 실패: …` (500 `Unexpected error`로 묻히지 않게)
+- `.env.example`에 `NOTION_*` 추가
+
+### Frontend
+
+- 티켓: `jiraKey/jiraUrl` → `issueKey/issueUrl` (`VersionPhaseDetailPage`, `AgingBugList`, `types/features.ts`), 링크 문구 tracker별
+- 실패 시 서버 message 표시 (`utils/apiError.ts`)
+
+### 테스트
+
+- Unit: Notion 요청 본문(속성·Priority 매핑), 미설정 오류, tracker별 상태 갱신, `완료` 종료 감지
+- E2E: `qa/api/ticket.spec.ts`의 `[400,500]` 허용 제거 → 미설정 응답을 정확히 검증 (CI에는 Notion 토큰 없음)
