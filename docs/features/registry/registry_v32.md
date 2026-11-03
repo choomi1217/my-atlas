@@ -9,7 +9,7 @@
 
 | Step | 내용 | Notion 항목 | 브랜치 | 상태 |
 |------|------|-------------|--------|------|
-| 1 | Trend 그래프: 오늘 결과 반영 · 시작일~릴리즈일 범위 | [🐞 통계 / Phase 속, Test Result 통계가 실제 결과와 상이함](https://app.notion.com/p/3ba107b270e8809abf65df78d24ac4aa) | `bugfix/trend-today` | |
+| 1 | Trend 그래프: 오늘 결과 반영 · 시작일~릴리즈일 범위 | [🐞 통계 / Phase 속, Test Result 통계가 실제 결과와 상이함](https://app.notion.com/p/3ba107b270e8809abf65df78d24ac4aa) | `bugfix/trend-today` | ✅ |
 | 2 | Fail 결과 Priority · AI 사유 표시 · Failed 목록 | [Test Result 통계 개선](https://app.notion.com/p/40d107b270e880788e36c29e5d5b0043) | `feature/registry-fail-ticket` | |
 | 3 | 버그 티켓 Notion 발행 | 〃 | 〃 | |
 
@@ -59,7 +59,6 @@
    - `getDailyReport`는 오늘이면 `compute`
 4. `TrendChartSection`: x축을 범위의 모든 날짜로 채운다 (오늘 뒤는 빈칸)
 5. `VersionDetailPage`: 그래프가 그리는 Phase 탭 선택 표시 (`selectedPhaseFilter ?? phases[0].id`)
-6. (결정 6 확정 시) Bug 추이 탭: 50% 시점 기준선 + 비율 1줄
 
 - 기존 스냅샷은 하루 밀린 채로 둔다 (보정 안 함)
 
@@ -67,6 +66,16 @@
 
 - Unit: 오늘 점 = 실시간 값, 릴리즈일 뒤 점 제외, 스케줄러가 어제 날짜로 호출, 전날 생성 티켓이 신규 버그로 집계
 - E2E: 결과 변경 직후 그래프에 오늘 점, x축 끝 = 릴리즈 예정일
+
+### 결과 (2026-11-04)
+
+| 검증 | 결과 |
+|------|------|
+| Backend `./gradlew clean build` | 922건 통과 (신규 `statistics` 19건) |
+| Frontend lint · Vitest | 0 warnings · 161건 통과 (신규 8건) |
+| E2E 전체 | 407 통과 · 1 실패 · 30 skip(기존 fixme/skip). 신규 API 4건 통과 |
+| 실패 1건 | 신규 UI 테스트 셀렉터 — recharts 3은 x축 tick 라벨을 별도 레이어로 그려 `.recharts-xAxis` 하위가 아님 → `.recharts-xAxis-tick-labels`로 수정, 단독 실행 통과 |
+| 전체 재검증 | 생략 (User 결정). 바뀐 것은 E2E 셀렉터 1줄, 프로덕션 코드는 첫 검증과 같음 |
 
 ## Step 2 — Fail 결과 Priority · AI 사유 · Failed 목록
 
@@ -103,6 +112,7 @@ ALTER TABLE test_result ADD COLUMN priority VARCHAR(20);
 - `BlockedTcList`를 Blocked·Failed 공용으로 일반화
 - `VersionPhaseDetailPage` 결과 행: FAIL이면 Priority 선택(Unknown이면 `확인 필요`). comment는 펼친 화면에 전체, 접힌 행에 1줄
 - 티켓 생성 Priority 기본값 = 결과 Priority, Unknown이면 직접 골라야 생성된다 (`VersionPhaseDetailPage.tsx:325` MEDIUM 고정)
+- (결정 6 확정 시) `TrendChartSection` Bug 추이 탭: 50% 시점 기준선 + 비율 1줄 — 신규 지표라 버그 PR(Step 1)이 아닌 이 PR에 넣는다
 
 ### 테스트
 

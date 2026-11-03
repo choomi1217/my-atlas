@@ -4,6 +4,12 @@ import {
   createTestProduct,
   createTestSegment,
   createTestTestCase,
+  createTestVersion,
+  createTestPhase,
+  getPhaseResults,
+  updateTestResultStatus,
+  kstToday,
+  addDays,
   cleanupAllTestData,
   loginAsAdminInBrowser,
 } from '../helpers/api-helpers';
@@ -574,6 +580,35 @@ test.describe('Version Management UI E2E', () => {
       // Dialog should close
       await expect(page.locator('text=Jira 티켓 발행')).not.toBeVisible();
     }
+  });
+
+  test('VersionDetailPage - Trend 차트에 오늘 실시간 값 표시, Phase 탭 전환, x축 끝은 releaseDate', async () => {
+    const releaseDate = addDays(kstToday(), 3);
+    const trendVersionId = (await createTestVersion(productId, 'E2E Trend UI Version', releaseDate)).id;
+    const phaseAId = await createTestPhase(productId, trendVersionId, 'E2E Trend Phase A', [testCaseId1, testCaseId2]);
+    await createTestPhase(productId, trendVersionId, 'E2E Trend Phase B', [testCaseId1, testCaseId2]);
+    const results = await getPhaseResults(trendVersionId, phaseAId);
+    await updateTestResultStatus(trendVersionId, results[0].id, 'PASS');
+
+    await goToVersionDetail(trendVersionId);
+
+    const trendChart = page.locator('[data-testid="trend-chart"]');
+    await expect(trendChart).toBeVisible();
+    await expect(page.getByText('선택한 Phase에 스냅샷 데이터가 없습니다.')).not.toBeVisible();
+
+    // Phase 필터 탭 (아래 Phase 카드의 h3와 구분하려고 button으로 한정)
+    const tabA = page.getByRole('button', { name: 'E2E Trend Phase A', exact: true });
+    const tabB = page.getByRole('button', { name: 'E2E Trend Phase B', exact: true });
+    await expect(tabA).toHaveClass(/bg-indigo-100/);
+    await expect(tabB).not.toHaveClass(/bg-indigo-100/);
+
+    // recharts 3은 tick 라벨을 z-index 레이어로 portal 렌더 → x축 그룹(.recharts-xAxis) 하위가 아니다
+    const lastTick = trendChart.locator('.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value').last();
+    await expect(lastTick).toHaveText(releaseDate);
+
+    await tabB.click();
+    await expect(tabB).toHaveClass(/bg-indigo-100/);
+    await expect(tabA).not.toHaveClass(/bg-indigo-100/);
   });
 
   test.afterAll(async () => {

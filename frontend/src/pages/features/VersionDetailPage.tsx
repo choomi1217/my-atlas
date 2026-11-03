@@ -247,6 +247,8 @@ export default function VersionDetailPage() {
     return <div className="p-6 text-center text-gray-600">버전을 찾을 수 없습니다</div>;
   }
 
+  const chartPhaseId = selectedPhaseFilter ?? version.phases[0]?.id ?? null;
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -289,11 +291,9 @@ export default function VersionDetailPage() {
               {version.phases.map(phase => (
                 <button
                   key={phase.id}
-                  onClick={() => setSelectedPhaseFilter(
-                    selectedPhaseFilter === phase.id ? null : phase.id
-                  )}
+                  onClick={() => setSelectedPhaseFilter(phase.id)}
                   className={`px-3 py-1.5 rounded text-sm font-medium border ${
-                    selectedPhaseFilter === phase.id
+                    chartPhaseId === phase.id
                       ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
                       : 'text-gray-500 border-gray-200 hover:text-gray-700 hover:border-gray-300'
                   }`}
@@ -306,7 +306,7 @@ export default function VersionDetailPage() {
 
           <TrendChartSection
             phaseTrends={dashboard.phaseTrends}
-            selectedPhaseId={selectedPhaseFilter || (version.phases[0]?.id ?? null)}
+            selectedPhaseId={chartPhaseId}
             onDateClick={(phaseId, date) => {
               setDailyReportPhaseId(phaseId);
               setDailyReportDate(date);

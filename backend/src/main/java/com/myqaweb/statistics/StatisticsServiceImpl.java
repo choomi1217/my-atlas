@@ -27,6 +27,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final TicketRepository ticketRepository;
     private final VersionRepository versionRepository;
     private final VersionPhaseRepository versionPhaseRepository;
+    private final SnapshotService snapshotService;
     private final ReadinessConfig config;
 
     public StatisticsServiceImpl(DailyTestSnapshotRepository snapshotRepository,
@@ -34,21 +35,26 @@ public class StatisticsServiceImpl implements StatisticsService {
                                   TicketRepository ticketRepository,
                                   VersionRepository versionRepository,
                                   VersionPhaseRepository versionPhaseRepository,
+                                  SnapshotService snapshotService,
                                   ReadinessConfig config) {
         this.snapshotRepository = snapshotRepository;
         this.testResultRepository = testResultRepository;
         this.ticketRepository = ticketRepository;
         this.versionRepository = versionRepository;
         this.versionPhaseRepository = versionPhaseRepository;
+        this.snapshotService = snapshotService;
         this.config = config;
     }
 
     @Override
     @Transactional(readOnly = true)
     public StatisticsDto.DailyReport getDailyReport(Long phaseId, LocalDate date) {
+        if (!date.isBefore(LocalDate.now())) {
+            return snapshotService.compute(phaseId, date);
+        }
         return snapshotRepository.findByPhaseIdAndSnapshotDate(phaseId, date)
                 .map(this::toReport)
-                .orElseGet(() -> computeRealtimeReport(phaseId, date));
+                .orElseGet(() -> snapshotService.compute(phaseId, date));
     }
 
     @Override
@@ -57,15 +63,8 @@ public class StatisticsServiceImpl implements StatisticsService {
         VersionPhaseEntity phase = versionPhaseRepository.findById(phaseId)
                 .orElseThrow(() -> new IllegalArgumentException("Phase not found: " + phaseId));
 
-        List<DailyTestSnapshotEntity> snapshots =
-                snapshotRepository.findAllByPhaseIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(
-                        phaseId, from, to);
-
-        List<StatisticsDto.DailyReport> reports = snapshots.stream()
-                .map(this::toReport)
-                .toList();
-
-        return new StatisticsDto.TrendData(phaseId, phase.getPhaseName(), from, to, reports);
+        return new StatisticsDto.TrendData(phaseId, phase.getPhaseName(), from, to,
+                trendReports(phaseId, from, to));
     }
 
     @Override
@@ -143,32 +142,20 @@ public class StatisticsServiceImpl implements StatisticsService {
                 s.getPassRate(), s.getProgressRate());
     }
 
-    private StatisticsDto.DailyReport computeRealtimeReport(Long phaseId, LocalDate date) {
-        VersionPhaseEntity phase = versionPhaseRepository.findById(phaseId)
-                .orElseThrow(() -> new IllegalArgumentException("Phase not found: " + phaseId));
-
-        List<TestResultEntity> results = testResultRepository.findAllByVersionPhaseId(phaseId);
-        int total = results.size();
-        int pass = countByStatus(results, RunResultStatus.PASS);
-        int fail = countByStatus(results, RunResultStatus.FAIL);
-        int blocked = countByStatus(results, RunResultStatus.BLOCKED);
-        int skipped = countByStatus(results, RunResultStatus.SKIPPED);
-        int retest = countByStatus(results, RunResultStatus.RETEST);
-        int untested = countByStatus(results, RunResultStatus.UNTESTED);
-
-        int executed = total - untested;
-        BigDecimal passRate = executed > 0
-                ? BigDecimal.valueOf(pass * 100.0 / executed).setScale(2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-        BigDecimal progressRate = total > 0
-                ? BigDecimal.valueOf(executed * 100.0 / total).setScale(2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-
-        return new StatisticsDto.DailyReport(
-                phaseId, phase.getPhaseName(), date,
-                total, pass, fail, blocked, skipped, retest, untested,
-                0, 0, 0, 0, 0, 0, 0,
-                passRate, progressRate);
+    /**
+     * Snapshots before today plus a live point for today when today falls in the range.
+     */
+    private List<StatisticsDto.DailyReport> trendReports(Long phaseId, LocalDate from, LocalDate to) {
+        LocalDate today = LocalDate.now();
+        List<StatisticsDto.DailyReport> reports = new ArrayList<>(snapshotRepository
+                .findAllByPhaseIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(phaseId, from, to).stream()
+                .filter(s -> s.getSnapshotDate().isBefore(today))
+                .map(this::toReport)
+                .toList());
+        if (!today.isBefore(from) && !today.isAfter(to)) {
+            reports.add(snapshotService.compute(phaseId, today));
+        }
+        return reports;
     }
 
     private BigDecimal computeRegressionPassRate(Long versionId) {
@@ -218,12 +205,11 @@ public class StatisticsServiceImpl implements StatisticsService {
         List<VersionPhaseEntity> phases = versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(versionId);
         return phases.stream().map(phase -> {
             LocalDate from = phase.getStartDate() != null ? phase.getStartDate() : phase.getCreatedAt().toLocalDate();
-            LocalDate to = phase.getEndDate() != null ? phase.getEndDate() : LocalDate.now();
-            List<DailyTestSnapshotEntity> snapshots = snapshotRepository
-                    .findAllByPhaseIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(phase.getId(), from, to);
+            LocalDate releaseDate = phase.getVersion().getReleaseDate();
+            LocalDate to = releaseDate != null ? releaseDate : LocalDate.now();
             return new StatisticsDto.TrendData(
                     phase.getId(), phase.getPhaseName(), from, to,
-                    snapshots.stream().map(this::toReport).toList());
+                    trendReports(phase.getId(), from, to));
         }).toList();
     }
 

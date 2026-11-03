@@ -352,6 +352,41 @@ export async function createTestPhase(
   return phase.data.data.id as number;
 }
 
+export interface TestResultData {
+  id: number;
+  testCaseId: number;
+  status: string;
+}
+
+/** Phase의 TC 결과 목록 */
+export async function getPhaseResults(versionId: number, phaseId: number): Promise<TestResultData[]> {
+  await ensureAuthenticated();
+  const response = await client.get(`/api/versions/${versionId}/phases/${phaseId}/results`);
+  return response.data.data as TestResultData[];
+}
+
+/** 결과 상태 변경 */
+export async function updateTestResultStatus(
+  versionId: number,
+  resultId: number,
+  status: 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED' | 'RETEST' | 'UNTESTED',
+): Promise<void> {
+  await ensureAuthenticated();
+  await client.patch(`/api/versions/${versionId}/results/${resultId}`, { status });
+}
+
+/** 서버(KST) 기준 오늘 'YYYY-MM-DD' */
+export function kstToday(): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
+}
+
+/** 'YYYY-MM-DD' + n일 (UTC 계산, 타임존 무관) */
+export function addDays(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 // --- Agent execution: 워커 역할을 API로 대신한다 (E2E에는 실제 워커/LLM이 없다) ---
 
 export type AgentScope = 'SINGLE' | 'PHASE_ALL' | 'PHASE_UNTESTED' | 'PHASE_PREV_FAIL' | 'PHASE_SELECTED';

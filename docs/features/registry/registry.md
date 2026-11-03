@@ -243,7 +243,7 @@ Version Detail 페이지 진입 시 아래 4개 기준이 자동으로 평가된
 
 **Daily Test Snapshot — 시계열 통계**
 
-매일 자정 `@Scheduled` 배치가 진행 중인 모든 Phase의 스냅샷을 저장한다.
+매일 자정 `@Scheduled` 배치가 진행 중인 모든 Phase의 **전날 최종 상태**를 전날 날짜로 저장한다. 오늘 값은 저장하지 않고 조회할 때 실시간 계산한다 (v32).
 
 | 스냅샷 항��� | 설명 |
 |------------|------|
@@ -255,15 +255,16 @@ Version Detail 페이지 진입 시 아래 4개 기준이 자동으로 평가된
 | 산출 지표 | Pass Rate (%), Progress Rate (%) |
 
 - `UNIQUE(phase_id, snapshot_date)` — 중복 실행해도 덮어쓰기 (멱등성)
-- 스냅샷 없는 날짜 → 실시간 계산 fallback
+- 오늘·스냅샷 없는 날짜 → 실시간 계산 (스냅샷과 같은 `SnapshotService.compute`)
 - 수동 재생성: `POST /api/admin/snapshots/run?date=YYYY-MM-DD`
 
 **Trend 차트**
 
 - **Bug 추이**: 일자별 신규 버그 (Priority별 누적 영역) + 종료 버그 (라인)
 - **Pass Rate**: 일자별 Pass Rate + Progress Rate 라인 차트
-- Phase 필터로 특정 Phase만 조회 가능
-- 차트의 데이터 포인트 클릭 시 해당 날짜의 Daily Report 모달 오픈
+- x축: Phase 시작일 ~ 릴리즈 예정일(없으면 오늘). 마지막 점은 오늘 실시간 값, 오늘 뒤는 빈칸, 릴리즈일 뒤 변경은 안 나온다 (v32)
+- Phase 탭으로 Phase 선택 (기본은 첫 Phase, 그리는 Phase를 탭에 선택 표시)
+- 차트의 데이터 포인트 클릭 시 해당 날짜의 Daily Report 모달 오픈 (리포트 없는 날짜는 무시)
 
 **Aging Bug / Blocked TC 리스트**
 
@@ -535,7 +536,7 @@ backend/src/main/java/com/myqaweb/
 │   ├── DailyTestSnapshotEntity.java    # @Entity
 │   ���── DailyTestSnapshotRepository.java # JPA + upsert 네이티브 쿼리
 │   ├── ReadinessConfig.java            # @ConfigurationProperties (Go/No-Go 임���값)
-│   ├── SnapshotScheduler.java          # @Scheduled 매일 자정
+│   ├── SnapshotScheduler.java          # @Scheduled 매일 자정, 전날 최종 상태 저장
 │   ├── SnapshotService.java / SnapshotServiceImpl.java
 │   ├── StatisticsDto.java              # DailyReport, TrendData, ReleaseReadiness, Dashboard 등
 │   ├── StatisticsService.java / StatisticsServiceImpl.java
@@ -661,3 +662,4 @@ frontend/src/
 | v29 | 2026-10-29 | 버그 수정 | AI 전제조건 네비게이션 — TC 전제조건 반영, 첫 화면 착각 방지, 이전 액션 전달, JSON 누락 재요청·Job 전체 실패 방지 | 전제조건 오판 FAIL 제거 |
 | v30 | 2026-10-29 | 기능 개선 | AI 실행 신뢰도·속도 — 전제조건 검증, 과잉 동작 억제, 거짓 PASS 차단, 첫 실패 중단, 앱 시작 대기 (Job 33 관찰). 모델 비교 4·5단계 진행 중 | PASS 14→19, 거짓 PASS 1→0, 시간 −29% |
 | v31 | 2026-11-01 | 기능 추가 | Test Automation 실행 페이지(모달 → 페이지)·Step 스크린샷·재실행·웹 네트워크·시나리오 로그·병렬. 진행 중 | |
+| v32 | 2026-11-04 | 버그 수정, 기능 개선 | Trend 그래프 오늘 실시간 반영·시작일~릴리즈일 범위(Step 1). Fail 결과 Priority·AI 사유·Failed 목록, 버그 티켓 Notion 발행(Step 2·3). 진행 중 | 그래프 = 실제 결과 |

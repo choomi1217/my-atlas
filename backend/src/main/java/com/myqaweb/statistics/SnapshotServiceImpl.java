@@ -43,7 +43,30 @@ public class SnapshotServiceImpl implements SnapshotService {
     public void createSnapshot(Long phaseId, LocalDate date) {
         VersionPhaseEntity phase = versionPhaseRepository.findById(phaseId)
                 .orElseThrow(() -> new IllegalArgumentException("Phase not found: " + phaseId));
-        Long versionId = phase.getVersion().getId();
+        StatisticsDto.DailyReport r = computeFor(phase, date);
+
+        // 4. Upsert (idempotent)
+        snapshotRepository.upsertSnapshot(
+                phase.getVersion().getId(), phaseId, date,
+                r.totalTc(), r.passCount(), r.failCount(), r.blockedCount(), r.skippedCount(),
+                r.retestCount(), r.untestedCount(),
+                r.newBugCritical(), r.newBugMajor(), r.newBugMinor(), r.newBugTrivial(),
+                r.closedBugCount(), r.openBugCount(), r.agingBugCount(),
+                r.passRate(), r.progressRate());
+
+        log.debug("Snapshot created for phase {} on {}", phaseId, date);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StatisticsDto.DailyReport compute(Long phaseId, LocalDate date) {
+        VersionPhaseEntity phase = versionPhaseRepository.findById(phaseId)
+                .orElseThrow(() -> new IllegalArgumentException("Phase not found: " + phaseId));
+        return computeFor(phase, date);
+    }
+
+    private StatisticsDto.DailyReport computeFor(VersionPhaseEntity phase, LocalDate date) {
+        Long phaseId = phase.getId();
 
         // 1. TC execution stats
         List<TestResultEntity> results = testResultRepository.findAllByVersionPhaseId(phaseId);
@@ -95,15 +118,12 @@ public class SnapshotServiceImpl implements SnapshotService {
                 ? BigDecimal.valueOf(executed * 100.0 / total).setScale(2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
 
-        // 4. Upsert (idempotent)
-        snapshotRepository.upsertSnapshot(
-                versionId, phaseId, date,
+        return new StatisticsDto.DailyReport(
+                phaseId, phase.getPhaseName(), date,
                 total, pass, fail, blocked, skipped, retest, untested,
                 newCritical, newMajor, newMinor, newTrivial,
                 closed, open, aging,
                 passRate, progressRate);
-
-        log.debug("Snapshot created for phase {} on {}", phaseId, date);
     }
 
     @Override
