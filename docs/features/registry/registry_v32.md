@@ -9,23 +9,27 @@
 
 | Step | 내용 | Notion 항목 | 브랜치 | 상태 |
 |------|------|-------------|--------|------|
-| 1 | Trend 그래프에 오늘 결과 반영 | [🐞 통계 / Phase 속, Test Result 통계가 실제 결과와 상이함](https://app.notion.com/p/3ba107b270e8809abf65df78d24ac4aa) | `bugfix/trend-today` | |
+| 1 | Trend 그래프: 오늘 결과 반영 · 시작일~릴리즈일 범위 | [🐞 통계 / Phase 속, Test Result 통계가 실제 결과와 상이함](https://app.notion.com/p/3ba107b270e8809abf65df78d24ac4aa) | `bugfix/trend-today` | |
 | 2 | Fail 결과 Priority · AI 사유 표시 · Failed 목록 | [Test Result 통계 개선](https://app.notion.com/p/40d107b270e880788e36c29e5d5b0043) | `feature/registry-fail-ticket` | |
 | 3 | 버그 티켓 Notion 발행 | 〃 | 〃 | |
 
 - Step마다 4-Agent Pipeline. Step 2·3은 같은 Notion 항목이라 한 PR로 올린다 (먼저 머지하면 notion-sync가 항목을 Done 처리).
-- 작업 트리에 v31 Step 1 미커밋 변경이 있다. Step 2·3은 같은 파일(`AgentExecutionServiceImpl`, `VersionPhaseDetailPage`, `types/features.ts`, `api/features.ts`)을 고치고 v31의 `utils/apiError.ts`를 쓰므로 **v31 Step 1 머지 후** 시작한다. Step 1은 겹치는 파일이 없어 develop 기준 임시 worktree에서 바로 진행할 수 있다.
+- Step 2·3은 v31 Step 1과 같은 파일(`AgentExecutionServiceImpl`, `VersionPhaseDetailPage`, `types/features.ts`, `api/features.ts`)을 고치고 v31의 `utils/apiError.ts`를 쓰므로 **v31 PR 머지 후** develop에서 시작한다. Step 1은 겹치는 파일이 없다.
 
-## 결정 필요
+## 결정
 
-| # | 항목 | 추천 |
+| # | 항목 | 결정 |
 |---|------|------|
-| 1 | 결과 Priority 값 | 티켓과 같은 5단계(HIGHEST~LOWEST). FAIL이 되면 TC Priority로 자동 입력(HIGH→HIGH, MEDIUM→MEDIUM, LOW→LOW), 이후 수정 가능 |
-| 2 | Notion 발행 위치 | 새 DB `Bug Tickets` (MyAtlas 아래). PRD DB는 my-atlas 개발 항목이라 섞지 않는다 |
-| 3 | Jira | 새 티켓은 Notion만. Jira 코드는 기존 Jira 티켓 상태 갱신용으로 남긴다 |
-| 4 | Release Readiness | 티켓 기준 유지. 지금은 티켓이 없으면 Fail이 있어도 GO (771 Fail 3, 772 Fail 7 모두 GO). Fail 결과 기준으로 바꾸려면 재테스트 Phase 처리 규칙이 먼저 필요해 이번 범위에서 뺀다 |
+| 1 | 결과 Priority | 5단계(HIGHEST~LOWEST) + **Unknown**. AI가 쓴 결과는 항상 Unknown이고, 사람이 Priority를 골라야 확정된다. 사람이 FAIL로 바꾸면 TC Priority로 자동 입력(HIGH→HIGH, MEDIUM→MEDIUM, LOW→LOW), 수정 가능 |
+| 2 | 그래프 범위 | x축 = Phase 시작일 ~ 릴리즈 예정일 (릴리즈일이 없으면 오늘). 범위 밖 점은 그리지 않는다. 릴리즈일 뒤 변경은 그래프에 안 나온다 (771: 릴리즈 10-31, 결과 변경 11-03) |
+| 3 | Notion 발행 위치 | 추천: 새 DB `Bug Tickets` (MyAtlas 아래). PRD DB는 my-atlas 개발 항목이라 섞지 않는다 |
+| 4 | Jira | 추천: 새 티켓은 Notion만. Jira 코드는 기존 Jira 티켓 상태 갱신용으로 남긴다 |
+| 5 | Release Readiness | 추천: 티켓 기준 유지. 지금은 티켓이 없으면 Fail이 있어도 GO (771 Fail 3, 772 Fail 7). Fail 결과 기준으로 바꾸려면 재테스트 Phase 처리 규칙이 먼저 필요하다 |
+| 6 | 기존 통계 방식 반영 | 추천: Bug 추이 탭에 "테스트 기간 50% 시점까지 등록된 버그 비율(전체 · High 이상)" 1줄과 50% 기준선만 추가 (프론트만). 초기:통합 테스트 발견 비율, TC로 찾은 버그 비율은 다음 버전 |
 
-## Step 1 — Trend 그래프에 오늘 결과 반영
+1·2는 확정 (2026-11-04). 3~6은 확인 대기.
+
+## Step 1 — Trend 그래프
 
 ### 원인
 
@@ -42,21 +46,27 @@
 - `SnapshotScheduler.java:26` — 00:00에 `오늘` 날짜로 저장. 어제 마감 상태가 오늘 날짜로 찍혀 하루 밀린다
 - `SnapshotServiceImpl.java:64-77` — 신규·종료 버그를 `오늘 00:00~24:00` 구간으로 세는데 00:00에 실행되어 항상 0
 - `StatisticsServiceImpl.java:146-172` `computeRealtimeReport` — 스냅샷 계산 복사본, 버그 수 0 고정
+- `StatisticsServiceImpl.java:220-221` — 범위가 `Phase 종료일 ?? 오늘`까지라 릴리즈일 뒤 날짜도 그린다 (771: 10-29~11-04)
 - `VersionDetailPage.tsx:296,309` — 기본으로 첫 Phase를 그리는데 탭에는 선택 표시가 없다
 
 ### 수정
 
 1. `SnapshotScheduler`: 00:00에 **어제** 날짜로 저장 (`LocalDate.now().minusDays(1)`)
 2. `SnapshotService`에 `compute(phaseId, date)` 분리 → `createSnapshot` = compute + upsert. `computeRealtimeReport` 삭제
-3. `StatisticsServiceImpl`: Trend = 어제까지 스냅샷 + 오늘 `compute` 값. `getTrend`·`getPhaseTrends` 둘 다 이 경로를 쓴다. `getDailyReport`는 오늘이면 `compute`
-4. `VersionDetailPage`: 그래프가 그리는 Phase 탭을 선택 표시 (`selectedPhaseFilter ?? phases[0].id`)
+3. `StatisticsServiceImpl`
+   - Trend 값 = 어제까지 스냅샷 + 오늘 `compute` 값. `getTrend`·`getPhaseTrends` 공통
+   - 대시보드 범위 = Phase 시작일(`startDate ?? createdAt`) ~ 릴리즈 예정일. 오늘이 범위 밖이면 오늘 점 없음
+   - `getDailyReport`는 오늘이면 `compute`
+4. `TrendChartSection`: x축을 범위의 모든 날짜로 채운다 (오늘 뒤는 빈칸)
+5. `VersionDetailPage`: 그래프가 그리는 Phase 탭 선택 표시 (`selectedPhaseFilter ?? phases[0].id`)
+6. (결정 6 확정 시) Bug 추이 탭: 50% 시점 기준선 + 비율 1줄
 
 - 기존 스냅샷은 하루 밀린 채로 둔다 (보정 안 함)
 
 ### 테스트
 
-- Unit: 오늘 포인트 = 실시간 값, 스케줄러가 어제 날짜로 호출, 전날 생성 티켓이 신규 버그로 집계
-- E2E: 결과 변경 직후 대시보드 그래프에 오늘 포인트 표시
+- Unit: 오늘 점 = 실시간 값, 릴리즈일 뒤 점 제외, 스케줄러가 어제 날짜로 호출, 전날 생성 티켓이 신규 버그로 집계
+- E2E: 결과 변경 직후 그래프에 오늘 점, x축 끝 = 릴리즈 예정일
 
 ## Step 2 — Fail 결과 Priority · AI 사유 · Failed 목록
 
@@ -73,7 +83,7 @@
 
 ### DB
 
-`V{구현시각}__add_test_result_priority.sql`
+`V{구현시각}__add_test_result_priority.sql` — null = Unknown
 
 ```sql
 ALTER TABLE test_result ADD COLUMN priority VARCHAR(20);
@@ -81,23 +91,23 @@ ALTER TABLE test_result ADD COLUMN priority VARCHAR(20);
 
 ### Backend
 
-- `TestResultEntity.priority` (`TicketPriority`, null 허용). 결과 응답·PATCH에 `priority` 추가
-- FAIL이 되면 priority가 null일 때 TC Priority로 채운다 — 수동(`updateResult`)·AI(`upsertAgentTestResult`) 둘 다
-- `updateResult`: comment는 요청에 있을 때만 바꾸고, `executedBy=HUMAN`
-- `upsertAgentTestResult`: comment를 항상 덮어쓴다 (PASS면 null)
-- 대시보드에 `failedTcs` 추가 — `getBlockedTcs`(`StatisticsServiceImpl.java:246`)를 상태 인자로 일반화, 항목에 phaseId·priority·comment. Priority 높은 순
+- `TestResultEntity.priority` (`TicketPriority`, null = Unknown). 결과 응답·PATCH에 `priority` 추가
+- AI(`upsertAgentTestResult`): priority는 항상 Unknown. comment는 항상 덮어쓴다 (PASS면 null)
+- 수동(`updateResult`): FAIL인데 priority가 없으면 TC Priority로 채운다. comment는 요청에 있을 때만 바꾸고 `executedBy=HUMAN`
+- 티켓 생성 시 결과 Priority가 Unknown이면 티켓 Priority로 확정
+- 대시보드에 `failedTcs` 추가 — `getBlockedTcs`(`StatisticsServiceImpl.java:246`)를 상태 인자로 일반화, 항목에 phaseId·priority·comment. 정렬: Unknown → HIGHEST → … → LOWEST
 
 ### Frontend
 
-- `VersionDetailPage`: Readiness 카드 바로 아래 전체 폭 **Failed TCs** — Priority 배지, TC, Phase, AI 사유 1줄. 클릭하면 해당 Phase로 이동
+- `VersionDetailPage`: Readiness 카드 바로 아래 전체 폭 **Failed TCs** — Priority 배지(Unknown은 `확인 필요`), TC, Phase, AI 사유 1줄, 헤더에 확인 필요 건수. 클릭하면 해당 Phase로 이동
 - `BlockedTcList`를 Blocked·Failed 공용으로 일반화
-- `VersionPhaseDetailPage` 결과 행: FAIL이면 Priority 선택. comment는 펼친 화면에 전체, 접힌 행에 1줄
-- 티켓 생성 기본 Priority = 결과 Priority (`VersionPhaseDetailPage.tsx:325` MEDIUM 고정)
+- `VersionPhaseDetailPage` 결과 행: FAIL이면 Priority 선택(Unknown이면 `확인 필요`). comment는 펼친 화면에 전체, 접힌 행에 1줄
+- 티켓 생성 Priority 기본값 = 결과 Priority, Unknown이면 직접 골라야 생성된다 (`VersionPhaseDetailPage.tsx:325` MEDIUM 고정)
 
 ### 테스트
 
-- Unit: FAIL 시 Priority 자동 입력, 수동 변경이 comment 유지·HUMAN 전환, AI PASS가 comment 비움, failedTcs 정렬
-- E2E: FAIL 처리 → 대시보드 Failed 목록에 Priority·사유 표시, Priority 변경 반영
+- Unit: AI 결과 Priority = Unknown, 사람 FAIL → TC Priority, 수동 변경이 comment 유지·HUMAN 전환, AI PASS가 comment 비움, 티켓 생성이 Unknown 확정, failedTcs 정렬
+- E2E: AI FAIL → Failed 목록에 `확인 필요` → Priority 선택 후 해제. 사람 FAIL → TC Priority 표시
 
 ## Step 3 — 버그 티켓 Notion 발행
 
