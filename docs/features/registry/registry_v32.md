@@ -24,10 +24,10 @@
 | 2 | 그래프 범위 | x축 = Phase 시작일 ~ 릴리즈 예정일 (릴리즈일이 없으면 오늘). 범위 밖 점은 그리지 않는다. 릴리즈일 뒤 변경은 그래프에 안 나온다 (771: 릴리즈 10-31, 결과 변경 11-03) |
 | 3 | Notion 발행 위치 | [PRD DB](https://app.notion.com/p/7ad107b270e8820e90c401aac14ec805?v=3ba107b270e880a8aab8000c94d0c55a)(Bug List 뷰)에 `Scope=Bug`로 발행. 본문은 [🐞 버그 리포트 양식](https://app.notion.com/p/3ba107b270e8805a8e14dceaf8bba0b1) |
 | 4 | Jira | 새 티켓은 Notion만. Jira 코드는 기존 Jira 티켓 상태 갱신용으로 남긴다 |
-| 5 | 릴리즈 판정 (버전 화면 맨 위 초록 박스) | "Highest/High 미해결 버그"는 FAIL 결과가 아니라 **발행된 티켓**만 센다. 지금은 티켓이 0건이라 Fail이 있어도 GO (771 Fail 3, 772 Fail 7). 추천: 그대로 둔다 — Step 3 뒤 Notion 티켓을 발행하면 그 티켓부터 집계되고, Done·Close가 되면 빠진다. FAIL 결과를 직접 세려면 "1차 FAIL → 재테스트 PASS"를 해결로 보는 규칙이 같이 필요하다 |
+| 5 | 릴리즈 판정 (버전 화면 맨 위 박스) | **FAIL 결과로 센다** (지금은 발행된 티켓 수라 티켓이 0건이면 Fail이 있어도 GO). TC마다 마지막 실행 결과(Phase 순서상 마지막, UNTESTED 제외)가 FAIL이면 미해결이고, 재테스트 Phase에서 PASS하면 해결된다. Highest·High는 그 결과의 Priority로 센다. Unknown(AI FAIL, 사람 확인 전)은 `확인 필요`로 따로 세고, 0건이어야 GO (추천, 확인 대기) |
 | 6 | 기존 통계 방식 반영 | 추천: Bug 추이 탭에 "테스트 기간 50% 시점까지 등록된 버그 비율(전체 · High 이상)" 1줄과 50% 기준선만 추가 (프론트만). 초기:통합 테스트 발견 비율, TC로 찾은 버그 비율은 다음 버전 |
 
-1~4는 확정 (2026-11-04). 5·6은 확인 대기.
+1~5는 확정 (2026-11-04). 5의 `확인 필요` GO 차단 여부와 6은 확인 대기.
 
 ## Step 1 — Trend 그래프
 
@@ -87,6 +87,7 @@
 | Fail 노출 | 버전 대시보드에 Aging Bugs·Blocked TCs만 있고 Failed 목록이 없다. Fail은 진행률의 "Fail 3" 글자뿐 |
 | AI 사유 | 워커가 `test_result.comment`에 `[AI FAIL] #2 FAIL: …`로 저장 중 (`AgentExecutionServiceImpl.java:472-474`). **프론트가 `result.comment`를 어디에도 그리지 않는다** |
 | AI 사유 소실 | 수동 상태 변경(`TestResultServiceImpl.java:126`)이 comment를 null로 덮고 `executedBy`는 AGENT로 남긴다. 771 결과 2216은 FAIL·AGENT인데 사유가 비어 있다. AI 재실행 PASS는 이전 FAIL 사유를 지우지 않는다 |
+| 릴리즈 판정 | Highest·High 미해결을 티켓 수로 센다(`StatisticsServiceImpl.java:79,87`) → 티켓 0건이면 Fail이 있어도 GO. KPI `Open Bug`는 버전 전체 FAIL 수(`ReleaseReadinessCard.tsx:23`)라 재테스트에서 PASS한 TC의 이전 FAIL도 남는다 |
 
 워커 수정은 없다.
 
@@ -104,12 +105,16 @@ ALTER TABLE test_result ADD COLUMN priority VARCHAR(20);
 - AI(`upsertAgentTestResult`): priority는 항상 Unknown. comment는 항상 덮어쓴다 (PASS면 null)
 - 수동(`updateResult`): FAIL인데 priority가 없으면 TC Priority로 채운다. comment는 요청에 있을 때만 바꾸고 `executedBy=HUMAN`
 - 티켓 생성 시 결과 Priority가 Unknown이면 티켓 Priority로 확정
-- 대시보드에 `failedTcs` 추가 — `getBlockedTcs`(`StatisticsServiceImpl.java:246`)를 상태 인자로 일반화, 항목에 phaseId·priority·comment. 정렬: Unknown → HIGHEST → … → LOWEST
+- `unresolvedFails(versionId)`: TC마다 마지막 실행 결과(Phase `orderIndex` 최대, UNTESTED 제외)가 FAIL인 결과. 릴리즈 판정·Failed 목록·Open Bug가 같이 쓴다
+- `getReleaseReadiness`: Highest·High 미해결 = `unresolvedFails`의 Priority별 수 (티켓 수 아님). `Priority 확인 필요`(Unknown) 기준 추가. Aging은 티켓 기준 그대로
+- `VersionProgressSummary`에 `openFail`(= `unresolvedFails` 수) 추가
+- 대시보드에 `failedTcs` 추가 = `unresolvedFails` (TC당 1행), 항목에 phaseId·priority·comment. 정렬: Unknown → HIGHEST → … → LOWEST
 
 ### Frontend
 
 - `VersionDetailPage`: Readiness 카드 바로 아래 전체 폭 **Failed TCs** — Priority 배지(Unknown은 `확인 필요`), TC, Phase, AI 사유 1줄, 헤더에 확인 필요 건수. 클릭하면 해당 Phase로 이동
 - `BlockedTcList`를 Blocked·Failed 공용으로 일반화
+- `ReleaseReadinessCard`: KPI `Open Bug` = `openFail`
 - `VersionPhaseDetailPage` 결과 행: FAIL이면 Priority 선택(Unknown이면 `확인 필요`). comment는 펼친 화면에 전체, 접힌 행에 1줄
 - 티켓 생성 Priority 기본값 = 결과 Priority, Unknown이면 직접 골라야 생성된다 (`VersionPhaseDetailPage.tsx:325` MEDIUM 고정)
 - (결정 6 확정 시) `TrendChartSection` Bug 추이 탭: 50% 시점 기준선 + 비율 1줄 — 신규 지표라 버그 PR(Step 1)이 아닌 이 PR에 넣는다
@@ -117,7 +122,8 @@ ALTER TABLE test_result ADD COLUMN priority VARCHAR(20);
 ### 테스트
 
 - Unit: AI 결과 Priority = Unknown, 사람 FAIL → TC Priority, 수동 변경이 comment 유지·HUMAN 전환, AI PASS가 comment 비움, 티켓 생성이 Unknown 확정, failedTcs 정렬
-- E2E: AI FAIL → Failed 목록에 `확인 필요` → Priority 선택 후 해제. 사람 FAIL → TC Priority 표시
+- Unit (판정): 1차 FAIL → 2차 PASS는 해결, 1차 FAIL → 2차 UNTESTED는 미해결, 1차 PASS → 2차 FAIL은 미해결, Unknown은 `확인 필요`로 집계
+- E2E: AI FAIL → Failed 목록에 `확인 필요` → Priority 선택 후 해제. 사람 FAIL → TC Priority 표시. High FAIL 3건 → 판정 NO-GO, 재테스트 PASS 후 GO
 
 ## Step 3 — 버그 티켓 Notion 발행
 
