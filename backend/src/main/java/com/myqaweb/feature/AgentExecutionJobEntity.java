@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -68,6 +70,19 @@ public class AgentExecutionJobEntity {
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    /** claim(PENDING→RUNNING) 시각 */
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    /** claim한 워커 ID. claim body 없이 점유된 Job이면 null */
+    @Column(name = "worker_id", length = 100)
+    private String workerId;
+
+    /** 제출 시점에 고정한 실행 대상 TC ID (순서 유지). null이면 이 컬럼 도입 전에 만든 Job */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "test_case_ids", columnDefinition = "bigint[]")
+    private Long[] testCaseIds;
 
     @PrePersist
     protected void onCreate() {

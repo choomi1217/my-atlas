@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Company,
   Product,
@@ -10,6 +10,7 @@ import {
   TestCaseStatus,
 } from '@/types/features';
 import {
+  agentExecutionApi,
   companyApi,
   productApi,
   segmentApi,
@@ -20,9 +21,9 @@ import { SegmentTreeView } from '@/components/features/SegmentTreeView';
 import TestCaseFormModal from '@/components/features/TestCaseFormModal';
 import ConfirmDialog from '@/components/features/ConfirmDialog';
 import TestCaseCard from '@/components/features/TestCaseCard';
-import AgentRunModal from '@/components/features/AgentRunModal';
 import ExecProfileModal from '@/components/features/ExecProfileModal';
 import { TC_DND_MIME } from '@/utils/tcDnd';
+import { apiErrorMessage } from '@/utils/apiError';
 
 interface PathTreeNode {
   segmentIds: number[];
@@ -131,6 +132,7 @@ export default function TestCasePage() {
     companyId: string;
     productId: string;
   }>();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const statusFilter = searchParams.get('status');
   const jobIdFilterRaw = searchParams.get('jobId');
@@ -160,10 +162,25 @@ export default function TestCasePage() {
   const [modalEditData, setModalEditData] = useState<TestCase | null>(null);
   const [modalEditPath, setModalEditPath] = useState<number[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
-  const [agentRunTc, setAgentRunTc] = useState<TestCase | null>(null);
+  const [agentError, setAgentError] = useState<string | null>(null);
   const [showExecProfile, setShowExecProfile] = useState(false);
 
-  const handleRunAgent = (tc: TestCase) => setAgentRunTc(tc);
+  // 더블클릭이 Job 2개(LLM 실행 2회)가 되지 않도록 요청 중에는 막는다
+  const agentStartingRef = useRef(false);
+
+  /** TC 단건 AI 실행 — Job을 만들고 실행 페이지로 이동한다 */
+  const handleRunAgent = async (tc: TestCase) => {
+    if (agentStartingRef.current) return;
+    agentStartingRef.current = true;
+    setAgentError(null);
+    try {
+      const jobId = await agentExecutionApi.createSingle(Number(productId), tc.id);
+      navigate(`/automation/jobs/${jobId}`);
+    } catch (err) {
+      setAgentError(apiErrorMessage(err, 'AI 실행을 시작하지 못했습니다'));
+      agentStartingRef.current = false;
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -516,6 +533,14 @@ export default function TestCasePage() {
 
       <div className="flex-1 overflow-auto p-6" data-testid="tc-page-container">
         <div className="max-w-7xl mx-auto w-full">
+          {agentError && (
+            <div
+              data-testid="agent-run-error"
+              className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg"
+            >
+              {agentError}
+            </div>
+          )}
           {(statusFilter || jobIdFilter !== null) && (
             <div className="mb-4 flex items-center gap-2 text-xs text-gray-600">
               <span>필터 적용:</span>
@@ -723,15 +748,6 @@ export default function TestCasePage() {
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-
-      {/* AI 시험 실행 (dry run) */}
-      {agentRunTc && (
-        <AgentRunModal
-          productId={product.id}
-          testCase={agentRunTc}
-          onClose={() => setAgentRunTc(null)}
-        />
-      )}
 
       {/* AI 실행 프로파일 설정 */}
       {showExecProfile && (

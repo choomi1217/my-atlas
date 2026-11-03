@@ -22,6 +22,9 @@ import TestRunDetailPage from '@/pages/features/TestRunDetailPage'
 import VersionListPage from '@/pages/features/VersionListPage'
 import VersionDetailPage from '@/pages/features/VersionDetailPage'
 import VersionPhaseDetailPage from '@/pages/features/VersionPhaseDetailPage'
+import AutomationPage from '@/pages/automation/AutomationPage'
+import AutomationJobPage from '@/pages/automation/AutomationJobPage'
+import AutomationTestCasePage from '@/pages/automation/AutomationTestCasePage'
 import ResumePage from '@/pages/ResumePage'
 import MonitoringPage from '@/pages/MonitoringPage'
 import OverviewPage from '@/pages/OverviewPage'
@@ -61,6 +64,9 @@ export default function App() {
                 <Route path="/features/companies/:companyId/products/:productId/versions" element={<VersionListPage />} />
                 <Route path="/features/companies/:companyId/products/:productId/versions/:versionId" element={<VersionDetailPage />} />
                 <Route path="/features/companies/:companyId/products/:productId/versions/:versionId/phases/:phaseId" element={<VersionPhaseDetailPage />} />
+                <Route path="/automation" element={<AutomationPage />} />
+                <Route path="/automation/jobs/:jobId" element={<AutomationJobPage />} />
+                <Route path="/automation/jobs/:jobId/tc/:tcId" element={<AutomationTestCasePage />} />
                 <Route path="/feature/:slug/:version" element={<FeatureVersionPage />} />
                 <Route path="/feature/:slug" element={<FeatureDetailPage />} />
                 <Route path="/resume" element={<ResumePage />} />

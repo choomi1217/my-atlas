@@ -118,3 +118,82 @@ test('동작 불가 → 판정 없이 INCONCLUSIVE, 남은 step SKIPPED', async 
   assert.match(r.stepLogs[0].judgment, /동작 불가 — 버튼 없음/);
   assert.match(r.stepLogs[1].judgment, /^SKIPPED: 앞 step 동작 불가/);
 });
+
+// --- 증적 스크린샷 (registry_v31) ---
+
+const CAPTURE_CASES = {
+  '판정 step': {
+    make: () => fixture({
+      actions: [{ type: 'click', ref: 'a0' }, { type: 'click', ref: 'a0' }],
+      judges: [{ reasoning: '보임', verdict: 'PASS' }, { reasoning: '보임', verdict: 'PASS' }],
+    }),
+    tc: { id: 9, steps: [step(2, '`버튼` 터치'), step(5, '`버튼` 터치')] },
+    verdict: 'PASS',
+    captured: [[9, 2], [9, 5]],
+  },
+  '전제조건 미도달': {
+    make: () => fixture({ actions: [{ type: 'done' }], judges: [{ reasoning: '다른 화면', verdict: 'FAIL' }] }),
+    // 입력 순서가 달라도 정렬 후 첫 step(order 3)에 남긴다
+    tc: { id: 9, preconditions: '검색 결과 화면', steps: [step(4, '`다음` 터치'), step(3, '`버튼` 터치')] },
+    verdict: 'INCONCLUSIVE',
+    captured: [[9, 3]],
+  },
+  '동작 불가': {
+    make: () => fixture({ actions: [{ type: 'impossible', value: '버튼 없음' }] }),
+    tc: { id: 9, steps: [step(1, '`버튼` 터치'), step(2, '`다음` 터치')] },
+    verdict: 'INCONCLUSIVE',
+    captured: [[9, 1]], // SKIPPED step은 찍지 않는다
+  },
+  '실행 오류': {
+    make: () => {
+      const f = fixture({});
+      f.ops.snapshot = async () => {
+        throw new Error('화면 없음');
+      };
+      return f;
+    },
+    tc: { id: 9, steps: [step(2, '`버튼` 터치')] },
+    verdict: 'INCONCLUSIVE',
+    captured: [[9, 2]],
+  },
+};
+
+for (const [name, c] of Object.entries(CAPTURE_CASES)) {
+  test(`${name} → capture(tc.id, step.order) 호출`, async () => {
+    const f = c.make();
+    const captured = [];
+    f.agent.capture = async (...args) => captured.push(args);
+
+    const r = await run(f, c.tc);
+
+    assert.equal(r.verdict, c.verdict);
+    assert.deepEqual(captured, c.captured);
+  });
+
+  test(`${name} → capture가 없거나 실패해도 판정·stepLogs가 같다`, async () => {
+    const withoutCapture = await run(c.make(), c.tc);
+    const f = c.make();
+    f.agent.capture = async () => {
+      throw new Error('업로드 실패');
+    };
+
+    const r = await run(f, c.tc);
+
+    assert.equal(withoutCapture.verdict, c.verdict);
+    assert.equal(r.verdict, withoutCapture.verdict);
+    assert.deepEqual(r.stepLogs, withoutCapture.stepLogs);
+  });
+}
+
+test('capture는 판정 LLM 호출 전에 찍는다 — 판정이 본 화면이 증적이다', async () => {
+  const f = fixture({ actions: [{ type: 'click', ref: 'a0' }], judges: [{ reasoning: '보임', verdict: 'PASS' }] });
+  let judgeCallsAtCapture = null;
+  f.agent.capture = async () => {
+    judgeCallsAtCapture = f.calls.judge;
+  };
+
+  await run(f, { id: 9, steps: [step(1, '`버튼` 터치')] });
+
+  assert.equal(judgeCallsAtCapture, 0);
+  assert.equal(f.calls.judge, 1);
+});
