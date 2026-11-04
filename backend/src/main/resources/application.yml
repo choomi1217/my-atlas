@@ -101,8 +101,11 @@ jira:
   base-url: ${JIRA_BASE_URL:}
   email: ${JIRA_EMAIL:}
   api-key: ${JIRA_API_KEY:}
-  default-project-key: AT
-  issue-type-id: "10012"
+
+# Notion integration (버그 티켓 → PRD DB, Scope=Bug)
+notion:
+  api-key: ${NOTION_API_KEY:}
+  bug-database-id: ${NOTION_BUG_DATABASE_ID:}
 
 # Statistics configuration
 statistics:

@@ -27,6 +27,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final TicketRepository ticketRepository;
     private final VersionRepository versionRepository;
     private final VersionPhaseRepository versionPhaseRepository;
+    private final SnapshotService snapshotService;
     private final ReadinessConfig config;
 
     public StatisticsServiceImpl(DailyTestSnapshotRepository snapshotRepository,
@@ -34,21 +35,26 @@ public class StatisticsServiceImpl implements StatisticsService {
                                   TicketRepository ticketRepository,
                                   VersionRepository versionRepository,
                                   VersionPhaseRepository versionPhaseRepository,
+                                  SnapshotService snapshotService,
                                   ReadinessConfig config) {
         this.snapshotRepository = snapshotRepository;
         this.testResultRepository = testResultRepository;
         this.ticketRepository = ticketRepository;
         this.versionRepository = versionRepository;
         this.versionPhaseRepository = versionPhaseRepository;
+        this.snapshotService = snapshotService;
         this.config = config;
     }
 
     @Override
     @Transactional(readOnly = true)
     public StatisticsDto.DailyReport getDailyReport(Long phaseId, LocalDate date) {
+        if (!date.isBefore(LocalDate.now())) {
+            return snapshotService.compute(phaseId, date);
+        }
         return snapshotRepository.findByPhaseIdAndSnapshotDate(phaseId, date)
                 .map(this::toReport)
-                .orElseGet(() -> computeRealtimeReport(phaseId, date));
+                .orElseGet(() -> snapshotService.compute(phaseId, date));
     }
 
     @Override
@@ -57,15 +63,8 @@ public class StatisticsServiceImpl implements StatisticsService {
         VersionPhaseEntity phase = versionPhaseRepository.findById(phaseId)
                 .orElseThrow(() -> new IllegalArgumentException("Phase not found: " + phaseId));
 
-        List<DailyTestSnapshotEntity> snapshots =
-                snapshotRepository.findAllByPhaseIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(
-                        phaseId, from, to);
-
-        List<StatisticsDto.DailyReport> reports = snapshots.stream()
-                .map(this::toReport)
-                .toList();
-
-        return new StatisticsDto.TrendData(phaseId, phase.getPhaseName(), from, to, reports);
+        return new StatisticsDto.TrendData(phaseId, phase.getPhaseName(), from, to,
+                trendReports(phaseId, from, to));
     }
 
     @Override
@@ -76,21 +75,31 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         List<StatisticsDto.ReadinessCriterion> criteria = new ArrayList<>();
 
-        // Criterion 1: Highest priority open bugs = 0
-        int highestOpen = ticketRepository.countOpenByVersionIdAndPriority(versionId, TicketPriority.HIGHEST);
+        List<TestResultEntity> unresolved = unresolvedFails(versionId);
+
+        // Criterion 1: Highest priority unresolved FAILs = 0
+        int highestOpen = countByPriority(unresolved, TicketPriority.HIGHEST);
         criteria.add(new StatisticsDto.ReadinessCriterion(
                 "Highest 미해결 버그",
                 config.getMaxHighestOpen() + "건 이하",
                 highestOpen + "건",
                 highestOpen <= config.getMaxHighestOpen()));
 
-        // Criterion 2: High priority open bugs <= 2
-        int highOpen = ticketRepository.countOpenByVersionIdAndPriority(versionId, TicketPriority.HIGH);
+        // Criterion 2: High priority unresolved FAILs <= 2
+        int highOpen = countByPriority(unresolved, TicketPriority.HIGH);
         criteria.add(new StatisticsDto.ReadinessCriterion(
                 "High 미해결 버그",
                 config.getMaxHighOpen() + "건 이하",
                 highOpen + "건",
                 highOpen <= config.getMaxHighOpen()));
+
+        // Criterion 2-1: unresolved FAILs whose priority is still Unknown (not confirmed by a human)
+        int unconfirmed = countByPriority(unresolved, null);
+        criteria.add(new StatisticsDto.ReadinessCriterion(
+                "Priority 확인 필요",
+                config.getMaxUnconfirmedFail() + "건 이하",
+                unconfirmed + "건",
+                unconfirmed <= config.getMaxUnconfirmedFail()));
 
         // Criterion 3: Regression phase pass rate >= 98%
         BigDecimal regressionPassRate = computeRegressionPassRate(versionId);
@@ -118,7 +127,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 ready,
                 ready ? "GO" : "NO_GO",
                 criteria,
-                computeVersionProgress(versionId));
+                computeVersionProgress(versionId, unresolved.size()));
     }
 
     @Override
@@ -128,7 +137,8 @@ public class StatisticsServiceImpl implements StatisticsService {
                 getReleaseReadiness(versionId),
                 getPhaseTrends(versionId),
                 getAgingBugs(versionId),
-                getBlockedTcs(versionId));
+                getBlockedTcs(versionId),
+                getFailedTcs(versionId));
     }
 
     private StatisticsDto.DailyReport toReport(DailyTestSnapshotEntity s) {
@@ -143,32 +153,20 @@ public class StatisticsServiceImpl implements StatisticsService {
                 s.getPassRate(), s.getProgressRate());
     }
 
-    private StatisticsDto.DailyReport computeRealtimeReport(Long phaseId, LocalDate date) {
-        VersionPhaseEntity phase = versionPhaseRepository.findById(phaseId)
-                .orElseThrow(() -> new IllegalArgumentException("Phase not found: " + phaseId));
-
-        List<TestResultEntity> results = testResultRepository.findAllByVersionPhaseId(phaseId);
-        int total = results.size();
-        int pass = countByStatus(results, RunResultStatus.PASS);
-        int fail = countByStatus(results, RunResultStatus.FAIL);
-        int blocked = countByStatus(results, RunResultStatus.BLOCKED);
-        int skipped = countByStatus(results, RunResultStatus.SKIPPED);
-        int retest = countByStatus(results, RunResultStatus.RETEST);
-        int untested = countByStatus(results, RunResultStatus.UNTESTED);
-
-        int executed = total - untested;
-        BigDecimal passRate = executed > 0
-                ? BigDecimal.valueOf(pass * 100.0 / executed).setScale(2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-        BigDecimal progressRate = total > 0
-                ? BigDecimal.valueOf(executed * 100.0 / total).setScale(2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-
-        return new StatisticsDto.DailyReport(
-                phaseId, phase.getPhaseName(), date,
-                total, pass, fail, blocked, skipped, retest, untested,
-                0, 0, 0, 0, 0, 0, 0,
-                passRate, progressRate);
+    /**
+     * Snapshots before today plus a live point for today when today falls in the range.
+     */
+    private List<StatisticsDto.DailyReport> trendReports(Long phaseId, LocalDate from, LocalDate to) {
+        LocalDate today = LocalDate.now();
+        List<StatisticsDto.DailyReport> reports = new ArrayList<>(snapshotRepository
+                .findAllByPhaseIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(phaseId, from, to).stream()
+                .filter(s -> s.getSnapshotDate().isBefore(today))
+                .map(this::toReport)
+                .toList());
+        if (!today.isBefore(from) && !today.isAfter(to)) {
+            reports.add(snapshotService.compute(phaseId, today));
+        }
+        return reports;
     }
 
     private BigDecimal computeRegressionPassRate(Long versionId) {
@@ -194,7 +192,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 : BigDecimal.valueOf(100);
     }
 
-    private StatisticsDto.VersionProgressSummary computeVersionProgress(Long versionId) {
+    private StatisticsDto.VersionProgressSummary computeVersionProgress(Long versionId, int openFail) {
         List<TestResultEntity> allResults = testResultRepository.findAllByVersionId(versionId);
         int total = allResults.size();
         int pass = countByStatus(allResults, RunResultStatus.PASS);
@@ -211,19 +209,36 @@ public class StatisticsServiceImpl implements StatisticsService {
                 : BigDecimal.ZERO;
 
         return new StatisticsDto.VersionProgressSummary(
-                total, completed, pass, fail, blocked, passRate, progressRate);
+                total, completed, pass, fail, openFail, blocked, passRate, progressRate);
+    }
+
+    /**
+     * Results whose test case is still failing: each test case's last executed result
+     * (highest phase orderIndex, UNTESTED skipped) is FAIL. A later PASS in a re-test phase resolves it.
+     */
+    private List<TestResultEntity> unresolvedFails(Long versionId) {
+        Map<Long, TestResultEntity> latest = new HashMap<>();
+        for (TestResultEntity r : testResultRepository.findAllByVersionId(versionId)) {
+            if (r.getStatus() == RunResultStatus.UNTESTED) continue;
+            latest.merge(r.getTestCase().getId(), r, (a, b) ->
+                    b.getVersionPhase().getOrderIndex() > a.getVersionPhase().getOrderIndex() ? b : a);
+        }
+        return latest.values().stream().filter(r -> r.getStatus() == RunResultStatus.FAIL).toList();
+    }
+
+    private int countByPriority(List<TestResultEntity> results, TicketPriority priority) {
+        return (int) results.stream().filter(r -> r.getPriority() == priority).count();
     }
 
     private List<StatisticsDto.TrendData> getPhaseTrends(Long versionId) {
         List<VersionPhaseEntity> phases = versionPhaseRepository.findAllByVersionIdOrderByOrderIndex(versionId);
         return phases.stream().map(phase -> {
             LocalDate from = phase.getStartDate() != null ? phase.getStartDate() : phase.getCreatedAt().toLocalDate();
-            LocalDate to = phase.getEndDate() != null ? phase.getEndDate() : LocalDate.now();
-            List<DailyTestSnapshotEntity> snapshots = snapshotRepository
-                    .findAllByPhaseIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(phase.getId(), from, to);
+            LocalDate releaseDate = phase.getVersion().getReleaseDate();
+            LocalDate to = releaseDate != null ? releaseDate : LocalDate.now();
             return new StatisticsDto.TrendData(
                     phase.getId(), phase.getPhaseName(), from, to,
-                    snapshots.stream().map(this::toReport).toList());
+                    trendReports(phase.getId(), from, to));
         }).toList();
     }
 
@@ -235,7 +250,7 @@ public class StatisticsServiceImpl implements StatisticsService {
             TestResultEntity result = t.getTestResult();
             long agingDays = ChronoUnit.DAYS.between(t.getCreatedAt().toLocalDate(), LocalDate.now());
             return new StatisticsDto.AgingBugInfo(
-                    t.getId(), t.getJiraKey(), t.getJiraUrl(),
+                    t.getId(), t.getIssueKey(), t.getIssueUrl(), t.getTracker(),
                     t.getSummary(), t.getPriority(),
                     result.getVersionPhase().getPhaseName(),
                     result.getTestCase().getTitle(),
@@ -257,6 +272,23 @@ public class StatisticsServiceImpl implements StatisticsService {
                     path,
                     r.getVersionPhase().getPhaseName());
         }).toList();
+    }
+
+    private List<StatisticsDto.FailedTcInfo> getFailedTcs(Long versionId) {
+        return unresolvedFails(versionId).stream().map(r -> {
+            Long[] pathArr = r.getTestCase().getPath();
+            List<Long> path = pathArr != null ? Arrays.asList(pathArr) : List.of();
+            return new StatisticsDto.FailedTcInfo(
+                    r.getId(),
+                    r.getTestCase().getId(),
+                    r.getTestCase().getTitle(),
+                    path,
+                    r.getVersionPhase().getId(),
+                    r.getVersionPhase().getPhaseName(),
+                    r.getPriority(),
+                    r.getComment());
+        }).sorted(Comparator.comparing(StatisticsDto.FailedTcInfo::priority,
+                Comparator.nullsFirst(Comparator.naturalOrder()))).toList();
     }
 
     private int countByStatus(List<TestResultEntity> results, RunResultStatus status) {

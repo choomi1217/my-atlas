@@ -2,24 +2,22 @@ package com.myqaweb.feature;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.myqaweb.common.ExternalServiceException;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Map;
 
 /**
  * Jira REST API v2 implementation.
  */
 @Service
 public class JiraServiceImpl implements JiraService {
-
-    private static final Logger log = LoggerFactory.getLogger(JiraServiceImpl.class);
 
     private final JiraConfig config;
     private final RestTemplate restTemplate;
@@ -39,44 +37,18 @@ public class JiraServiceImpl implements JiraService {
     }
 
     @Override
-    public JiraIssueInfo createIssue(String projectKey, String summary, String description, String priority) {
-        String url = config.getBaseUrl() + "/rest/api/2/issue";
-
-        java.util.HashMap<String, Object> fields = new java.util.HashMap<>();
-        fields.put("project", Map.of("key", projectKey));
-        fields.put("summary", summary);
-        fields.put("description", description != null ? description : "");
-        fields.put("issuetype", Map.of("id", config.getIssueTypeId()));
-        if (priority != null) {
-            fields.put("priority", Map.of("name", priority));
-        }
-
-        Map<String, Object> body = Map.of("fields", fields);
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, createHeaders());
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
-
-        try {
-            JsonNode node = objectMapper.readTree(response.getBody());
-            String key = node.get("key").asText();
-            String issueUrl = config.getBaseUrl() + "/browse/" + key;
-            log.info("Jira issue created: {}", key);
-            return new JiraIssueInfo(key, issueUrl);
-        } catch (Exception e) {
-            throw new RuntimeException("Jira 이슈 생성 응답 파싱 실패", e);
-        }
-    }
-
-    @Override
     public String getIssueStatus(String jiraKey) {
         String url = config.getBaseUrl() + "/rest/api/2/issue/" + jiraKey + "?fields=status";
 
         HttpEntity<Void> request = new HttpEntity<>(createHeaders());
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
-
         try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
             JsonNode node = objectMapper.readTree(response.getBody());
             return node.get("fields").get("status").get("name").asText();
+        } catch (HttpStatusCodeException e) {
+            throw new ExternalServiceException("Jira 연동 실패: HTTP " + e.getStatusCode().value());
+        } catch (RestClientException e) {
+            throw new ExternalServiceException("Jira 연동 실패: " + e.getClass().getSimpleName());
         } catch (Exception e) {
             throw new RuntimeException("Jira 이슈 상태 조회 실패: " + jiraKey, e);
         }

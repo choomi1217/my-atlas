@@ -16,4 +16,9 @@ public interface SnapshotService {
      * Creates snapshots for all active phases on a given date.
      */
     void createSnapshotsForDate(LocalDate date);
+
+    /**
+     * Computes the report for a phase on a given date from current results and tickets, without saving.
+     */
+    StatisticsDto.DailyReport compute(Long phaseId, LocalDate date);
 }

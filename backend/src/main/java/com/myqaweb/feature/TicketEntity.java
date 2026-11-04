@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * Ticket entity representing a Jira issue reference linked to a test result.
+ * Ticket entity representing a Notion page or Jira issue reference linked to a test result.
  */
 @Entity
 @Table(name = "ticket")
@@ -24,11 +24,15 @@ public class TicketEntity {
     @JoinColumn(name = "test_result_id", nullable = false)
     private TestResultEntity testResult;
 
-    @Column(name = "jira_key", nullable = false, length = 50)
-    private String jiraKey;
+    @Column(name = "issue_key", nullable = false, length = 50)
+    private String issueKey;
 
-    @Column(name = "jira_url", nullable = false, length = 500)
-    private String jiraUrl;
+    @Column(name = "issue_url", nullable = false, length = 500)
+    private String issueUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TicketTracker tracker = TicketTracker.NOTION;
 
     @Column(nullable = false, length = 500)
     private String summary;

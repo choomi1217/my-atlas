@@ -352,6 +352,50 @@ export async function createTestPhase(
   return phase.data.data.id as number;
 }
 
+/** 결과·티켓 Priority (null = Unknown, `확인 필요`) */
+export type ResultPriority = 'HIGHEST' | 'HIGH' | 'MEDIUM' | 'LOW' | 'LOWEST';
+
+export interface TestResultData {
+  id: number;
+  versionPhaseId: number;
+  testCaseId: number;
+  status: string;
+  priority: ResultPriority | null;
+  comment: string | null;
+  executedBy: 'HUMAN' | 'AGENT' | 'CI' | null;
+}
+
+/** Phase의 TC 결과 목록 */
+export async function getPhaseResults(versionId: number, phaseId: number): Promise<TestResultData[]> {
+  await ensureAuthenticated();
+  const response = await client.get(`/api/versions/${versionId}/phases/${phaseId}/results`);
+  return response.data.data as TestResultData[];
+}
+
+/** 결과 상태 변경 (comment·priority는 보낼 때만 바뀐다). @returns 변경된 결과 */
+export async function updateTestResultStatus(
+  versionId: number,
+  resultId: number,
+  status: 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED' | 'RETEST' | 'UNTESTED',
+  extra: { comment?: string; priority?: ResultPriority } = {},
+): Promise<TestResultData> {
+  await ensureAuthenticated();
+  const response = await client.patch(`/api/versions/${versionId}/results/${resultId}`, { status, ...extra });
+  return response.data.data as TestResultData;
+}
+
+/** 서버(KST) 기준 오늘 'YYYY-MM-DD' */
+export function kstToday(): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' }).format(new Date());
+}
+
+/** 'YYYY-MM-DD' + n일 (UTC 계산, 타임존 무관) */
+export function addDays(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 // --- Agent execution: 워커 역할을 API로 대신한다 (E2E에는 실제 워커/LLM이 없다) ---
 
 export type AgentScope = 'SINGLE' | 'PHASE_ALL' | 'PHASE_UNTESTED' | 'PHASE_PREV_FAIL' | 'PHASE_SELECTED';
@@ -385,18 +429,23 @@ export async function claimAgentJob(jobId: number, workerId: string): Promise<vo
   await client.post(`${AGENT_API}/${jobId}/claim`, { workerId });
 }
 
-/** TC 1건 결과 보고. Phase Job이면 Phase 결과에도 반영된다. @returns 결과 id */
+/**
+ * TC 1건 결과 보고. Phase Job이면 Phase 결과에도 반영된다
+ * (aiFailureAnalysis → 결과 comment, priority는 항상 Unknown). @returns 에이전트 결과 id
+ */
 export async function recordAgentResult(
   jobId: number,
   testCaseId: number,
   verdict: AgentVerdict,
   stepLogs: AgentStepLogData[] = [],
+  aiFailureAnalysis?: string,
 ): Promise<number> {
   await ensureAuthenticated();
   const response = await client.post(`${AGENT_API}/${jobId}/results`, {
     testCaseId,
     verdict,
     stepLogs,
+    aiFailureAnalysis,
     durationMs: 1000,
     tokenCost: 10,
   });

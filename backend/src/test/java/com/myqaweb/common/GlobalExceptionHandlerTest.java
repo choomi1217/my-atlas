@@ -63,6 +63,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void externalServiceExceptionReturns502WithMessage() {
+        ExternalServiceException ex = new ExternalServiceException("Notion 연동 실패: HTTP 404");
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handleExternalServiceException(ex);
+
+        assertEquals(HttpStatus.BAD_GATEWAY, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertFalse(response.getBody().success());
+        assertEquals("Notion 연동 실패: HTTP 404", response.getBody().message());
+    }
+
+    @Test
     void methodNotSupportedReturns405NotInternalServerError() {
         HttpRequestMethodNotSupportedException ex = new HttpRequestMethodNotSupportedException("PUT");
 

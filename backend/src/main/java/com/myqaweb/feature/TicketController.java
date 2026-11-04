@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * REST controller for Ticket (Jira issue) endpoints.
+ * REST controller for Ticket (Notion page / Jira issue) endpoints.
  */
 @RestController
 @RequestMapping("/api")
@@ -19,6 +19,11 @@ public class TicketController {
 
     public TicketController(TicketService ticketService) {
         this.ticketService = ticketService;
+    }
+
+    @GetMapping("/tickets/config")
+    public ResponseEntity<ApiResponse<TicketDto.TrackerConfig>> getTrackerConfig() {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Tracker config retrieved", ticketService.getTrackerConfig()));
     }
 
     @PostMapping("/versions/{versionId}/results/{resultId}/tickets")

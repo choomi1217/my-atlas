@@ -70,6 +70,21 @@ class TestResultImportServiceImplTest {
     }
 
     @Test
+    void import_fail_getsTestCasePriority_passStaysUnknown() {
+        when(versionPhaseRepository.findById(42L)).thenReturn(Optional.of(new VersionPhaseEntity()));
+        TestResultEntity loginRow = resultWithTitle("로그인 성공", RunResultStatus.UNTESTED);
+        TestResultEntity deleteRow = resultWithTitle("회사 삭제", RunResultStatus.UNTESTED);
+        deleteRow.getTestCase().setPriority(Priority.HIGH);
+        when(testResultRepository.findAllByVersionPhaseId(42L)).thenReturn(List.of(loginRow, deleteRow));
+
+        service.importJUnitXml(42L, XML);
+
+        // CI FAIL은 사람 FAIL과 같이 TC Priority (Unknown·확인 필요는 AI 결과만)
+        assertThat(deleteRow.getPriority()).isEqualTo(TicketPriority.HIGH);
+        assertThat(loginRow.getPriority()).isNull();
+    }
+
+    @Test
     void import_titleMatchIsCaseAndSpaceInsensitive() {
         when(versionPhaseRepository.findById(42L)).thenReturn(Optional.of(new VersionPhaseEntity()));
         // 저장된 제목은 공백/대소문자 차이

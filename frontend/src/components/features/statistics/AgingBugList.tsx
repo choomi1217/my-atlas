@@ -1,16 +1,9 @@
-import { AgingBugInfo, TicketPriority } from '@/types/features';
+import { AgingBugInfo, TicketTracker } from '@/types/features';
+import { priorityColor } from './priorityColor';
 
 interface AgingBugListProps {
   agingBugs: AgingBugInfo[];
 }
-
-const priorityColor: Record<TicketPriority, string> = {
-  [TicketPriority.HIGHEST]: 'bg-red-100 text-red-800',
-  [TicketPriority.HIGH]: 'bg-orange-100 text-orange-800',
-  [TicketPriority.MEDIUM]: 'bg-yellow-100 text-yellow-800',
-  [TicketPriority.LOW]: 'bg-blue-100 text-blue-700',
-  [TicketPriority.LOWEST]: 'bg-gray-100 text-gray-600',
-};
 
 export const AgingBugList: React.FC<AgingBugListProps> = ({ agingBugs }) => {
   if (agingBugs.length === 0) {
@@ -35,14 +28,14 @@ export const AgingBugList: React.FC<AgingBugListProps> = ({ agingBugs }) => {
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${priorityColor[bug.priority]}`}>
               {bug.priority}
             </span>
-            {bug.jiraKey && (
+            {bug.issueKey && (
               <a
-                href={bug.jiraUrl}
+                href={bug.issueUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-indigo-600 hover:underline font-medium"
               >
-                {bug.jiraKey}
+                {bug.tracker === TicketTracker.NOTION ? 'Notion' : bug.issueKey}
               </a>
             )}
             <span className="text-sm text-gray-700 truncate flex-1">{bug.summary}</span>

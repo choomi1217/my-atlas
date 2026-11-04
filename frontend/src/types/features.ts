@@ -291,6 +291,8 @@ export interface TestResult {
   testCaseId: number;
   testCaseTitle: string;
   status: RunResultStatus;
+  /** 결과 Priority (null = Unknown, 사람이 확인하기 전) — registry_v32 */
+  priority?: TicketPriority | null;
   comment: string | null;
   executedAt: string | null;
   executedBy?: ExecutedBy;
@@ -390,17 +392,34 @@ export interface Version {
 }
 
 /**
- * Ticket (Jira issue reference).
+ * Issue tracker a ticket was published to.
+ */
+export enum TicketTracker {
+  JIRA = 'JIRA',
+  NOTION = 'NOTION',
+}
+
+/**
+ * Ticket (Notion page or Jira issue reference).
  */
 export interface Ticket {
   id: number;
   testResultId: number;
-  jiraKey: string;
-  jiraUrl: string;
+  issueKey: string;
+  issueUrl: string;
+  tracker: TicketTracker;
   summary: string;
   status: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Tracker new tickets are published to and whether it is configured.
+ */
+export interface TrackerConfig {
+  tracker: TicketTracker;
+  configured: boolean;
 }
 
 /**
@@ -415,7 +434,7 @@ export interface FailedTestCaseInfo {
 }
 
 /**
- * Priority levels for bug tickets (aligned with Jira).
+ * Priority levels for bug tickets.
  */
 export enum TicketPriority {
   HIGHEST = 'HIGHEST',
@@ -492,6 +511,7 @@ export interface VersionProgressSummary {
   completed: number;
   pass: number;
   fail: number;
+  openFail: number;
   blocked: number;
   overallPassRate: number;
   overallProgressRate: number;
@@ -505,12 +525,14 @@ export interface Dashboard {
   phaseTrends: TrendData[];
   agingBugs: AgingBugInfo[];
   blockedTcs: BlockedTcInfo[];
+  failedTcs: FailedTcInfo[];
 }
 
 export interface AgingBugInfo {
   ticketId: number;
-  jiraKey: string;
-  jiraUrl: string;
+  issueKey: string;
+  issueUrl: string;
+  tracker: TicketTracker;
   summary: string;
   priority: TicketPriority;
   phaseName: string;
@@ -525,6 +547,17 @@ export interface BlockedTcInfo {
   testCaseTitle: string;
   testCasePath: number[];
   phaseName: string;
+}
+
+export interface FailedTcInfo {
+  testResultId: number;
+  testCaseId: number;
+  testCaseTitle: string;
+  testCasePath: number[];
+  phaseId: number;
+  phaseName: string;
+  priority: TicketPriority | null;
+  comment: string | null;
 }
 
 /**

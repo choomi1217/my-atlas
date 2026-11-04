@@ -56,6 +56,10 @@ public class TestResultImportServiceImpl implements TestResultImportService {
             }
             matched++;
             tr.setStatus(c.status());
+            if (c.status() == RunResultStatus.FAIL && tr.getPriority() == null) {
+                // CI는 AI 판정이 아니다 — 사람 FAIL처럼 TC Priority로 채운다 (확인 필요는 AI 결과만)
+                tr.setPriority(TicketPriority.from(tr.getTestCase().getPriority()));
+            }
             tr.setExecutedBy(ExecutedBy.CI);
             tr.setExecutedAt(LocalDateTime.now());
             testResultRepository.save(tr);

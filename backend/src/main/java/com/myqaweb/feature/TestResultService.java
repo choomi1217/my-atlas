@@ -45,9 +45,11 @@ public interface TestResultService {
     List<TestResultEntity> getAllByVersionPhaseId(Long versionPhaseId);
 
     /**
-     * Update test result status and comment.
+     * Update test result status, comment and priority.
+     * A status change switches the executor to HUMAN; comment and priority are only changed when given.
+     * Switching to FAIL without a priority fills it from the test case priority.
      */
-    TestResultEntity updateResult(Long resultId, RunResultStatus status, String comment);
+    TestResultEntity updateResult(Long resultId, RunResultStatus status, String comment, TicketPriority priority);
 
     /**
      * Compute progress stats (Option A: Version-level).
