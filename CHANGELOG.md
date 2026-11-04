@@ -1,5 +1,16 @@
 # Changelog
 
+## v2026.11.03 — 2026-11-03
+
+### ✨ Features
+- Registry v31 — Test Automation 실행 페이지 (모달 → 페이지)
+
+### 📝 Docs
+- changelog v2026.10.31
+
+### 🔧 Chore
+- backend/bin IDE 산출물 무시
+
 ## v2026.10.31 — 2026-10-31
 
 ### 🐛 Fixes
