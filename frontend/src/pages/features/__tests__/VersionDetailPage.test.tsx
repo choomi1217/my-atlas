@@ -77,6 +77,7 @@ const dashboard: Dashboard = {
       completed: 0,
       pass: 0,
       fail: 0,
+      openFail: 0,
       blocked: 0,
       overallPassRate: 0,
       overallProgressRate: 0,
@@ -85,6 +86,7 @@ const dashboard: Dashboard = {
   phaseTrends: [],
   agingBugs: [],
   blockedTcs: [],
+  failedTcs: [],
 };
 
 const renderPage = () =>
@@ -94,6 +96,10 @@ const renderPage = () =>
         <Route
           path="/features/companies/:companyId/products/:productId/versions/:versionId"
           element={<VersionDetailPage />}
+        />
+        <Route
+          path="/features/companies/:companyId/products/:productId/versions/:versionId/phases/:phaseId"
+          element={<div data-testid="phase-page" />}
         />
       </Routes>
     </MemoryRouter>
@@ -146,5 +152,29 @@ describe('VersionDetailPage', () => {
 
     expect(tabB).toHaveClass(SELECTED);
     expect(screen.getByTestId('trend-chart-stub')).toHaveTextContent('202');
+  });
+
+  it('shows Failed TCs and opens the failed phase on row click', async () => {
+    const user = userEvent.setup();
+    vi.mocked(statisticsApi.getDashboard).mockResolvedValue({
+      ...dashboard,
+      failedTcs: [
+        {
+          testResultId: 9,
+          testCaseId: 42,
+          testCaseTitle: '로그인 실패',
+          testCasePath: [],
+          phaseId: 202,
+          phaseName: 'Phase B',
+          priority: null,
+          comment: '[AI FAIL] 버튼 없음',
+        },
+      ],
+    });
+    renderPage();
+
+    await user.click(await screen.findByTestId('failed-tc-row'));
+
+    expect(await screen.findByTestId('phase-page')).toBeInTheDocument();
   });
 });

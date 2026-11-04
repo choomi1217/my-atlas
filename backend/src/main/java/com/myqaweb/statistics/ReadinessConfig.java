@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class ReadinessConfig {
     private int maxHighestOpen = 0;
     private int maxHighOpen = 2;
+    private int maxUnconfirmedFail = 0;
     private double minRegressionPassRate = 98.0;
     private int agingThresholdDays = 3;
 }

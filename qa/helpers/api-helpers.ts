@@ -352,10 +352,17 @@ export async function createTestPhase(
   return phase.data.data.id as number;
 }
 
+/** 결과·티켓 Priority (null = Unknown, `확인 필요`) */
+export type ResultPriority = 'HIGHEST' | 'HIGH' | 'MEDIUM' | 'LOW' | 'LOWEST';
+
 export interface TestResultData {
   id: number;
+  versionPhaseId: number;
   testCaseId: number;
   status: string;
+  priority: ResultPriority | null;
+  comment: string | null;
+  executedBy: 'HUMAN' | 'AGENT' | 'CI' | null;
 }
 
 /** Phase의 TC 결과 목록 */
@@ -365,14 +372,16 @@ export async function getPhaseResults(versionId: number, phaseId: number): Promi
   return response.data.data as TestResultData[];
 }
 
-/** 결과 상태 변경 */
+/** 결과 상태 변경 (comment·priority는 보낼 때만 바뀐다). @returns 변경된 결과 */
 export async function updateTestResultStatus(
   versionId: number,
   resultId: number,
   status: 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED' | 'RETEST' | 'UNTESTED',
-): Promise<void> {
+  extra: { comment?: string; priority?: ResultPriority } = {},
+): Promise<TestResultData> {
   await ensureAuthenticated();
-  await client.patch(`/api/versions/${versionId}/results/${resultId}`, { status });
+  const response = await client.patch(`/api/versions/${versionId}/results/${resultId}`, { status, ...extra });
+  return response.data.data as TestResultData;
 }
 
 /** 서버(KST) 기준 오늘 'YYYY-MM-DD' */
@@ -420,18 +429,23 @@ export async function claimAgentJob(jobId: number, workerId: string): Promise<vo
   await client.post(`${AGENT_API}/${jobId}/claim`, { workerId });
 }
 
-/** TC 1건 결과 보고. Phase Job이면 Phase 결과에도 반영된다. @returns 결과 id */
+/**
+ * TC 1건 결과 보고. Phase Job이면 Phase 결과에도 반영된다
+ * (aiFailureAnalysis → 결과 comment, priority는 항상 Unknown). @returns 에이전트 결과 id
+ */
 export async function recordAgentResult(
   jobId: number,
   testCaseId: number,
   verdict: AgentVerdict,
   stepLogs: AgentStepLogData[] = [],
+  aiFailureAnalysis?: string,
 ): Promise<number> {
   await ensureAuthenticated();
   const response = await client.post(`${AGENT_API}/${jobId}/results`, {
     testCaseId,
     verdict,
     stepLogs,
+    aiFailureAnalysis,
     durationMs: 1000,
     tokenCost: 10,
   });

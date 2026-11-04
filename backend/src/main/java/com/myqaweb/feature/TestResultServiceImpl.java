@@ -118,12 +118,22 @@ public class TestResultServiceImpl implements TestResultService {
 
     @Override
     @Transactional
-    public TestResultEntity updateResult(Long resultId, RunResultStatus status, String comment) {
+    public TestResultEntity updateResult(Long resultId, RunResultStatus status, String comment, TicketPriority priority) {
         TestResultEntity result = testResultRepository.findById(resultId)
                 .orElseThrow(() -> new EntityNotFoundException("TestResult not found: " + resultId));
 
+        if (status != result.getStatus()) {
+            result.setExecutedBy(ExecutedBy.HUMAN);  // 사람이 판정을 바꿨다. Priority만 고르면 AGENT 유지
+        }
         result.setStatus(status);
-        result.setComment(comment);
+        if (comment != null) {
+            result.setComment(comment);  // AI 사유를 지우지 않도록 요청에 있을 때만
+        }
+        if (priority != null) {
+            result.setPriority(priority);
+        } else if (status == RunResultStatus.FAIL && result.getPriority() == null) {
+            result.setPriority(TicketPriority.from(result.getTestCase().getPriority()));
+        }
         if (status != RunResultStatus.UNTESTED) {
             result.setExecutedAt(LocalDateTime.now());
         }

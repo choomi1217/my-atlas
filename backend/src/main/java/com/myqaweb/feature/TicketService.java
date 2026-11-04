@@ -3,14 +3,19 @@ package com.myqaweb.feature;
 import java.util.List;
 
 /**
- * Ticket service for Jira issue management.
+ * Ticket service for bug ticket management (new tickets go to Notion; legacy Jira tickets are still refreshed).
  */
 public interface TicketService {
 
     /**
-     * Create a Jira ticket for a test result.
+     * Create a bug ticket (Notion PRD page) for a test result.
      */
     TicketDto.TicketResponse createTicket(Long resultId, TicketDto.CreateTicketRequest request);
+
+    /**
+     * Get the tracker new tickets are published to and whether it is configured.
+     */
+    TicketDto.TrackerConfig getTrackerConfig();
 
     /**
      * Get all tickets for a test result.
@@ -23,7 +28,7 @@ public interface TicketService {
     void deleteTicket(Long ticketId);
 
     /**
-     * Refresh ticket status from Jira.
+     * Refresh ticket status from its tracker (Notion or Jira).
      */
     TicketDto.TicketResponse refreshTicketStatus(Long ticketId);
 
@@ -33,7 +38,7 @@ public interface TicketService {
     int getTicketCount(Long resultId);
 
     /**
-     * Refresh all ticket statuses for a given phase from Jira.
+     * Refresh all ticket statuses for a given phase from their trackers.
      *
      * @return number of tickets refreshed
      */

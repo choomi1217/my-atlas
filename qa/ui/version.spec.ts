@@ -12,6 +12,10 @@ import {
   addDays,
   cleanupAllTestData,
   loginAsAdminInBrowser,
+  createAgentJob,
+  claimAgentJob,
+  recordAgentResult,
+  completeAgentJob,
 } from '../helpers/api-helpers';
 import axios from 'axios';
 
@@ -561,7 +565,7 @@ test.describe('Version Management UI E2E', () => {
       await failButton.click();
 
       // Ticket creation dialog should auto-open
-      const ticketDialog = page.locator('text=Jira 티켓 발행');
+      const ticketDialog = page.locator('[data-testid="ticket-dialog"]');
       await expect(ticketDialog).toBeVisible({ timeout: 5000 });
 
       // Dialog should have summary input pre-filled with "FAIL: ..."
@@ -578,7 +582,7 @@ test.describe('Version Management UI E2E', () => {
       await skipBtn.click();
 
       // Dialog should close
-      await expect(page.locator('text=Jira 티켓 발행')).not.toBeVisible();
+      await expect(ticketDialog).not.toBeVisible();
     }
   });
 
@@ -609,6 +613,115 @@ test.describe('Version Management UI E2E', () => {
     await tabB.click();
     await expect(tabB).toHaveClass(/bg-indigo-100/);
     await expect(tabA).not.toHaveClass(/bg-indigo-100/);
+  });
+
+  const AI_REASON = '[AI FAIL] #1 FAIL: E2E UI 사유';
+
+  /** 버전·Phase를 만들고 failTcId를 AI FAIL(priority Unknown, comment = AI 사유)로 기록한다 */
+  async function versionWithAiFail(name: string, tcIds: number[], failTcId: number) {
+    const vid = (await createTestVersion(productId, name, addDays(kstToday(), 3))).id;
+    const pid = await createTestPhase(productId, vid, `${name} Phase`, tcIds);
+    const jobId = await createAgentJob({ scope: 'PHASE_SELECTED', productId, phaseId: pid, testCaseIds: [failTcId] });
+    await claimAgentJob(jobId, `e2e-web-${Date.now()}`);
+    await recordAgentResult(jobId, failTcId, 'FAIL', [], AI_REASON);
+    await completeAgentJob(jobId);
+    return { vid, pid };
+  }
+
+  async function goToPhaseDetail(vid: number, pid: number) {
+    await page.goto(
+      `/features/companies/${companyId}/products/${productId}/versions/${vid}/phases/${pid}`
+    );
+    await page.waitForLoadState('networkidle');
+  }
+
+  function waitForResultPatch(vid: number) {
+    return page.waitForResponse(
+      r => r.url().includes(`/api/versions/${vid}/results/`) && r.request().method() === 'PATCH'
+    );
+  }
+
+  test('VersionDetailPage - AI FAIL → Failed TCs에 확인 필요·AI 사유, NO-GO, 행 클릭 시 Phase 이동', async () => {
+    const { vid, pid } = await versionWithAiFail('E2E Failed List Version', [testCaseId1, testCaseId2], testCaseId1);
+
+    await goToVersionDetail(vid);
+
+    const list = page.locator('[data-testid="failed-tc-list"]');
+    const rows = list.locator('[data-testid="failed-tc-row"]');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('E2E UI TC 1');
+    await expect(rows.first().getByText('확인 필요', { exact: true })).toBeVisible();
+    await expect(rows.first()).toContainText(AI_REASON);
+    await expect(list.locator('h4')).toContainText('확인 필요 1');
+    await expect(page.getByText('NO-GO', { exact: true })).toBeVisible();
+
+    await rows.first().click();
+    await expect(page).toHaveURL(new RegExp(`/versions/${vid}/phases/${pid}$`));
+  });
+
+  test('VersionDetailPage - Trend Bug 추이 탭에 50% 시점 버그 비율 표시 (티켓 없으면 -)', async () => {
+    const vid = (await createTestVersion(productId, 'E2E Bug Midpoint Version', addDays(kstToday(), 3))).id;
+    await createTestPhase(productId, vid, 'E2E Bug Midpoint Phase', [testCaseId1]);
+
+    await goToVersionDetail(vid);
+
+    const trendChart = page.locator('[data-testid="trend-chart"]');
+    await trendChart.getByRole('button', { name: 'Bug 추이', exact: true }).click();
+
+    const ratio = page.locator('[data-testid="bug-midpoint-ratio"]');
+    await expect(ratio).toBeVisible();
+    await expect(ratio).toContainText('테스트 기간 50% 시점');
+    await expect(ratio).toContainText('전체 - · High 이상 -');
+  });
+
+  test('VersionPhaseDetailPage - AI FAIL 행: Priority 확인 필요 → HIGH 선택 유지, 펼치면 실행 결과 전체 사유', async () => {
+    const { vid, pid } = await versionWithAiFail('E2E Result Priority Version', [testCaseId1, testCaseId2], testCaseId1);
+
+    await goToPhaseDetail(vid, pid);
+
+    const select = page.locator('[data-testid="result-priority-select"]');
+    await expect(select).toHaveCount(1);
+    await expect(select).toHaveValue('');
+    await expect(select.locator('option[value=""]')).toHaveText('확인 필요');
+    await expect(page.locator('[data-testid="result-comment-preview"]')).toHaveText(AI_REASON);
+
+    const patched = waitForResultPatch(vid);
+    await select.selectOption('HIGH');
+    expect((await patched).ok()).toBe(true);
+    await expect(select).toHaveValue('HIGH');
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(select).toHaveValue('HIGH');
+    await expect(select.locator('option[value=""]')).toHaveCount(0);
+
+    await page.getByText('E2E UI TC 1', { exact: true }).click();
+    await expect(page.getByRole('heading', { name: '실행 결과' })).toBeVisible();
+    await expect(page.locator('[data-testid="result-comment"]')).toHaveText(AI_REASON);
+    await expect(page.locator('[data-testid="result-comment-preview"]')).toHaveCount(0);
+  });
+
+  test('VersionPhaseDetailPage - Notion 미설정 시 FAIL 티켓 다이얼로그에 경고, 발행 버튼 비활성', async () => {
+    const config = await apiClient.get('/api/tickets/config');
+    test.skip(config.data.data.configured === true, 'Notion 연동이 설정돼 있어 미설정 경고가 나오지 않으므로 건너뜀');
+
+    const vid = (await createTestVersion(productId, 'E2E Ticket Dialog Version')).id;
+    const pid = await createTestPhase(productId, vid, 'E2E Ticket Dialog Phase', [testCaseId2]);
+
+    await goToPhaseDetail(vid, pid);
+
+    const patched = waitForResultPatch(vid);
+    await page.locator('button[title="Fail"]').click();
+    expect((await patched).ok()).toBe(true);
+
+    const dialog = page.locator('[data-testid="ticket-dialog"]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: '버그 티켓 발행 (Notion)' })).toBeVisible();
+    await expect(dialog.locator('[data-testid="ticket-config-warning"]')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: '티켓 발행', exact: true })).toBeDisabled();
+
+    await dialog.getByRole('button', { name: '건너뛰기' }).click();
+    await expect(dialog).toBeHidden();
   });
 
   test.afterAll(async () => {

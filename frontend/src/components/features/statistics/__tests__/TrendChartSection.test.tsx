@@ -134,4 +134,72 @@ describe('TrendChartSection', () => {
     await user.click(screen.getByRole('button', { name: '2026-11-04' }));
     expect(onDateClick).toHaveBeenCalledWith(1, '2026-11-04');
   });
+
+  describe('Bug 추이 50% midpoint ratio', () => {
+    const bugs = (
+      snapshotDate: string,
+      newBugCritical: number,
+      newBugMajor: number,
+      newBugMinor: number,
+      newBugTrivial: number
+    ): DailyReport => ({ ...report(snapshotDate), newBugCritical, newBugMajor, newBugMinor, newBugTrivial });
+
+    // 10-day period 11-01..11-10 → ceil(10/2) = day 5 = 11-05
+    const tenDays = (dailyReports: DailyReport[]): TrendData => ({
+      ...trend(dailyReports),
+      from: '2026-11-01',
+      to: '2026-11-10',
+    });
+
+    const openBugTab = async (data: TrendData) => {
+      const user = userEvent.setup();
+      render(<TrendChartSection phaseTrends={[data]} selectedPhaseId={1} onDateClick={vi.fn()} />);
+      await user.click(screen.getByRole('button', { name: 'Bug 추이' }));
+    };
+
+    it('is hidden on the Pass Rate tab', () => {
+      render(
+        <TrendChartSection phaseTrends={[tenDays([bugs('2026-11-01', 1, 0, 0, 0)])]} selectedPhaseId={1} onDateClick={vi.fn()} />
+      );
+
+      expect(screen.queryByTestId('bug-midpoint-ratio')).not.toBeInTheDocument();
+    });
+
+    it('computes all / High-and-above ratios up to the 50% day', async () => {
+      await openBugTab(
+        tenDays([
+          bugs('2026-11-01', 1, 1, 0, 0), // all 2, high 2
+          bugs('2026-11-03', 0, 0, 2, 0), // all 2, high 0
+          bugs('2026-11-05', 0, 0, 0, 1), // all 1, high 0 — midpoint day is included
+          bugs('2026-11-06', 2, 0, 1, 0), // all 3, high 2 — after midpoint
+          bugs('2026-11-10', 0, 1, 1, 0), // all 2, high 1 — after midpoint
+        ])
+      );
+
+      expect(screen.getByTestId('bug-midpoint-ratio')).toHaveTextContent(
+        '테스트 기간 50% 시점(11-05)까지 등록된 버그: 전체 50% (5/10) · High 이상 40% (2/5)'
+      );
+    });
+
+    it('uses ceil(N/2) for an odd-length period', async () => {
+      // 11-03..11-07 (5 days) → day 3 = 11-05
+      await openBugTab(trend([bugs('2026-11-05', 1, 0, 0, 0), bugs('2026-11-06', 1, 0, 0, 0)]));
+
+      expect(screen.getByTestId('bug-midpoint-ratio')).toHaveTextContent(
+        '50% 시점(11-05)까지 등록된 버그: 전체 50% (1/2) · High 이상 50% (1/2)'
+      );
+    });
+
+    it('shows - when there are no bugs at all', async () => {
+      await openBugTab(tenDays([bugs('2026-11-02', 0, 0, 0, 0)]));
+
+      expect(screen.getByTestId('bug-midpoint-ratio')).toHaveTextContent('전체 - · High 이상 -');
+    });
+
+    it('shows - only for High-and-above when there are no critical/major bugs', async () => {
+      await openBugTab(tenDays([bugs('2026-11-02', 0, 0, 1, 1), bugs('2026-11-08', 0, 0, 2, 0)]));
+
+      expect(screen.getByTestId('bug-midpoint-ratio')).toHaveTextContent('전체 50% (2/4) · High 이상 -');
+    });
+  });
 });

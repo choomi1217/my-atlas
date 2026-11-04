@@ -469,9 +469,10 @@ public class AgentExecutionServiceImpl implements AgentExecutionService {
         tr.setExecutedBy(ExecutedBy.AGENT);
         tr.setAgentExecutionResultId(agentResultId);
         tr.setExecutedAt(LocalDateTime.now());
-        if (request.aiFailureAnalysis() != null && !request.aiFailureAnalysis().isBlank()) {
-            tr.setComment(request.aiFailureAnalysis());
-        }
+        // 항상 덮어쓴다: PASS 재실행이면 이전 FAIL 사유가 지워진다
+        tr.setComment(request.aiFailureAnalysis() != null && !request.aiFailureAnalysis().isBlank()
+                ? request.aiFailureAnalysis() : null);
+        tr.setPriority(null);  // AI 결과는 사람이 확인하기 전까지 Unknown
         testResultRepository.save(tr);
     }
 

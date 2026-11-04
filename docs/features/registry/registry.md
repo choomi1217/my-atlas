@@ -20,7 +20,7 @@ Feature Registry는 **테스트 케이스 작성부터 릴리즈 Go/No-Go 판단
 |------|------|-----------|
 | **테스트 자산 중앙화** | TC가 팀의 지적 자산으로 축적된다 | Company → Product → Segment → TestCase 계층 관리 |
 | **실행 이력 추적성** | 어떤 버전에서 무엇을 테스트했는지 남는다 | Version → Phase → TestResult + 진행률 |
-| **결함 연동 자동화** | FAIL 즉시 Jira 티켓이 생성된다 | Ticket 자동 생성 + 상태 동기화 |
+| **결함 연동 자동화** | FAIL에서 바로 버그 티켓을 발행한다 | Notion 버그 티켓 발행 + 상태 동기화 |
 | **데이터 기반 릴리즈 판단** | 감이 아닌 숫자로 Go/No-Go를 결정한다 | Release Readiness + Daily Snapshot + Trend |
 
 ### QA 일상 업무 Before/After
@@ -30,7 +30,7 @@ Feature Registry는 **테스트 케이스 작성부터 릴리즈 Go/No-Go 판단
 | TC 작성 | 스프레드시트, 개인 문서 | TestCase + Segment 계층 + 이미지 첨부 |
 | TC 분류 | 폴더명, 시트 탭 | Segment 트리 (DnD 재배치, 자동완성) |
 | 테스트 실행 | 수동 체크리스트 | Version → Phase → TestResult 상태 변경 |
-| 결함 보고 | Jira 수동 생성 | FAIL 클릭 → Jira 자동 티켓 + Priority 설정 |
+| 결함 보고 | Jira 수동 생성 | FAIL 클릭 → Notion 버그 티켓 + Priority 설정 |
 | 진행률 보고 | 수동 집계, 보고서 작성 | 실시간 ProgressStats (Pass/Fail/Blocked 자동 계산) |
 | "릴리즈 해도 될까?" | PM에게 물어봄, 감에 의존 | Release Readiness Go/No-Go (4개 기준 자동 평가) |
 | "어제보다 나아졌나?" | 기억에 의존 | Daily Trend 차트 (Bug 추이, Pass Rate 변화) |
@@ -59,7 +59,7 @@ Company (1) ──→ Product (N)
                                        │
                                        └──→ TestResult (N)
                                               │
-                                              ├── Ticket (N, Jira 연동)
+                                              ├── Ticket (N, Notion 연동 · 기존 Jira)
                                               └── Comment (N, 스레드형)
 
                   DailyTestSnapshot ── Phase별 일일 스냅샷 (통계)
@@ -158,7 +158,7 @@ Spring AI ChatClient(Claude)를 통해 Segment 경로 기반으로 테스트 케
 | 상태 | 의미 | 색상 |
 |------|------|------|
 | PASS | 성공 | 초록 |
-| FAIL | 실패 (→ Jira 티켓 생성 트리거) | 빨강 |
+| FAIL | 실패 (→ 버그 티켓 발행 다이얼로그) | 빨강 |
 | BLOCKED | 선행 조건 미충족으로 실행 불가 | 주�� |
 | SKIPPED | 의도적 건너뜀 | 회색 |
 | RETEST | 재테��트 필요 | 파랑 |
@@ -191,31 +191,30 @@ Phase 내 모든 TestResult를 in-memory 집계하여 Pass/Fail/Blocked/Skipped/
 ### 3. 결함 추적 (Defect Tracking)
 
 > **QA 시니어가 말하는 이 기능의 가치:**
-> "버그를 발견하고 추적하지 않으면 같은 버그가 릴리즈마다 반복된다. FAIL을 눌렀는데 Jira 티켓이 자동으로 만들어지고, 그 티켓이 닫혔는지까지 추적해주면 — QA가 버그 관리에 쓰는 시간의 절반이 줄어든다."
+> "버그를 발견하고 추적하지 않으면 같은 버그가 릴리즈마다 반복된다. FAIL을 눌렀는데 버그 티켓이 바로 만들어지고, 그 티켓이 닫혔는지까지 추적해주면 — QA가 버그 관리에 쓰는 시간의 절반이 줄어든다."
 
-**FAIL → Jira 자동 티켓 생성**
+**FAIL → 버그 티켓 발행 (Notion, v32)**
 
-Phase 실행 화면에서 TC를 FAIL로 변경하면 Jira 티켓 생성 다이얼로그가 자동으로 열린다. Summary를 입력하고 Priority를 선택하면 Jira Cloud에 이슈가 생성되고, TestResult에 티켓이 연결된다.
+Phase 실행 화면에서 TC를 FAIL로 변경하면 버그 티켓 발행 다이얼로그가 열린다. 제목과 Priority를 정하면 Notion PRD DB(`Scope=Bug`)에 버그 리포트 양식(PreCondition / Test Data / Steps / Expected Result / Actual Result / Memo)으로 페이지가 생기고 TestResult에 연결된다. Jira 생성은 v32에서 중단했고, 기존 Jira 티켓은 상태 갱신만 지원한다.
 
-**Jira 연동 상세**
+**티켓 연동 상세**
 
 | 기능 | 설명 |
 |------|------|
-| 자동 생성 | FAIL 시 Jira 이슈 생성 (프로젝트 키, 이슈 타입 설정 가능) |
-| Priority 매핑 | HIGHEST / HIGH / MEDIUM / LOW / LOWEST → Jira priority 필드에 직접 반영 |
-| 상태 동기화 | 개별 Refresh 또는 Phase 전체 일괄 Refresh |
-| 종료 감지 | Jira에서 Done 상태로 변경되면 `closedAt` 자동 기록 |
-| 재오픈 감지 | Done → 미완료 전환 시 `reopenCount` 증가 (수정 품질 지표) |
+| 발행처 | Notion PRD DB — env `NOTION_API_KEY`, `NOTION_BUG_DATABASE_ID`. 미설정이면 다이얼로그에 안내 + 발행 비활성 (`GET /api/tickets/config`) |
+| Priority 매핑 | HIGHEST→Highest, HIGH→High, MEDIUM→Mid, LOW·LOWEST→Low (`우선순위` 속성) |
+| 상태 동기화 | 개별 Refresh 또는 Phase 전체 일괄 Refresh (Notion `Status` / 기존 Jira) |
+| 종료 감지 | Done·Close(Notion), Done·완료(Jira) → `closedAt` 자동 기록 |
+| 재오픈 감지 | 종료 → 미완료 전환 시 `reopenCount` 증가 (수정 품질 지표) |
+| 실패 응답 | 연동 실패·미설정은 502 + 원인 메시지 |
 
-**티켓 Priority 5단계**
+**결과 Priority (v32)**
 
-| Priority | Jira 매핑 | Go/No-Go 기준 |
-|----------|-----------|---------------|
-| HIGHEST | Highest | 미해결 **0건** 이하 필수 |
-| HIGH | High | 미해결 **2건** 이하 필수 |
-| MEDIUM | Medium | - |
-| LOW | Low | - |
-| LOWEST | Lowest | - |
+- FAIL 결과마다 Priority(HIGHEST~LOWEST) 또는 Unknown
+- AI 실행 결과는 항상 Unknown(`확인 필요`) — 사람이 골라야 확정
+- 사람이 FAIL로 바꾸면 TC Priority로 자동 입력, 수정 가능
+- 티켓을 발행하면 Unknown이던 결과 Priority가 티켓 Priority로 확정
+- 결과 행에 AI 판정 사유(comment) 표시 — 접힌 행 1줄, 펼치면 전체
 
 **TestResult 댓글 스레드**
 
@@ -230,14 +229,18 @@ Phase 실행 화면에서 TC를 FAIL로 변경하면 Jira 티켓 생성 다이�
 
 **Release Readiness — Go/No-Go 자동 판단**
 
-Version Detail 페이지 진입 시 아래 4개 기준이 자동으로 평가된다.
+Version Detail 페이지 진입 시 아래 기준이 자동으로 평가된다.
 
 | 기준 | 임계값 | Go 조건 |
 |------|--------|---------|
 | Highest 미해결 버그 | 0건 이하 | 필수 |
 | High 미해결 버그 | 2건 이하 | 필수 |
+| Priority 확인 필요 | 0건 이하 | 필수 (v32) |
 | Regression Phase Pass Rate | 98% 이상 | 필수 |
-| Aging 버그 (3일+) | 별도 표시 | 참고 지표 |
+| Aging 버그 (3일+) | 별도 표시 | 참고 지표 (티켓 기준) |
+
+- 미해결 버그 = TC마다 마지막 실행 결과(Phase 순서상 마지막, UNTESTED 제외)가 FAIL인 것. 그 결과의 Priority로 세고, Unknown은 `Priority 확인 필요`로 센다. 재테스트 Phase에서 PASS하면 해결 (v32 — 이전엔 티켓 수)
+- KPI `Open Bug` = 미해결 FAIL 수
 
 모든 필수 조건 충족 시 **GO** (초록 배지), 하나라도 미충�� 시 **NO-GO** (빨간 배지) + 미충족 사유 표시.
 
@@ -263,12 +266,14 @@ Version Detail 페이지 진입 시 아래 4개 기준이 자동으로 평가된
 - **Bug 추이**: 일자별 신규 버그 (Priority별 누적 영역) + 종료 버그 (라인)
 - **Pass Rate**: 일자별 Pass Rate + Progress Rate 라인 차트
 - x축: Phase 시작일 ~ 릴리즈 예정일(없으면 오늘). 마지막 점은 오늘 실시간 값, 오늘 뒤는 빈칸, 릴리즈일 뒤 변경은 안 나온다 (v32)
+- Bug 추이 탭: 테스트 기간 50% 시점(N일 중 `ceil(N/2)`일차)까지 등록된 버그 비율(전체 · High 이상) + 50% 기준선 (v32)
 - Phase 탭으로 Phase 선택 (기본은 첫 Phase, 그리는 Phase를 탭에 선택 표시)
 - 차트의 데이터 포인트 클릭 시 해당 날짜의 Daily Report 모달 오픈 (리포트 없는 날짜는 무시)
 
-**Aging Bug / Blocked TC 리스트**
+**Failed TC / Aging Bug / Blocked TC 리스트**
 
-- Aging Bug: 3일 이상 미해결 티켓 목록 (Priority 배지, Jira 링크, 경과일)
+- Failed TC: 미해결 FAIL 목록 — Readiness 카드 바로 아래, Priority 배지(`확인 필요` 포함)·AI 사유 1줄, 클릭 시 해당 Phase로 이동 (v32)
+- Aging Bug: 3일 이상 미해결 티켓 목록 (Priority 배지, 티켓 링크, 경과일)
 - Blocked TC: BLOCKED 상태 TC 목록 (TC 제목, Segment 경로, Phase)
 
 **판단 기준 설정값 관리**
@@ -315,9 +320,9 @@ statistics:
 
 | ���이블 | 주요 컬럼 | 비고 |
 |--------|----------|------|
-| **test_result** | id, version_id(FK), version_phase_id(FK), test_case_id(FK), status, comment, executed_at, created_at, updated_at | UNIQUE(version_phase_id, test_case_id) |
+| **test_result** | id, version_id(FK), version_phase_id(FK), test_case_id(FK), status, priority(null=Unknown), comment, executed_at, created_at, updated_at | UNIQUE(version_phase_id, test_case_id) |
 | **test_result_comment** | id, test_result_id(FK), parent_id(FK self-ref), author, content, image_url, created_at, updated_at | 계층형 스레드 |
-| **ticket** | id, test_result_id(FK), jira_key, jira_url, summary, status, priority, closed_at, reopen_count, created_at, updated_at | Jira 연동 |
+| **ticket** | id, test_result_id(FK), issue_key, issue_url, tracker(JIRA/NOTION), summary, status, priority, closed_at, reopen_count, created_at, updated_at | Notion 연동 (기존 행은 JIRA) |
 
 #### Statistics — 통계 (1)
 
@@ -359,6 +364,8 @@ statistics:
 | V202604152100 | ticket, version_phase_test_case 생성 |
 | V202604170900 | ticket에 priority/closedAt/reopenCount 추가 + daily_test_snapshot 생성 |
 | V202604171400 | ticket severity → priority 변환 (Jira 우선순위 체계 일치) |
+| V202611040240 | test_result에 priority 추가 (v32) |
+| V202611040250 | ticket jira_key/jira_url → issue_key/issue_url, tracker 추가 (v32) |
 
 ---
 
@@ -449,7 +456,7 @@ statistics:
 |--------|----------|------|
 | GET | `/api/versions/{vid}/results` | Version 전체 TestResult |
 | GET | `/api/versions/{vid}/phases/{pid}/results` | Phase별 TestResult |
-| PATCH | `/api/versions/{vid}/results/{rid}` | 결과 상태 변경 (PASS/FAIL/...) |
+| PATCH | `/api/versions/{vid}/results/{rid}` | 결과 상태·Priority·comment 변경 |
 
 ### TestResultComment — 3개
 
@@ -459,14 +466,15 @@ statistics:
 | POST | `/api/versions/{vid}/results/{rid}/comments` | 댓글 작성 (이미지 가능) |
 | DELETE | `/api/versions/{vid}/results/{rid}/comments/{cid}` | 댓글 삭제 |
 
-### Ticket (Jira 연동) — 5개
+### Ticket — 6개
 
 | Method | Endpoint | 설명 |
 |--------|----------|------|
-| POST | `/api/versions/{vid}/results/{rid}/tickets` | Jira 티켓 생성 |
+| POST | `/api/versions/{vid}/results/{rid}/tickets` | 버그 티켓 발행 (Notion) |
 | GET | `/api/versions/{vid}/results/{rid}/tickets` | TestResult의 티켓 목록 |
 | DELETE | `/api/versions/{vid}/results/{rid}/tickets/{tid}` | 티켓 삭제 |
-| POST | `.../tickets/{tid}/refresh` | 개별 티켓 Jira 상태 동기화 |
+| POST | `.../tickets/{tid}/refresh` | 개별 티켓 상태 동기화 (Notion / 기존 Jira) |
+| GET | `/api/tickets/config` | 발행처·연동 설정 여부 |
 | POST | `/api/versions/{vid}/phases/{pid}/tickets/refresh-all` | Phase 전체 티켓 일괄 Refresh |
 
 ### FeatureImage — 1개
@@ -528,7 +536,8 @@ backend/src/main/java/com/myqaweb/
 │   ├── TestResultComment*.java         # Entity, Dto, Repository, Service, ServiceImpl, Controller
 │   ├── Ticket*.java                    # Entity, Dto, Repository, Service, ServiceImpl, Controller
 │   ├── FeatureImageController.java     # 이미지 업로드
-│   ├── JiraConfig.java / JiraService.java / JiraServiceImpl.java
+│   ├── NotionConfig.java / NotionService.java / NotionServiceImpl.java  # 버그 티켓 발행 (v32)
+│   ├── JiraConfig.java / JiraService.java / JiraServiceImpl.java        # 기존 Jira 티켓 상태 갱신
 │   ├── Platform / Priority / TestType / TestStatus / RunResultStatus / PhaseType / TicketPriority  # Enum
 │   └── TestStep.java                   # record(order, action, expected)
 │
@@ -583,6 +592,7 @@ frontend/src/
 │   └── statistics/                     # 통계 컴포넌트 (5개)
 │       ├── ReleaseReadinessCard.tsx     # Go/No-Go + KPI + 기준 체크리스트
 │       ├── TrendChartSection.tsx        # Bug 추이 + Pass Rate 차트 (recharts)
+│       ├── FailedTcList.tsx             # 미해결 FAIL 목록 (v32)
 │       ├── AgingBugList.tsx             # Aging 버그 테이블
 │       ├── BlockedTcList.tsx            # Blocked TC 테���블
 │       └── DailyReportModal.tsx         # 특정 날짜 Daily Report 모달
@@ -662,4 +672,4 @@ frontend/src/
 | v29 | 2026-10-29 | 버그 수정 | AI 전제조건 네비게이션 — TC 전제조건 반영, 첫 화면 착각 방지, 이전 액션 전달, JSON 누락 재요청·Job 전체 실패 방지 | 전제조건 오판 FAIL 제거 |
 | v30 | 2026-10-29 | 기능 개선 | AI 실행 신뢰도·속도 — 전제조건 검증, 과잉 동작 억제, 거짓 PASS 차단, 첫 실패 중단, 앱 시작 대기 (Job 33 관찰). 모델 비교 4·5단계 진행 중 | PASS 14→19, 거짓 PASS 1→0, 시간 −29% |
 | v31 | 2026-11-01 | 기능 추가 | Test Automation 실행 페이지(모달 → 페이지)·Step 스크린샷·재실행·웹 네트워크·시나리오 로그·병렬. 진행 중 | |
-| v32 | 2026-11-04 | 버그 수정, 기능 개선 | Trend 그래프 오늘 실시간 반영·시작일~릴리즈일 범위(Step 1). Fail 결과 Priority·AI 사유·Failed 목록, 버그 티켓 Notion 발행(Step 2·3). 진행 중 | 그래프 = 실제 결과 |
+| v32 | 2026-11-04 | 버그 수정, 기능 개선 | Trend 그래프 오늘 실시간·시작일~릴리즈일 범위, 결과 Priority(AI는 Unknown)·AI 사유 표시·Failed 목록, 릴리즈 판정 FAIL 기준, 50% 시점 버그 비율, 버그 티켓 Notion 발행 | 그래프 = 실제 결과, 미해결 FAIL이 있으면 NO-GO |

@@ -1,6 +1,7 @@
 package com.myqaweb.statistics;
 
 import com.myqaweb.feature.TicketPriority;
+import com.myqaweb.feature.TicketTracker;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -61,6 +62,7 @@ public class StatisticsDto {
             Integer completed,
             Integer pass,
             Integer fail,
+            Integer openFail,
             Integer blocked,
             BigDecimal overallPassRate,
             BigDecimal overallProgressRate
@@ -70,13 +72,15 @@ public class StatisticsDto {
             ReleaseReadiness releaseReadiness,
             List<TrendData> phaseTrends,
             List<AgingBugInfo> agingBugs,
-            List<BlockedTcInfo> blockedTcs
+            List<BlockedTcInfo> blockedTcs,
+            List<FailedTcInfo> failedTcs
     ) {}
 
     public record AgingBugInfo(
             Long ticketId,
-            String jiraKey,
-            String jiraUrl,
+            String issueKey,
+            String issueUrl,
+            TicketTracker tracker,
             String summary,
             TicketPriority priority,
             String phaseName,
@@ -91,5 +95,16 @@ public class StatisticsDto {
             String testCaseTitle,
             List<Long> testCasePath,
             String phaseName
+    ) {}
+
+    public record FailedTcInfo(
+            Long testResultId,
+            Long testCaseId,
+            String testCaseTitle,
+            List<Long> testCasePath,
+            Long phaseId,
+            String phaseName,
+            TicketPriority priority,
+            String comment
     ) {}
 }

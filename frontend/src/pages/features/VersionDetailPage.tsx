@@ -17,6 +17,7 @@ import { ReleaseReadinessCard } from '@/components/features/statistics/ReleaseRe
 import { TrendChartSection } from '@/components/features/statistics/TrendChartSection';
 import { AgingBugList } from '@/components/features/statistics/AgingBugList';
 import { BlockedTcList } from '@/components/features/statistics/BlockedTcList';
+import { FailedTcList } from '@/components/features/statistics/FailedTcList';
 import { DailyReportModal } from '@/components/features/statistics/DailyReportModal';
 
 export default function VersionDetailPage() {
@@ -284,6 +285,14 @@ export default function VersionDetailPage() {
       {dashboard && (
         <div className="mb-6 space-y-4">
           <ReleaseReadinessCard releaseReadiness={dashboard.releaseReadiness} />
+
+          <FailedTcList
+            failedTcs={dashboard.failedTcs}
+            segments={segments}
+            onSelect={(tc) =>
+              navigate(`/features/companies/${companyId}/products/${productId}/versions/${version.id}/phases/${tc.phaseId}`)
+            }
+          />
 
           {/* Phase Filter Tabs */}
           {version.phases.length > 0 && (

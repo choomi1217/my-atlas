@@ -109,6 +109,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle external integration failures or missing configuration (502).
+     */
+    @ExceptionHandler(ExternalServiceException.class)
+    public ResponseEntity<ApiResponse<Void>> handleExternalServiceException(ExternalServiceException ex) {
+        log.warn("External service error: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /**
      * Handle access denied (403 Forbidden).
      */
     @ExceptionHandler(AccessDeniedException.class)

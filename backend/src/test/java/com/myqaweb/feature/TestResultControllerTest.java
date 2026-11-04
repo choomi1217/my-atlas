@@ -19,6 +19,7 @@ import java.util.List;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -108,7 +109,7 @@ class TestResultControllerTest {
         // Given
         TestResultEntity testResult = createMockResult(1L, RunResultStatus.PASS, "All tests passed", LocalDateTime.now());
 
-        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.PASS), any()))
+        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.PASS), any(), any()))
                 .thenReturn(testResult);
 
         // When & Then
@@ -118,9 +119,31 @@ class TestResultControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.status", is("PASS")))
-                .andExpect(jsonPath("$.data.comment", is("All tests passed")));
+                .andExpect(jsonPath("$.data.comment", is("All tests passed")))
+                .andExpect(jsonPath("$.data.priority", nullValue()));
 
-        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.PASS), any());
+        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.PASS), eq("All tests passed"), isNull());
+    }
+
+    @Test
+    void testUpdateResult_WithPriority_PassesPriorityAndReturnsIt() throws Exception {
+        // Given
+        TestResultEntity testResult = createMockResult(1L, RunResultStatus.FAIL, "[AI FAIL] 버튼 없음", LocalDateTime.now());
+        testResult.setPriority(TicketPriority.HIGHEST);
+
+        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.FAIL), isNull(), eq(TicketPriority.HIGHEST)))
+                .thenReturn(testResult);
+
+        // When & Then
+        mockMvc.perform(patch("/api/versions/{versionId}/results/{resultId}", 1L, 1L)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"FAIL\",\"priority\":\"HIGHEST\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("FAIL")))
+                .andExpect(jsonPath("$.data.priority", is("HIGHEST")))
+                .andExpect(jsonPath("$.data.comment", is("[AI FAIL] 버튼 없음")));
+
+        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.FAIL), isNull(), eq(TicketPriority.HIGHEST));
     }
 
     @Test
@@ -128,7 +151,7 @@ class TestResultControllerTest {
         // Given
         TestResultEntity testResult = createMockResult(1L, RunResultStatus.FAIL, "Failed due to timeout", LocalDateTime.now());
 
-        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.FAIL), any()))
+        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.FAIL), any(), any()))
                 .thenReturn(testResult);
 
         // When & Then
@@ -139,7 +162,7 @@ class TestResultControllerTest {
                 .andExpect(jsonPath("$.data.status", is("FAIL")))
                 .andExpect(jsonPath("$.data.comment", is("Failed due to timeout")));
 
-        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.FAIL), any());
+        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.FAIL), any(), any());
     }
 
     @Test
@@ -147,7 +170,7 @@ class TestResultControllerTest {
         // Given
         TestResultEntity testResult = createMockResult(1L, RunResultStatus.BLOCKED, "Blocked by issue #123", LocalDateTime.now());
 
-        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.BLOCKED), any()))
+        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.BLOCKED), any(), any()))
                 .thenReturn(testResult);
 
         // When & Then
@@ -157,7 +180,7 @@ class TestResultControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("BLOCKED")));
 
-        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.BLOCKED), any());
+        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.BLOCKED), any(), any());
     }
 
     @Test
@@ -165,7 +188,7 @@ class TestResultControllerTest {
         // Given
         TestResultEntity testResult = createMockResult(1L, RunResultStatus.SKIPPED, "Skipped - not applicable to this environment", LocalDateTime.now());
 
-        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.SKIPPED), any()))
+        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.SKIPPED), any(), any()))
                 .thenReturn(testResult);
 
         // When & Then
@@ -175,7 +198,7 @@ class TestResultControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("SKIPPED")));
 
-        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.SKIPPED), any());
+        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.SKIPPED), any(), any());
     }
 
     @Test
@@ -183,7 +206,7 @@ class TestResultControllerTest {
         // Given
         TestResultEntity testResult = createMockResult(1L, RunResultStatus.RETEST, "Need retest after fix", LocalDateTime.now());
 
-        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.RETEST), any()))
+        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.RETEST), any(), any()))
                 .thenReturn(testResult);
 
         // When & Then
@@ -193,7 +216,7 @@ class TestResultControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("RETEST")));
 
-        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.RETEST), any());
+        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.RETEST), any(), any());
     }
 
     @Test
@@ -201,7 +224,7 @@ class TestResultControllerTest {
         // Given
         TestResultEntity testResult = createMockResult(1L, RunResultStatus.UNTESTED, "Reset to untested", null);
 
-        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.UNTESTED), any()))
+        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.UNTESTED), any(), any()))
                 .thenReturn(testResult);
 
         // When & Then
@@ -212,7 +235,7 @@ class TestResultControllerTest {
                 .andExpect(jsonPath("$.data.status", is("UNTESTED")))
                 .andExpect(jsonPath("$.data.executedAt", nullValue()));
 
-        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.UNTESTED), any());
+        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.UNTESTED), any(), any());
     }
 
     @Test
@@ -220,7 +243,7 @@ class TestResultControllerTest {
         // Given
         TestResultEntity testResult = createMockResult(1L, RunResultStatus.PASS, null, LocalDateTime.now());
 
-        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.PASS), any()))
+        when(testResultService.updateResult(eq(1L), eq(RunResultStatus.PASS), any(), any()))
                 .thenReturn(testResult);
 
         // When & Then
@@ -230,6 +253,6 @@ class TestResultControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)));
 
-        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.PASS), any());
+        verify(testResultService).updateResult(eq(1L), eq(RunResultStatus.PASS), any(), any());
     }
 }

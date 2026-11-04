@@ -27,9 +27,12 @@ test.describe('Ticket API E2E', () => {
   let testCaseId: number;
   let segmentId: number;
   let resultId: number;
-  let ticketId: number;
+  let notionConfigured: boolean;
 
   test.beforeAll(async () => {
+    const configResponse = await request.get('/api/tickets/config');
+    notionConfigured = (await configResponse.json() as any).data.configured === true;
+
     // Create test company
     const companyResponse = await request.post('/api/companies', {
       data: { name: 'E2E Ticket Company' },
@@ -132,93 +135,51 @@ test.describe('Ticket API E2E', () => {
     expect(body.data.length).toBe(0);
   });
 
-  test('POST /api/versions/{versionId}/results/{resultId}/tickets - Jira 미설정 시 에러', async () => {
-    // Ticket creation requires Jira env vars (JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_KEY).
-    // In CI/test without Jira config, this should return an error.
+  test('GET /api/tickets/config - tracker NOTION, configured boolean', async () => {
+    const response = await request.get('/api/tickets/config');
+    expect(response.status()).toBe(200);
+    const body = await response.json() as any;
+    expect(body.success).toBe(true);
+    expect(body.data.tracker).toBe('NOTION');
+    expect(typeof body.data.configured).toBe('boolean');
+  });
+
+  // 실제 Notion 페이지를 만들지 않도록 발행(POST)은 미설정 환경에서만 검증한다 (CI에는 Notion 토큰 없음).
+  // 발행 성공 이후의 조회·새로고침·삭제는 실제 페이지가 필요해 E2E 범위 밖이다 (단위 테스트가 담당).
+  test('POST /api/versions/{versionId}/results/{resultId}/tickets - Notion 미설정 시 502, 티켓 미생성', async () => {
+    test.skip(notionConfigured, 'Notion 연동이 설정돼 있어 실제 페이지가 생기므로 건너뜀');
+
     const response = await request.post(
       `/api/versions/${versionId}/results/${resultId}/tickets`,
       {
         data: {
           summary: 'FAIL: E2E Ticket Test',
           description: 'Test ticket from E2E',
+          priority: 'HIGH',
         },
       }
     );
 
-    // Expect either:
-    // 201 if Jira is configured (create succeeds)
-    // 500 or 400 if Jira is not configured (error)
-    const status = response.status();
+    expect(response.status()).toBe(502);
     const body = await response.json() as any;
+    expect(body.success).toBe(false);
+    expect(body.message).toContain('Notion 연동이 설정되지 않았습니다');
 
-    if (status === 201) {
-      // Jira is configured — ticket was created successfully
-      expect(body.success).toBe(true);
-      expect(body.data.jiraKey).toBeDefined();
-      expect(body.data.summary).toBe('FAIL: E2E Ticket Test');
-      expect(body.data.jiraUrl).toBeDefined();
-      expect(body.data.status).toBeDefined();
-      ticketId = body.data.id;
-    } else {
-      // Jira not configured — gracefully handle error
-      expect([400, 500]).toContain(status);
-      // Ticket operations below will be skipped
-    }
-  });
-
-  test('GET /api/versions/{versionId}/results/{resultId}/tickets - 티켓 생성 후 조회', async () => {
-    if (!ticketId) {
-      test.skip();
-      return;
-    }
-
-    const response = await request.get(
+    const listResponse = await request.get(
       `/api/versions/${versionId}/results/${resultId}/tickets`
     );
-    expect(response.status()).toBe(200);
-    const body = await response.json() as any;
-    expect(body.success).toBe(true);
-    expect(Array.isArray(body.data)).toBe(true);
-    const ticket = body.data.find((t: any) => t.id === ticketId);
-    expect(ticket).toBeDefined();
-    expect(ticket.summary).toBe('FAIL: E2E Ticket Test');
-    expect(ticket.jiraKey).toBeDefined();
+    const listBody = await listResponse.json() as any;
+    expect(listBody.data).toEqual([]);
   });
 
-  test('POST /api/versions/{versionId}/results/{resultId}/tickets/{ticketId}/refresh - 티켓 상태 새로고침', async () => {
-    if (!ticketId) {
-      test.skip();
-      return;
-    }
-
+  test('POST /api/versions/{versionId}/phases/{phaseId}/tickets/refresh-all - 티켓 없는 Phase는 0건', async () => {
     const response = await request.post(
-      `/api/versions/${versionId}/results/${resultId}/tickets/${ticketId}/refresh`
+      `/api/versions/${versionId}/phases/${phaseId}/tickets/refresh-all`
     );
     expect(response.status()).toBe(200);
     const body = await response.json() as any;
     expect(body.success).toBe(true);
-    expect(body.data.id).toBe(ticketId);
-    expect(body.data.status).toBeDefined();
-  });
-
-  test('DELETE /api/versions/{versionId}/results/{resultId}/tickets/{ticketId} - 티켓 삭제', async () => {
-    if (!ticketId) {
-      test.skip();
-      return;
-    }
-
-    const response = await request.delete(
-      `/api/versions/${versionId}/results/${resultId}/tickets/${ticketId}`
-    );
-    expect(response.status()).toBe(200);
-
-    // Verify deletion
-    const verifyResponse = await request.get(
-      `/api/versions/${versionId}/results/${resultId}/tickets`
-    );
-    const verifyBody = await verifyResponse.json() as any;
-    const deleted = verifyBody.data.find((t: any) => t.id === ticketId);
-    expect(deleted).toBeUndefined();
+    expect(body.data).toBe(0);
   });
 
   test.afterAll(async () => {

@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,7 +18,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit tests for StatisticsServiceImpl trend/daily-report logic (registry_v32 Step 1).
+ * Unit tests for StatisticsServiceImpl — trend/daily-report (registry_v32 Step 1),
+ * unresolved FAIL readiness / openFail / failedTcs (Step 2).
  */
 @ExtendWith(MockitoExtension.class)
 class StatisticsServiceImplTest {
@@ -185,6 +187,218 @@ class StatisticsServiceImplTest {
         assertEquals(today.minusDays(7), trend.from());
         verify(snapshotRepository).findAllByPhaseIdAndSnapshotDateBetweenOrderBySnapshotDateAsc(
                 PHASE_ID, today.minusDays(7), today.plusDays(3));
+    }
+
+    // --- unresolved FAILs: readiness / openFail / failedTcs (registry_v32 Step 2) ---
+
+    private VersionPhaseEntity phaseAt(Long id, int orderIndex) {
+        VersionPhaseEntity p = new VersionPhaseEntity();
+        p.setId(id);
+        p.setVersion(version);
+        p.setPhaseName(orderIndex + "차");
+        p.setOrderIndex(orderIndex);
+        return p;
+    }
+
+    private TestResultEntity result(Long id, Long tcId, VersionPhaseEntity p, RunResultStatus status,
+                                    TicketPriority priority) {
+        TestCaseEntity tc = new TestCaseEntity();
+        tc.setId(tcId);
+        tc.setTitle("TC " + tcId);
+        TestResultEntity r = new TestResultEntity();
+        r.setId(id);
+        r.setVersion(version);
+        r.setVersionPhase(p);
+        r.setTestCase(tc);
+        r.setStatus(status);
+        r.setPriority(priority);
+        return r;
+    }
+
+    private void givenResults(TestResultEntity... results) {
+        when(versionRepository.findById(VERSION_ID)).thenReturn(Optional.of(version));
+        when(testResultRepository.findAllByVersionId(VERSION_ID)).thenReturn(List.of(results));
+    }
+
+    private StatisticsDto.ReadinessCriterion criterion(StatisticsDto.ReleaseReadiness r, String name) {
+        return r.criteria().stream().filter(c -> c.name().equals(name)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void testUnresolved_FailThenPass_IsResolved() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        VersionPhaseEntity p2 = phaseAt(12L, 2);
+        // phase 2 listed first to make sure orderIndex, not list order, decides
+        givenResults(
+                result(2L, 100L, p2, RunResultStatus.PASS, null),
+                result(1L, 100L, p1, RunResultStatus.FAIL, TicketPriority.HIGHEST));
+
+        StatisticsDto.Dashboard dashboard = statisticsService.getDashboard(VERSION_ID);
+
+        assertEquals(0, dashboard.releaseReadiness().progress().openFail());
+        assertEquals(1, dashboard.releaseReadiness().progress().fail());
+        assertTrue(dashboard.failedTcs().isEmpty());
+        assertEquals("0건", criterion(dashboard.releaseReadiness(), "Highest 미해결 버그").actual());
+    }
+
+    @Test
+    void testUnresolved_FailThenUntested_StaysUnresolved() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        VersionPhaseEntity p2 = phaseAt(12L, 2);
+        givenResults(
+                result(1L, 100L, p1, RunResultStatus.FAIL, TicketPriority.HIGH),
+                result(2L, 100L, p2, RunResultStatus.UNTESTED, null));
+
+        StatisticsDto.Dashboard dashboard = statisticsService.getDashboard(VERSION_ID);
+
+        assertEquals(1, dashboard.releaseReadiness().progress().openFail());
+        assertEquals(1, dashboard.failedTcs().size());
+        assertEquals(1L, dashboard.failedTcs().get(0).testResultId());
+        assertEquals(11L, dashboard.failedTcs().get(0).phaseId());
+    }
+
+    @Test
+    void testUnresolved_PassThenFail_IsUnresolved() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        VersionPhaseEntity p2 = phaseAt(12L, 2);
+        TestResultEntity fail = result(2L, 100L, p2, RunResultStatus.FAIL, TicketPriority.MEDIUM);
+        fail.setComment("[AI FAIL] #2 FAIL: 버튼 없음");
+        givenResults(result(1L, 100L, p1, RunResultStatus.PASS, null), fail);
+
+        StatisticsDto.Dashboard dashboard = statisticsService.getDashboard(VERSION_ID);
+
+        assertEquals(1, dashboard.releaseReadiness().progress().openFail());
+        StatisticsDto.FailedTcInfo info = dashboard.failedTcs().get(0);
+        assertEquals(2L, info.testResultId());
+        assertEquals(100L, info.testCaseId());
+        assertEquals("TC 100", info.testCaseTitle());
+        assertEquals(12L, info.phaseId());
+        assertEquals("2차", info.phaseName());
+        assertEquals(TicketPriority.MEDIUM, info.priority());
+        assertEquals("[AI FAIL] #2 FAIL: 버튼 없음", info.comment());
+        assertEquals(List.of(), info.testCasePath());
+    }
+
+    @Test
+    void testUnresolved_FailInBothPhases_CountedOncePerTc() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        VersionPhaseEntity p2 = phaseAt(12L, 2);
+        givenResults(
+                result(1L, 100L, p1, RunResultStatus.FAIL, TicketPriority.HIGH),
+                result(2L, 100L, p2, RunResultStatus.FAIL, TicketPriority.LOW));
+
+        StatisticsDto.Dashboard dashboard = statisticsService.getDashboard(VERSION_ID);
+
+        StatisticsDto.VersionProgressSummary progress = dashboard.releaseReadiness().progress();
+        assertEquals(2, progress.fail());
+        assertEquals(1, progress.openFail());
+        assertEquals(1, dashboard.failedTcs().size());
+        assertEquals(TicketPriority.LOW, dashboard.failedTcs().get(0).priority());
+    }
+
+    @Test
+    void testReadiness_HighestAndHighCountedFromResultPriority() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        givenResults(
+                result(1L, 101L, p1, RunResultStatus.FAIL, TicketPriority.HIGHEST),
+                result(2L, 102L, p1, RunResultStatus.FAIL, TicketPriority.HIGH),
+                result(3L, 103L, p1, RunResultStatus.FAIL, TicketPriority.HIGH),
+                result(4L, 104L, p1, RunResultStatus.FAIL, TicketPriority.HIGH),
+                result(5L, 105L, p1, RunResultStatus.FAIL, TicketPriority.MEDIUM));
+
+        StatisticsDto.ReleaseReadiness readiness = statisticsService.getReleaseReadiness(VERSION_ID);
+
+        StatisticsDto.ReadinessCriterion highest = criterion(readiness, "Highest 미해결 버그");
+        assertEquals("1건", highest.actual());
+        assertFalse(highest.passed());
+        StatisticsDto.ReadinessCriterion high = criterion(readiness, "High 미해결 버그");
+        assertEquals("3건", high.actual());
+        assertFalse(high.passed());
+        assertFalse(readiness.ready());
+        assertEquals("NO_GO", readiness.verdict());
+        verify(ticketRepository, never()).countOpenByVersionIdAndPriority(any(), any());
+    }
+
+    @Test
+    void testReadiness_HighWithinLimit_Passes() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        givenResults(
+                result(1L, 101L, p1, RunResultStatus.FAIL, TicketPriority.HIGH),
+                result(2L, 102L, p1, RunResultStatus.FAIL, TicketPriority.HIGH));
+
+        StatisticsDto.ReleaseReadiness readiness = statisticsService.getReleaseReadiness(VERSION_ID);
+
+        assertEquals("2건", criterion(readiness, "High 미해결 버그").actual());
+        assertTrue(criterion(readiness, "High 미해결 버그").passed());
+        assertTrue(readiness.ready());
+    }
+
+    @Test
+    void testReadiness_OneUnknownPriority_NoGo() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        givenResults(
+                result(1L, 101L, p1, RunResultStatus.FAIL, null),
+                result(2L, 102L, p1, RunResultStatus.PASS, null));
+
+        StatisticsDto.ReleaseReadiness readiness = statisticsService.getReleaseReadiness(VERSION_ID);
+
+        StatisticsDto.ReadinessCriterion unconfirmed = criterion(readiness, "Priority 확인 필요");
+        assertEquals("0건 이하", unconfirmed.threshold());
+        assertEquals("1건", unconfirmed.actual());
+        assertFalse(unconfirmed.passed());
+        assertTrue(criterion(readiness, "Highest 미해결 버그").passed());
+        assertTrue(criterion(readiness, "High 미해결 버그").passed());
+        assertFalse(readiness.ready());
+        assertEquals("NO_GO", readiness.verdict());
+    }
+
+    @Test
+    void testReadiness_NoUnknownAndOtherCriteriaMet_Go() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        givenResults(
+                result(1L, 101L, p1, RunResultStatus.FAIL, TicketPriority.MEDIUM),
+                result(2L, 102L, p1, RunResultStatus.PASS, null));
+
+        StatisticsDto.ReleaseReadiness readiness = statisticsService.getReleaseReadiness(VERSION_ID);
+
+        assertEquals("0건", criterion(readiness, "Priority 확인 필요").actual());
+        assertTrue(criterion(readiness, "Priority 확인 필요").passed());
+        assertTrue(readiness.ready());
+        assertEquals("GO", readiness.verdict());
+        assertEquals(1, readiness.progress().openFail());
+    }
+
+    @Test
+    void testReadiness_UnknownResolvedByLaterPass_Go() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        VersionPhaseEntity p2 = phaseAt(12L, 2);
+        givenResults(
+                result(1L, 101L, p1, RunResultStatus.FAIL, null),
+                result(2L, 101L, p2, RunResultStatus.PASS, null));
+
+        StatisticsDto.ReleaseReadiness readiness = statisticsService.getReleaseReadiness(VERSION_ID);
+
+        assertEquals("0건", criterion(readiness, "Priority 확인 필요").actual());
+        assertEquals("GO", readiness.verdict());
+    }
+
+    @Test
+    void testDashboard_FailedTcsSortedUnknownFirstThenHighestToLowest() {
+        VersionPhaseEntity p1 = phaseAt(11L, 1);
+        givenResults(
+                result(1L, 101L, p1, RunResultStatus.FAIL, TicketPriority.LOWEST),
+                result(2L, 102L, p1, RunResultStatus.FAIL, TicketPriority.MEDIUM),
+                result(3L, 103L, p1, RunResultStatus.FAIL, null),
+                result(4L, 104L, p1, RunResultStatus.FAIL, TicketPriority.HIGHEST),
+                result(5L, 105L, p1, RunResultStatus.FAIL, TicketPriority.LOW),
+                result(6L, 106L, p1, RunResultStatus.FAIL, TicketPriority.HIGH));
+
+        List<StatisticsDto.FailedTcInfo> failed = statisticsService.getDashboard(VERSION_ID).failedTcs();
+
+        assertEquals(Arrays.asList(null, TicketPriority.HIGHEST, TicketPriority.HIGH, TicketPriority.MEDIUM,
+                        TicketPriority.LOW, TicketPriority.LOWEST),
+                failed.stream().map(StatisticsDto.FailedTcInfo::priority).toList());
+        assertEquals(103L, failed.get(0).testCaseId());
     }
 
     // --- getDailyReport ---

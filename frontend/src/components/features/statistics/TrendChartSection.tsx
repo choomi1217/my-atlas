@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  BarChart, Bar,
+  BarChart, Bar, ReferenceLine,
 } from 'recharts';
 import { TrendData } from '@/types/features';
 
@@ -36,9 +36,27 @@ export const TrendChartSection: React.FC<TrendChartSectionProps> = ({
 
   const reportsByDate = new Map((activeTrend?.dailyReports ?? []).map(r => [r.snapshotDate, r]));
 
+  const dates = activeTrend ? dateRange(activeTrend.from, activeTrend.to) : [];
+
+  // 50% point of the test period and the share of bugs registered up to it (all / High and above)
+  const midDate: string | undefined = dates[Math.ceil(dates.length / 2) - 1];
+  let allTotal = 0, allMid = 0, highTotal = 0, highMid = 0;
+  for (const r of activeTrend?.dailyReports ?? []) {
+    const high = r.newBugCritical + r.newBugMajor;
+    const all = high + r.newBugMinor + r.newBugTrivial;
+    allTotal += all;
+    highTotal += high;
+    if (midDate && r.snapshotDate <= midDate) {
+      allMid += all;
+      highMid += high;
+    }
+  }
+  const ratio = (part: number, total: number): string =>
+    total === 0 ? '-' : `${Math.round((part * 100) / total)}% (${part}/${total})`;
+
   // x axis spans from..to; days without a report stay empty (no point/bar drawn)
   const chartData = activeTrend
-    ? dateRange(activeTrend.from, activeTrend.to).map(date => {
+    ? dates.map(date => {
         const r = reportsByDate.get(date);
         return r
           ? {
@@ -106,6 +124,12 @@ export const TrendChartSection: React.FC<TrendChartSectionProps> = ({
             선택한 Phase에 스냅샷 데이터가 없습니다.
           </div>
         ) : (
+          <>
+          {activeTab === 'bug' && midDate && (
+            <p className="text-sm text-gray-600 mb-3" data-testid="bug-midpoint-ratio">
+              테스트 기간 50% 시점({midDate.slice(5)})까지 등록된 버그: 전체 {ratio(allMid, allTotal)} · High 이상 {ratio(highMid, highTotal)}
+            </p>
+          )}
           <ResponsiveContainer width="100%" height={280}>
             {activeTab === 'passRate' ? (
               <LineChart data={chartData} onClick={(e) => handleChartClick(e?.activeLabel)}>
@@ -124,6 +148,7 @@ export const TrendChartSection: React.FC<TrendChartSectionProps> = ({
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
+                <ReferenceLine x={midDate} stroke="#9ca3af" strokeDasharray="4 4" label="50%" />
                 <Bar dataKey="critical" stackId="new" fill="#ef4444" name="Critical" />
                 <Bar dataKey="major" stackId="new" fill="#f97316" name="Major" />
                 <Bar dataKey="minor" stackId="new" fill="#eab308" name="Minor" />
@@ -131,6 +156,7 @@ export const TrendChartSection: React.FC<TrendChartSectionProps> = ({
               </BarChart>
             )}
           </ResponsiveContainer>
+          </>
         )}
       </div>
     </div>

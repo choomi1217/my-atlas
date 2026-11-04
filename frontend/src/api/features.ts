@@ -20,6 +20,8 @@ import {
   TestResult,
   TestResultComment,
   Ticket,
+  TicketPriority,
+  TrackerConfig,
   FailedTestCaseInfo,
   DailyReport,
   TrendData,
@@ -605,13 +607,15 @@ export const testResultApi = {
     versionId: number,
     resultId: number,
     status: RunResultStatus,
-    comment?: string
+    comment?: string,
+    priority?: TicketPriority
   ): Promise<TestResult> => {
     const response = await apiClient.patch<ApiResponse<TestResult>>(
       `/api/versions/${versionId}/results/${resultId}`,
       {
         status,
         comment,
+        priority,
       }
     );
     return response.data.data;
@@ -696,7 +700,7 @@ export const testResultCommentApi = {
 };
 
 /**
- * Ticket (Jira issue) API endpoints.
+ * Ticket (Notion page / Jira issue) API endpoints.
  */
 export const ticketApi = {
   create: async (
@@ -704,12 +708,18 @@ export const ticketApi = {
     resultId: number,
     summary: string,
     description?: string,
-    priority?: string
+    priority?: string,
+    pageUrl?: string
   ): Promise<Ticket> => {
     const response = await apiClient.post<ApiResponse<Ticket>>(
       `/api/versions/${versionId}/results/${resultId}/tickets`,
-      { summary, description, priority }
+      { summary, description, priority, pageUrl }
     );
+    return response.data.data;
+  },
+
+  getConfig: async (): Promise<TrackerConfig> => {
+    const response = await apiClient.get<ApiResponse<TrackerConfig>>('/api/tickets/config');
     return response.data.data;
   },
 
