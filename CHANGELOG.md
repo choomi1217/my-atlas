@@ -1,5 +1,21 @@
 # Changelog
 
+## v2026.11.04 — 2026-11-04
+
+### ✨ Features
+- Registry v32 — v32 이전 FAIL priority 백필, CI FAIL도 TC priority
+- Registry v32 Step 2·3 — Fail 결과 Priority·AI 사유·FAIL 기준 판정, 버그 티켓 Notion 발행
+
+### 🐛 Fixes
+- Registry v32 Step 1 — Trend 그래프 오늘 실시간 반영·시작일~릴리즈일 범위
+
+### 📝 Docs
+- registry v32 — 릴리즈 판정을 FAIL 결과 기준으로 (결정 5)
+- registry v32 — 버그 티켓 PRD DB·양식 매핑, Jira 결정 반영
+- registry v32 — AI 결과 Priority Unknown, 그래프 범위 시작일~릴리즈일 반영
+- registry v32 계획 — Test Result 통계 버그 수정 + Fail 결과 개선
+- changelog v2026.11.03
+
 ## v2026.11.03 — 2026-11-03
 
 ### ✨ Features
