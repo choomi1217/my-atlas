@@ -13,7 +13,7 @@
 | 2 | Fail 결과 Priority · AI 사유 표시 · Failed 목록 | [Test Result 통계 개선](https://app.notion.com/p/40d107b270e880788e36c29e5d5b0043) | `feature/registry-fail-ticket` | ✅ |
 | 3 | 버그 티켓 Notion 발행 | 〃 | 〃 | ✅ |
 
-- Step마다 4-Agent Pipeline. Step 2·3은 같은 Notion 항목이라 한 PR로 올린다 (먼저 머지하면 notion-sync가 항목을 Done 처리).
+- Step마다 4-Agent Pipeline. 배포를 위해 Step 1~3을 한 PR(`feature/registry-fail-ticket`)로 올린다. PR 본문에 Notion 링크 2개 — 머지하면 notion-sync가 둘 다 Done 처리.
 - Step 2·3은 v31 Step 1과 같은 파일(`AgentExecutionServiceImpl`, `VersionPhaseDetailPage`, `types/features.ts`, `api/features.ts`)을 고치고 v31의 `utils/apiError.ts`를 쓰므로 **v31 PR 머지 후** develop에서 시작한다. Step 1은 겹치는 파일이 없다.
 
 ## 결정
@@ -192,6 +192,9 @@ ALTER TABLE ticket ADD COLUMN tracker VARCHAR(20) NOT NULL DEFAULT 'JIRA';
 - 실제 Notion 페이지가 생기지 않도록 E2E는 `GET /api/tickets/config`가 configured면 발행 테스트를 건너뛴다. 실제 발행이 필요한 연쇄 티켓 E2E 3개(생성 후 조회·새로고침·삭제)는 삭제하고 단위 테스트로 대신한다
 - 리뷰 반영: Notion 본문 섹션당 15항목(초과는 `… 외 N개`) — 긴 Steps 때문에 Actual Result가 잘리지 않게, 티켓 링크는 페이지 id 기반(제목 slug로 `issue_url` 500자 초과 방지), 빈 항목 제외, Notion 오류 메시지 노출(토큰 제외), Close 상태 초록 표시
 - 남은 공백: `qa/ui/version.spec.ts`의 `FAIL 상태 변경 시 티켓 다이얼로그 자동 표시`는 기존 `test.fixme` 연쇄로 계속 skip
+- 백필 `V202611041000`: v32 이전 FAIL은 priority가 비어 전부 `확인 필요`(NO-GO)가 되므로 빈 값만 채운다 — 티켓이 있으면 마지막 티켓 priority, 없으면 사람·CI FAIL은 TC priority, AI FAIL은 Unknown 유지. 로컬 DB 적용 결과 548·347·763·370 → GO, AI FAIL인 764는 `확인 필요 3건` 유지
+- CI 가져오기(`TestResultImportServiceImpl`) FAIL도 TC priority — `확인 필요`는 AI 결과만
+- 백필 후 Backend 994건 통과(Testcontainers Postgres에서 마이그레이션 적용 확인). 전체 E2E는 PR CI에서 다시 돈다
 
 ## 최종 요약
 

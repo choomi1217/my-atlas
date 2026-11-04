@@ -212,7 +212,7 @@ Phase 실행 화면에서 TC를 FAIL로 변경하면 버그 티켓 발행 다이
 
 - FAIL 결과마다 Priority(HIGHEST~LOWEST) 또는 Unknown
 - AI 실행 결과는 항상 Unknown(`확인 필요`) — 사람이 골라야 확정
-- 사람이 FAIL로 바꾸면 TC Priority로 자동 입력, 수정 가능
+- 사람·CI FAIL은 TC Priority로 자동 입력, 수정 가능 (v32 이전 FAIL은 마이그레이션으로 채움)
 - 티켓을 발행하면 Unknown이던 결과 Priority가 티켓 Priority로 확정
 - 결과 행에 AI 판정 사유(comment) 표시 — 접힌 행 1줄, 펼치면 전체
 
@@ -366,6 +366,7 @@ statistics:
 | V202604171400 | ticket severity → priority 변환 (Jira 우선순위 체계 일치) |
 | V202611040240 | test_result에 priority 추가 (v32) |
 | V202611040250 | ticket jira_key/jira_url → issue_key/issue_url, tracker 추가 (v32) |
+| V202611041000 | v32 이전 FAIL 결과 priority 백필 — 티켓 → TC priority, AI FAIL은 Unknown 유지 (v32) |
 
 ---
 
