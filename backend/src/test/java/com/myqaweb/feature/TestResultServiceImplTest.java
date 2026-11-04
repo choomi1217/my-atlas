@@ -59,7 +59,7 @@ class TestResultServiceImplTest {
         when(testResultRepository.save(any())).thenReturn(updated);
 
         // When
-        TestResultEntity testResult = service.updateResult(1L, RunResultStatus.PASS, "All tests passed");
+        TestResultEntity testResult = service.updateResult(1L, RunResultStatus.PASS, "All tests passed", null);
 
         // Then
         assertNotNull(testResult);
@@ -87,7 +87,7 @@ class TestResultServiceImplTest {
         when(testResultRepository.save(any())).thenReturn(updated);
 
         // When
-        TestResultEntity testResult = service.updateResult(1L, RunResultStatus.UNTESTED, "Updated to untested");
+        TestResultEntity testResult = service.updateResult(1L, RunResultStatus.UNTESTED, "Updated to untested", null);
 
         // Then
         assertEquals(RunResultStatus.UNTESTED, testResult.getStatus());
@@ -108,7 +108,7 @@ class TestResultServiceImplTest {
         when(testResultRepository.save(any())).thenReturn(updated);
 
         // When
-        TestResultEntity testResult = service.updateResult(1L, RunResultStatus.PASS, "First comment");
+        TestResultEntity testResult = service.updateResult(1L, RunResultStatus.PASS, "First comment", null);
 
         // Then
         assertEquals("First comment", testResult.getComment());
@@ -122,8 +122,120 @@ class TestResultServiceImplTest {
 
         // When & Then
         assertThrows(EntityNotFoundException.class,
-                () -> service.updateResult(999L, RunResultStatus.PASS, "Comment"));
+                () -> service.updateResult(999L, RunResultStatus.PASS, "Comment", null));
         verify(testResultRepository, never()).save(any());
+    }
+
+    // --- registry_v32 Step 2: priority / executedBy / comment ---
+
+    /** AI FAIL result with a reason and a TC of the given priority; save returns the same entity. */
+    private TestResultEntity givenAgentFail(Priority tcPriority) {
+        TestCaseEntity tc = new TestCaseEntity();
+        tc.setId(10L);
+        tc.setPriority(tcPriority);
+        result.setTestCase(tc);
+        result.setStatus(RunResultStatus.FAIL);
+        result.setExecutedBy(ExecutedBy.AGENT);
+        result.setComment("[AI FAIL] #2 FAIL: 버튼 없음");
+        when(testResultRepository.findById(1L)).thenReturn(Optional.of(result));
+        when(testResultRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        return result;
+    }
+
+    @Test
+    void testUpdateResult_StatusChanged_SwitchesToHuman() {
+        givenAgentFail(Priority.MEDIUM);
+
+        TestResultEntity updated = service.updateResult(1L, RunResultStatus.PASS, null, null);
+
+        assertEquals(ExecutedBy.HUMAN, updated.getExecutedBy());
+        assertEquals(RunResultStatus.PASS, updated.getStatus());
+    }
+
+    @Test
+    void testUpdateResult_PriorityOnly_KeepsAgent() {
+        givenAgentFail(Priority.MEDIUM);
+
+        TestResultEntity updated = service.updateResult(1L, RunResultStatus.FAIL, null, TicketPriority.HIGHEST);
+
+        assertEquals(ExecutedBy.AGENT, updated.getExecutedBy());
+        assertEquals(TicketPriority.HIGHEST, updated.getPriority());
+    }
+
+    @Test
+    void testUpdateResult_NullComment_KeepsExistingComment() {
+        givenAgentFail(Priority.MEDIUM);
+
+        TestResultEntity updated = service.updateResult(1L, RunResultStatus.PASS, null, null);
+
+        assertEquals("[AI FAIL] #2 FAIL: 버튼 없음", updated.getComment());
+    }
+
+    @Test
+    void testUpdateResult_CommentGiven_Overwrites() {
+        givenAgentFail(Priority.MEDIUM);
+
+        TestResultEntity updated = service.updateResult(1L, RunResultStatus.FAIL, "사람 메모", null);
+
+        assertEquals("사람 메모", updated.getComment());
+    }
+
+    @Test
+    void testUpdateResult_FailWithoutPriority_HighTcMapsToHigh() {
+        assertFailMapsTcPriority(Priority.HIGH, TicketPriority.HIGH);
+    }
+
+    @Test
+    void testUpdateResult_FailWithoutPriority_MediumTcMapsToMedium() {
+        assertFailMapsTcPriority(Priority.MEDIUM, TicketPriority.MEDIUM);
+    }
+
+    @Test
+    void testUpdateResult_FailWithoutPriority_LowTcMapsToLow() {
+        assertFailMapsTcPriority(Priority.LOW, TicketPriority.LOW);
+    }
+
+    private void assertFailMapsTcPriority(Priority tcPriority, TicketPriority expected) {
+        TestCaseEntity tc = new TestCaseEntity();
+        tc.setPriority(tcPriority);
+        result.setTestCase(tc);
+        result.setStatus(RunResultStatus.UNTESTED);
+        when(testResultRepository.findById(1L)).thenReturn(Optional.of(result));
+        when(testResultRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        TestResultEntity updated = service.updateResult(1L, RunResultStatus.FAIL, null, null);
+
+        assertEquals(expected, updated.getPriority());
+        assertEquals(ExecutedBy.HUMAN, updated.getExecutedBy());
+    }
+
+    @Test
+    void testUpdateResult_RequestPriorityWinsOverTcPriority() {
+        givenAgentFail(Priority.LOW);
+        result.setStatus(RunResultStatus.UNTESTED);
+
+        TestResultEntity updated = service.updateResult(1L, RunResultStatus.FAIL, null, TicketPriority.HIGHEST);
+
+        assertEquals(TicketPriority.HIGHEST, updated.getPriority());
+    }
+
+    @Test
+    void testUpdateResult_FailWithExistingPriority_NotOverwrittenByTc() {
+        givenAgentFail(Priority.LOW);
+        result.setPriority(TicketPriority.HIGHEST);
+
+        TestResultEntity updated = service.updateResult(1L, RunResultStatus.FAIL, null, null);
+
+        assertEquals(TicketPriority.HIGHEST, updated.getPriority());
+    }
+
+    @Test
+    void testUpdateResult_PassWithoutPriority_StaysUnknown() {
+        givenAgentFail(Priority.HIGH);
+
+        TestResultEntity updated = service.updateResult(1L, RunResultStatus.PASS, null, null);
+
+        assertNull(updated.getPriority());
     }
 
     @Test

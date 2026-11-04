@@ -10,6 +10,7 @@ import {
   RunResultStatus,
   ProgressStats,
   TicketPriority,
+  TicketTracker,
 } from '@/types/features';
 import {
   versionApi,
@@ -25,6 +26,7 @@ import ResultStatusBadge from '@/components/features/ResultStatusBadge';
 import StatusButtonGroup from '@/components/features/StatusButtonGroup';
 import CommentThread from '@/components/features/CommentThread';
 import ImageRefText from '@/components/features/ImageRefText';
+import { apiErrorMessage } from '@/utils/apiError';
 
 interface ResultPathTreeNode {
   segmentIds: number[];
@@ -47,8 +49,10 @@ interface ResultRowProps {
   statusColors: Record<RunResultStatus, string>;
   toggleExpand: (id: number) => void;
   handleStatusChange: (resultId: number, status: RunResultStatus) => void;
+  handlePriorityChange: (resultId: number, priority: TicketPriority) => void;
   setTicketSummary: (s: string) => void;
   setTicketDescription: (s: string) => void;
+  setTicketPriority: (p: TicketPriority | '') => void;
   setTicketDialogResultId: (id: number | null) => void;
   setTicketError: (e: string | null) => void;
   handleRefreshTicket: (resultId: number, ticketId: number) => void;
@@ -62,8 +66,8 @@ interface ResultRowProps {
 
 function ResultRow({
   result, tc, isExpanded, resultTickets, ticketCount, statusColors,
-  toggleExpand, handleStatusChange, setTicketSummary, setTicketDescription,
-  setTicketDialogResultId, setTicketError, handleRefreshTicket,
+  toggleExpand, handleStatusChange, handlePriorityChange, setTicketSummary, setTicketDescription,
+  setTicketPriority, setTicketDialogResultId, setTicketError, handleRefreshTicket,
   getTicketStatusColor, loadComments, comments, versionId, phase, version,
 }: ResultRowProps) {
   return (
@@ -86,10 +90,37 @@ function ResultRow({
           )}
         </div>
         <div className="flex items-center gap-3 shrink-0 ml-4">
+          {result.status === RunResultStatus.FAIL && (
+            <select
+              data-testid="result-priority-select"
+              value={result.priority ?? ''}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                e.stopPropagation();
+                handlePriorityChange(result.id, e.target.value as TicketPriority);
+              }}
+              className="text-xs border border-gray-300 rounded px-1.5 py-1 bg-white"
+            >
+              {!result.priority && <option value="" disabled>확인 필요</option>}
+              {Object.values(TicketPriority).map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          )}
           <StatusButtonGroup current={result.status} onChange={(s) => handleStatusChange(result.id, s)} />
           <span className="text-gray-400 text-sm">{isExpanded ? '▲' : '▼'}</span>
         </div>
       </div>
+
+      {!isExpanded && result.comment && (result.status === RunResultStatus.FAIL || result.status === RunResultStatus.RETEST) && (
+        <p
+          data-testid="result-comment-preview"
+          className="px-4 pb-3 -mt-2 text-xs text-gray-500 truncate cursor-pointer"
+          onClick={() => toggleExpand(result.id)}
+        >
+          {result.comment}
+        </p>
+      )}
 
       {isExpanded && tc && (
         <div className="border-t border-gray-200 p-4 bg-white rounded-b-lg">
@@ -135,6 +166,12 @@ function ResultRow({
                 </ol>
               </div>
             )}
+            {result.comment && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">실행 결과</h4>
+                <p data-testid="result-comment" className="text-sm text-gray-600 whitespace-pre-wrap">{result.comment}</p>
+              </div>
+            )}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-semibold text-gray-700">Tickets</h4>
@@ -143,6 +180,7 @@ function ResultRow({
                     e.stopPropagation();
                     setTicketSummary(`FAIL: ${result.testCaseTitle}`);
                     setTicketDescription(`Phase: ${phase.phaseName}\nVersion: ${version?.name || ''}`);
+                    setTicketPriority(result.priority ?? '');
                     setTicketDialogResultId(result.id);
                     setTicketError(null);
                   }}
@@ -157,16 +195,19 @@ function ResultRow({
                 <div className="space-y-1">
                   {resultTickets.map((t) => (
                     <div key={t.id} className="flex items-center gap-2 text-sm p-2 bg-gray-50 rounded">
-                      <span className="font-mono text-xs text-purple-700">{t.jiraKey}</span>
+                      <span className="font-mono text-xs text-purple-700">
+                        {t.tracker === TicketTracker.NOTION ? 'Notion' : t.issueKey}
+                      </span>
                       <span className="flex-1 truncate text-gray-700">{t.summary}</span>
                       <span className={`text-xs px-1.5 py-0.5 rounded ${getTicketStatusColor(t.status)}`}>{t.status}</span>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleRefreshTicket(result.id, t.id); }}
                         className="text-xs text-gray-400 hover:text-blue-600" title="상태 새로고침"
                       >&#x21bb;</button>
-                      <a href={t.jiraUrl} target="_blank" rel="noopener noreferrer"
+                      <a href={t.issueUrl} target="_blank" rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="text-xs text-blue-500 hover:text-blue-700" title="Jira에서 보기"
+                        className="text-xs text-blue-500 hover:text-blue-700"
+                        title={t.tracker === TicketTracker.NOTION ? 'Notion에서 보기' : 'Jira에서 보기'}
                       >&#x2197;</a>
                     </div>
                   ))}
@@ -188,8 +229,8 @@ function ResultRow({
 
 function ResultTreeGroup({
   node, depth, getTestCaseDetail, expandedResultId, toggleExpand,
-  tickets, comments, statusColors, handleStatusChange,
-  setTicketSummary, setTicketDescription, setTicketDialogResultId, setTicketError,
+  tickets, comments, statusColors, handleStatusChange, handlePriorityChange,
+  setTicketSummary, setTicketDescription, setTicketPriority, setTicketDialogResultId, setTicketError,
   handleRefreshTicket, getTicketStatusColor, loadComments, versionId, phase, version,
 }: {
   node: ResultPathTreeNode;
@@ -201,8 +242,10 @@ function ResultTreeGroup({
   comments: Record<number, TestResultComment[]>;
   statusColors: Record<RunResultStatus, string>;
   handleStatusChange: (resultId: number, status: RunResultStatus) => void;
+  handlePriorityChange: (resultId: number, priority: TicketPriority) => void;
   setTicketSummary: (s: string) => void;
   setTicketDescription: (s: string) => void;
+  setTicketPriority: (p: TicketPriority | '') => void;
   setTicketDialogResultId: (id: number | null) => void;
   setTicketError: (e: string | null) => void;
   handleRefreshTicket: (resultId: number, ticketId: number) => void;
@@ -254,8 +297,10 @@ function ResultTreeGroup({
                   statusColors={statusColors}
                   toggleExpand={toggleExpand}
                   handleStatusChange={handleStatusChange}
+                  handlePriorityChange={handlePriorityChange}
                   setTicketSummary={setTicketSummary}
                   setTicketDescription={setTicketDescription}
+                  setTicketPriority={setTicketPriority}
                   setTicketDialogResultId={setTicketDialogResultId}
                   setTicketError={setTicketError}
                   handleRefreshTicket={handleRefreshTicket}
@@ -282,8 +327,10 @@ function ResultTreeGroup({
             comments={comments}
             statusColors={statusColors}
             handleStatusChange={handleStatusChange}
+            handlePriorityChange={handlePriorityChange}
             setTicketSummary={setTicketSummary}
             setTicketDescription={setTicketDescription}
+            setTicketPriority={setTicketPriority}
             setTicketDialogResultId={setTicketDialogResultId}
             setTicketError={setTicketError}
             handleRefreshTicket={handleRefreshTicket}
@@ -322,11 +369,25 @@ export default function VersionPhaseDetailPage() {
   const [ticketDialogResultId, setTicketDialogResultId] = useState<number | null>(null);
   const [ticketSummary, setTicketSummary] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
-  const [ticketPriority, setTicketPriority] = useState<TicketPriority>(TicketPriority.MEDIUM);
+  const [ticketPriority, setTicketPriority] = useState<TicketPriority | ''>('');
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [trackerConfigured, setTrackerConfigured] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const config = await ticketApi.getConfig();
+        if (!cancelled) setTrackerConfigured(config.configured);
+      } catch {
+        if (!cancelled) setTrackerConfigured(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!versionId || !phaseId || !productId) return;
@@ -467,11 +528,23 @@ export default function VersionPhaseDetailPage() {
         const result = results.find((r) => r.id === resultId);
         setTicketSummary(`FAIL: ${result?.testCaseTitle || 'TC-' + resultId}`);
         setTicketDescription(`Phase: ${phase?.phaseName || ''}\nVersion: ${version?.name || ''}`);
+        setTicketPriority(updated.priority ?? '');
         setTicketDialogResultId(resultId);
         setTicketError(null);
       }
     } catch (err) {
       console.error('Failed to update result:', err);
+    }
+  };
+
+  const handlePriorityChange = async (resultId: number, priority: TicketPriority) => {
+    const result = results.find((r) => r.id === resultId);
+    if (!versionId || !result) return;
+    try {
+      const updated = await testResultApi.updateResult(Number(versionId), resultId, result.status, undefined, priority);
+      setResults((prev) => prev.map((r) => (r.id === resultId ? updated : r)));
+    } catch (err) {
+      console.error('Failed to update priority:', err);
     }
   };
 
@@ -496,19 +569,20 @@ export default function VersionPhaseDetailPage() {
   }, [versionId]);
 
   const handleCreateTicket = async () => {
-    if (!versionId || !ticketDialogResultId || !ticketSummary.trim()) return;
+    if (!versionId || !ticketDialogResultId || !ticketSummary.trim() || !ticketPriority) return;
     setIsCreatingTicket(true);
     setTicketError(null);
     try {
-      await ticketApi.create(Number(versionId), ticketDialogResultId, ticketSummary.trim(), ticketDescription.trim(), ticketPriority);
+      await ticketApi.create(Number(versionId), ticketDialogResultId, ticketSummary.trim(), ticketDescription.trim(), ticketPriority, window.location.href);
       await loadTickets(ticketDialogResultId);
+      // 결과 Priority가 Unknown이었으면 티켓 발행으로 확정된다 (백엔드와 동일하게 로컬 반영)
+      setResults((prev) => prev.map((r) => (r.id === ticketDialogResultId && !r.priority ? { ...r, priority: ticketPriority } : r)));
       setTicketDialogResultId(null);
       setTicketSummary('');
       setTicketDescription('');
-      setTicketPriority(TicketPriority.MEDIUM);
+      setTicketPriority('');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Jira 티켓 생성 실패';
-      setTicketError(`Jira 연결을 확인하세요: ${msg}`);
+      setTicketError(apiErrorMessage(err, '티켓 발행 실패'));
     } finally {
       setIsCreatingTicket(false);
     }
@@ -567,7 +641,7 @@ export default function VersionPhaseDetailPage() {
 
   const getTicketStatusColor = (status: string): string => {
     const lower = status.toLowerCase();
-    if (lower.includes('done') || lower.includes('완료') || lower.includes('closed')) return 'bg-green-100 text-green-700';
+    if (lower.includes('done') || lower.includes('완료') || lower.includes('close')) return 'bg-green-100 text-green-700';
     if (lower.includes('progress') || lower.includes('진행')) return 'bg-blue-100 text-blue-700';
     return 'bg-gray-100 text-gray-700';
   };
@@ -662,8 +736,10 @@ export default function VersionPhaseDetailPage() {
                 comments={comments}
                 statusColors={statusColors}
                 handleStatusChange={handleStatusChange}
+                handlePriorityChange={handlePriorityChange}
                 setTicketSummary={setTicketSummary}
                 setTicketDescription={setTicketDescription}
+                setTicketPriority={setTicketPriority}
                 setTicketDialogResultId={setTicketDialogResultId}
                 setTicketError={setTicketError}
                 handleRefreshTicket={handleRefreshTicket}
@@ -698,8 +774,10 @@ export default function VersionPhaseDetailPage() {
                         statusColors={statusColors}
                         toggleExpand={toggleExpand}
                         handleStatusChange={handleStatusChange}
+                        handlePriorityChange={handlePriorityChange}
                         setTicketSummary={setTicketSummary}
                         setTicketDescription={setTicketDescription}
+                        setTicketPriority={setTicketPriority}
                         setTicketDialogResultId={setTicketDialogResultId}
                         setTicketError={setTicketError}
                         handleRefreshTicket={handleRefreshTicket}
@@ -721,10 +799,16 @@ export default function VersionPhaseDetailPage() {
 
       {/* Ticket Creation Dialog */}
       {ticketDialogResultId !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div data-testid="ticket-dialog" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">Jira 티켓 발행</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-1">버그 티켓 발행 (Notion)</h3>
             <p className="text-sm text-gray-500 mb-4">테스트 결과가 Fail로 변경되었습니다.</p>
+
+            {!trackerConfigured && (
+              <div data-testid="ticket-config-warning" className="mb-3 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded">
+                Notion 연동이 설정되지 않아 발행할 수 없습니다.
+              </div>
+            )}
 
             {ticketError && (
               <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded">
@@ -749,6 +833,7 @@ export default function VersionPhaseDetailPage() {
                   onChange={(e) => setTicketPriority(e.target.value as TicketPriority)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
+                  {ticketPriority === '' && <option value="" disabled>Priority 선택</option>}
                   {Object.values(TicketPriority).map((p) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
@@ -773,7 +858,7 @@ export default function VersionPhaseDetailPage() {
               </button>
               <button
                 onClick={handleCreateTicket}
-                disabled={isCreatingTicket || !ticketSummary.trim()}
+                disabled={isCreatingTicket || !trackerConfigured || !ticketSummary.trim() || !ticketPriority}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {isCreatingTicket ? '발행 중...' : '티켓 발행'}

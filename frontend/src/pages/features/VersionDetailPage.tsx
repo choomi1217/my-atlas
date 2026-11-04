@@ -17,6 +17,7 @@ import { ReleaseReadinessCard } from '@/components/features/statistics/ReleaseRe
 import { TrendChartSection } from '@/components/features/statistics/TrendChartSection';
 import { AgingBugList } from '@/components/features/statistics/AgingBugList';
 import { BlockedTcList } from '@/components/features/statistics/BlockedTcList';
+import { FailedTcList } from '@/components/features/statistics/FailedTcList';
 import { DailyReportModal } from '@/components/features/statistics/DailyReportModal';
 
 export default function VersionDetailPage() {
@@ -247,6 +248,8 @@ export default function VersionDetailPage() {
     return <div className="p-6 text-center text-gray-600">버전을 찾을 수 없습니다</div>;
   }
 
+  const chartPhaseId = selectedPhaseFilter ?? version.phases[0]?.id ?? null;
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -283,17 +286,23 @@ export default function VersionDetailPage() {
         <div className="mb-6 space-y-4">
           <ReleaseReadinessCard releaseReadiness={dashboard.releaseReadiness} />
 
+          <FailedTcList
+            failedTcs={dashboard.failedTcs}
+            segments={segments}
+            onSelect={(tc) =>
+              navigate(`/features/companies/${companyId}/products/${productId}/versions/${version.id}/phases/${tc.phaseId}`)
+            }
+          />
+
           {/* Phase Filter Tabs */}
           {version.phases.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               {version.phases.map(phase => (
                 <button
                   key={phase.id}
-                  onClick={() => setSelectedPhaseFilter(
-                    selectedPhaseFilter === phase.id ? null : phase.id
-                  )}
+                  onClick={() => setSelectedPhaseFilter(phase.id)}
                   className={`px-3 py-1.5 rounded text-sm font-medium border ${
-                    selectedPhaseFilter === phase.id
+                    chartPhaseId === phase.id
                       ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
                       : 'text-gray-500 border-gray-200 hover:text-gray-700 hover:border-gray-300'
                   }`}
@@ -306,7 +315,7 @@ export default function VersionDetailPage() {
 
           <TrendChartSection
             phaseTrends={dashboard.phaseTrends}
-            selectedPhaseId={selectedPhaseFilter || (version.phases[0]?.id ?? null)}
+            selectedPhaseId={chartPhaseId}
             onDateClick={(phaseId, date) => {
               setDailyReportPhaseId(phaseId);
               setDailyReportDate(date);

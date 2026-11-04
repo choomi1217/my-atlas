@@ -20,7 +20,7 @@ export const ReleaseReadinessCard: React.FC<ReleaseReadinessCardProps> = ({ rele
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <KpiCard label="Pass Rate" value={`${progress.overallPassRate}%`} />
-        <KpiCard label="Open Bug" value={`${progress.fail}건`} />
+        <KpiCard label="Open Bug" value={`${progress.openFail}건`} />
         <KpiCard label="Highest" value={`${criteria.find(c => c.name.includes('Highest'))?.actual || '0건'}`} />
         <KpiCard label="진행률" value={`${progress.overallProgressRate}%`} />
       </div>

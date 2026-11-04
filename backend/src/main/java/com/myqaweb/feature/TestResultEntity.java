@@ -45,6 +45,11 @@ public class TestResultEntity {
     @Column(name = "agent_execution_result_id")
     private Long agentExecutionResultId;
 
+    /** 결과 Priority (null = Unknown, AI 결과는 사람 확인 전까지 Unknown) — registry_v32 */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private TicketPriority priority;
+
     @Column(columnDefinition = "TEXT")
     private String comment;
 

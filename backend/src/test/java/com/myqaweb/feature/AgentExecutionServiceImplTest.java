@@ -633,6 +633,10 @@ class AgentExecutionServiceImplTest {
 
     /** 재실행(PHASE_SELECTED) 결과는 사람이 입력한 Phase 결과도 덮어쓴다 (registry_v31 결정 #1). */
     private TestResultEntity recordOverHumanResult(String aiFailureAnalysis) {
+        return recordOverHumanResult(AgentVerdict.FAIL, aiFailureAnalysis);
+    }
+
+    private TestResultEntity recordOverHumanResult(AgentVerdict verdict, String aiFailureAnalysis) {
         AgentExecutionJobEntity j = job(1L, AgentExecutionScope.PHASE_SELECTED, AgentExecutionStatus.RUNNING, 99L);
         when(jobRepository.findById(1L)).thenReturn(Optional.of(j));
         when(resultRepository.save(any())).thenAnswer(inv -> {
@@ -647,10 +651,11 @@ class AgentExecutionServiceImplTest {
         human.setStatus(RunResultStatus.PASS);
         human.setExecutedBy(ExecutedBy.HUMAN);
         human.setComment("사람 메모");
+        human.setPriority(TicketPriority.HIGH);
         when(testResultRepository.findByVersionPhaseIdAndTestCaseId(99L, 7L)).thenReturn(Optional.of(human));
 
         service.recordResult(1L, new AgentExecutionDto.RecordResultRequest(
-                7L, AgentVerdict.FAIL, null, aiFailureAnalysis, 100L, 10));
+                7L, verdict, null, aiFailureAnalysis, 100L, 10));
 
         verify(testResultRepository).save(human);
         verify(testCaseRepository, never()).getReferenceById(any());
@@ -668,12 +673,61 @@ class AgentExecutionServiceImplTest {
         assertThat(saved.getComment()).isEqualTo("재실행 실패");
     }
 
+    /** registry_v32: AI comment always overwrites — no analysis means no stale reason left behind. */
     @Test
-    void recordResult_phaseSelected_withoutAnalysis_keepsHumanComment() {
+    void recordResult_phaseSelected_withoutAnalysis_clearsComment() {
         TestResultEntity saved = recordOverHumanResult(null);
 
         assertThat(saved.getExecutedBy()).isEqualTo(ExecutedBy.AGENT);
-        assertThat(saved.getComment()).isEqualTo("사람 메모");
+        assertThat(saved.getComment()).isNull();
+    }
+
+    @Test
+    void recordResult_blankAnalysis_clearsComment() {
+        TestResultEntity saved = recordOverHumanResult("   ");
+
+        assertThat(saved.getComment()).isNull();
+    }
+
+    @Test
+    void recordResult_aiResult_priorityIsUnknown() {
+        TestResultEntity saved = recordOverHumanResult("재실행 실패");
+
+        assertThat(saved.getPriority()).isNull();
+    }
+
+    @Test
+    void recordResult_passRerun_clearsPreviousFailReason() {
+        TestResultEntity saved = recordOverHumanResult(AgentVerdict.PASS, null);
+
+        assertThat(saved.getStatus()).isEqualTo(RunResultStatus.PASS);
+        assertThat(saved.getComment()).isNull();
+        assertThat(saved.getPriority()).isNull();
+    }
+
+    @Test
+    void recordResult_newResult_priorityIsUnknown() {
+        AgentExecutionJobEntity j = job(1L, AgentExecutionScope.PHASE_ALL, AgentExecutionStatus.RUNNING, 99L);
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(j));
+        when(resultRepository.save(any())).thenAnswer(inv -> {
+            AgentExecutionResultEntity r = inv.getArgument(0);
+            r.setId(50L);
+            return r;
+        });
+        VersionPhaseEntity phase = new VersionPhaseEntity();
+        phase.setVersion(new VersionEntity());
+        when(versionPhaseRepository.findById(99L)).thenReturn(Optional.of(phase));
+        when(testResultRepository.findByVersionPhaseIdAndTestCaseId(99L, 7L)).thenReturn(Optional.empty());
+        when(testCaseRepository.getReferenceById(7L)).thenReturn(new TestCaseEntity());
+
+        service.recordResult(1L, new AgentExecutionDto.RecordResultRequest(
+                7L, AgentVerdict.FAIL, null, "[AI FAIL] #2 FAIL: 버튼 없음", 100L, 10));
+
+        ArgumentCaptor<TestResultEntity> cap = ArgumentCaptor.forClass(TestResultEntity.class);
+        verify(testResultRepository).save(cap.capture());
+        assertThat(cap.getValue().getStatus()).isEqualTo(RunResultStatus.FAIL);
+        assertThat(cap.getValue().getPriority()).isNull();
+        assertThat(cap.getValue().getComment()).isEqualTo("[AI FAIL] #2 FAIL: 버튼 없음");
     }
 
     // --- completeJob ---

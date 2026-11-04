@@ -14,6 +14,4 @@ public class JiraConfig {
     private String baseUrl;
     private String email;
     private String apiKey;
-    private String defaultProjectKey;
-    private String issueTypeId;
 }

@@ -47,7 +47,8 @@ public class TestResultController {
         TestResultEntity result = testResultService.updateResult(
                 resultId,
                 request.status(),
-                request.comment()
+                request.comment(),
+                request.priority()
         );
         return ResponseEntity.ok(new ApiResponse<>(true, "Result updated", toResponse(result)));
     }
@@ -60,6 +61,7 @@ public class TestResultController {
                 entity.getTestCase().getId(),
                 entity.getTestCase().getTitle(),
                 entity.getStatus(),
+                entity.getPriority(),
                 entity.getComment(),
                 entity.getExecutedAt(),
                 entity.getExecutedBy(),
@@ -71,7 +73,8 @@ public class TestResultController {
 
     public record UpdateResultRequest(
             RunResultStatus status,
-            String comment
+            String comment,
+            TicketPriority priority
     ) {}
 
     public record TestResultResponse(
@@ -81,6 +84,7 @@ public class TestResultController {
             Long testCaseId,
             String testCaseTitle,
             RunResultStatus status,
+            TicketPriority priority,
             String comment,
             LocalDateTime executedAt,
             ExecutedBy executedBy,
